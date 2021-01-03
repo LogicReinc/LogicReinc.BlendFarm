@@ -6,6 +6,8 @@ When I was trying to build a render server I was suprised most network renderers
 Originally I only planned on using it for myself, but decided to make it more production ready and release it to the public, and hopefully solve this for others. 
 It consumed more time than I had planned.
 
+![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/simplerender.gif)
+
 ## Why a Network Renderer
 ----
 Not everyone has RTX 3090's stacked up, and even if you do, you can only run maybe 2 in the same system. A network renderer allows you to use multiple pcs in your network to work on a single image or animation. Old hardware that is still relatively fast can be used to accelerate your rendering or live preview. 
@@ -45,6 +47,13 @@ ___
 Quite some time went into getting this up. If you enjoy the software, please consider dropping a donation on my Patreon.
 https://patreon.com/LogicReinc
 ---
+## Planned
+ - Auto-discovery (asap)
+ - OPTIX
+ - GPU Take over CPU (when 2.92.0 releases)
+ - General Improvement
+ - More Testing
+
 ## Limitations
 -----
 ### Syncing
