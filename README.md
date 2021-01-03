@@ -7,6 +7,7 @@ Originally I only planned on using it for myself, but decided to make it more pr
 It consumed more time than I had planned.
 
 ![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/simplerender.gif)
+(TODO: Replace with a render using multiple pcs with heavier load)
 
 ## Why a Network Renderer
 ----
