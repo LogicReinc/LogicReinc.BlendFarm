@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace LogicReinc.BlendFarm.Shared
 {
@@ -87,6 +88,9 @@ namespace LogicReinc.BlendFarm.Shared
                     versions.AddRange(submapping.Values.Where(x => x.HasAll).ToList());
                 }
                 List<BlenderVersion> vs = versions.OrderByDescending(x => x.Date).ToList();
+
+                //Prevent server spam
+                Thread.Sleep(500);
 
                 Cache.UpdateCache(vs);
                 return vs;

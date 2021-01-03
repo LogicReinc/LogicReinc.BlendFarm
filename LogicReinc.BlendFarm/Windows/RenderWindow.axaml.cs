@@ -158,7 +158,7 @@ namespace LogicReinc.BlendFarm.Windows
         {
             if (!string.IsNullOrEmpty(InputClientAddress) && !string.IsNullOrEmpty(InputClientName))
             {
-                if(!BlendFarmSettings.Instance.PastClients.Any(x=>x.Key == InputClientName || x.Value.Address == InputClientAddress))
+                if(BlendFarmSettings.Instance.PastClients.Any(x=>x.Key == InputClientName || x.Value.Address == InputClientAddress))
                 {
                     MessageWindow.Show(this, "Node already exists", "Node already exists, use a different name and address");
                     return;
