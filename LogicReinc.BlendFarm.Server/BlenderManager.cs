@@ -1,0 +1,393 @@
+﻿using LogicReinc.BlendFarm.Shared;
+using SharpCompress.Readers;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Net;
+using System.Reflection;
+using System.Text;
+using System.Text.Json;
+
+namespace LogicReinc.BlendFarm.Server
+{
+    /// <summary>
+    /// Manages different versions of Blender and their usage
+    /// Assumes maximum of one render active at a time.
+    /// </summary>
+    public class BlenderManager
+    {
+        private static string _scripts = null;
+
+        public BlenderProcess RenderProcess { get; private set; }
+        public string RenderSession { get; private set; }
+        public bool Busy { get; private set; }
+
+        /// <summary>
+        /// Directory where versions of Blender are saved
+        /// </summary>
+        public string BlenderData { get; set; }
+        /// <summary>
+        /// Directory where temporary renders are saved
+        /// </summary>
+        public string RenderData { get; set; }
+
+        /// <summary>
+        /// Use Settings.Instance for directories 
+        /// </summary>
+        public BlenderManager()
+        {
+            BlenderData = Settings.Instance.BlenderData;
+            RenderData = Settings.Instance.RenderData;
+        }
+        /// <summary>
+        /// Use specific BlenderData and RenderData directories
+        /// </summary>
+        public BlenderManager(string blenderData, string renderData)
+        {
+            BlenderData = blenderData;
+            RenderData = renderData;
+        }
+
+        /// <summary>
+        /// Returns formatted BlenderData directory path
+        /// </summary>
+        /// <returns></returns>
+        public string GetBlenderDataPath()
+        {
+            return Path.GetFullPath(BlenderData);
+        }
+        /// <summary>
+        /// Returns formatted path to a blender version directory (specific os)
+        /// </summary>
+        public string GetVersionPath(string version, string os)
+        {
+            return Path.Combine(GetBlenderDataPath(), $"{version}-{os}");
+        }
+        /// <summary>
+        /// Returns formatted path to the render script, if it doesn't exist or is outdated, write it.
+        /// Changed script is ignored if Settings.BypassScriptUpdate is true
+        /// </summary>
+        public string GetRenderScriptPath()
+        {
+            string path = Path.GetFullPath(Path.Combine(BlenderData, $"render.py"));
+            if (!File.Exists(path) || (!Settings.Instance.BypassScriptUpdate && File.ReadAllText(path) != _scripts))
+            {
+                Directory.CreateDirectory(GetBlenderDataPath());
+                File.WriteAllText(path, GetRenderScript());
+            }
+            return path;
+        }
+
+        /// <summary>
+        /// Returns OS version, Blender formatted (eg. windows64, linux64)
+        /// </summary>
+        public string GetOSVersion()
+        {
+            return SystemInfo.GetOSName();
+        }
+
+        /// <summary>
+        /// Check if a specific version of Blender is present
+        /// </summary>
+        public bool IsVersionAvailable(string version)
+        {
+            return Directory.Exists(GetVersionPath(version, SystemInfo.GetOSName()));
+        }
+        /// <summary>
+        /// Attempt to provide a version of Blender
+        /// </summary>
+        public bool TryPrepare(string version)
+        {
+            try
+            {
+                Prepare(version);
+                return true;
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine("TryPrepare failed due to: " + ex.Message);
+                return false;
+            }
+        }
+        /// <summary>
+        /// Prepare a version of Blender
+        /// </summary>
+        /// <param name="version"></param>
+        public void Prepare(string version)
+        {
+            BlenderVersion v = BlenderVersion.FindVersion(version);
+
+            if (v == null)
+                throw new ArgumentException("Version not found");
+
+            string targetDir = GetVersionPath(version, SystemInfo.GetOSName());
+
+            if (Directory.Exists(targetDir))
+                Console.WriteLine($"{version} already present");
+            else
+                Download(SystemInfo.GetOSName(), v);
+        }
+        /// <summary>
+        /// Download a specific version of Blender for OS
+        /// </summary>
+        public void Download(string os, BlenderVersion version)
+        {
+            switch (os)
+            {
+                case "windows64":
+                    DownloadWindows(version);
+                    break;
+                case "linux64":
+                    DownloadLinux(version);
+                    break;
+                default:
+                    throw new NotImplementedException("Unknown OS");
+            }
+        }
+
+        /// <summary>
+        /// Downloads windows version of a specific version of Blender (And extract it)
+        /// </summary>
+        /// <param name="version"></param>
+        public void DownloadWindows(BlenderVersion version)
+        {
+            string os = "windows64";
+            string ext = "zip";
+            string archiveName = $"{version.Name}-{os}.{ext}";
+            string archivePath = Path.GetFullPath(Path.Combine(BlenderData, archiveName));
+            try
+            {
+                Directory.CreateDirectory(Path.GetFullPath(BlenderData));
+
+                using (WebClient client = new WebClient())
+                {
+                    Console.WriteLine($"Downloading {version.Name}...");
+                    client.DownloadFile(version.UrlWindows64, archivePath);
+                }
+                Console.WriteLine($"Extracting {version.Name}...");
+
+                ZipFile.ExtractToDirectory(archivePath, Path.GetFullPath(BlenderData));
+
+                Console.WriteLine($"{version.Name} ready");
+            }
+            catch(Exception ex)
+            {
+                if (Directory.Exists(GetVersionPath(version.Name, os)))
+                    Directory.Delete(GetVersionPath(version.Name, os));
+                if (File.Exists(archivePath))
+                    File.Delete(archivePath);
+            }
+        }
+        /// <summary>
+        /// Downloads a linux version of a specific version of Blender (And extract it)
+        /// </summary>
+        /// <param name="version"></param>
+        public void DownloadLinux(BlenderVersion version)
+        {
+            string os = "linux64";
+            string ext = "tar.xz";
+            string archiveName = $"{version.Name}-{os}.{ext}";
+            string archivePath = Path.GetFullPath(Path.Combine(BlenderData, archiveName));
+            try
+            {
+                Directory.CreateDirectory(Path.GetFullPath(BlenderData));
+
+                using (WebClient client = new WebClient())
+                {
+                    Console.WriteLine($"Downloading {version.Name}...");
+                    client.DownloadFile(version.UrlLinux64, archivePath);
+                }
+                Console.WriteLine($"Extracting {version.Name}...");
+
+                using (FileStream str = new FileStream(archivePath, FileMode.Open))
+                using (var reader = ReaderFactory.Open(str))
+                {
+                    while (reader.MoveToNextEntry())
+                    {
+                        if (!reader.Entry.IsDirectory)
+                        {
+                            reader.WriteEntryToDirectory(Path.GetFullPath(BlenderData), new SharpCompress.Common.ExtractionOptions()
+                            {
+                                ExtractFullPath = true,
+                                Overwrite = true
+                            });
+                        }
+                    }
+                }
+
+                Console.WriteLine($"{version.Name} ready");
+                Console.WriteLine("Calling chmod for required permissions");
+
+                //Otherwise can't run blender, not particularily happy with this.
+                new ProcessStartInfo()
+                {
+                    FileName = "chmod",
+                    Arguments = "-R u=rwx " + GetVersionPath(version.Name, os),
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    CreateNoWindow = true
+                }.WaitAndPrint();
+
+            }
+            catch (Exception ex)
+            {
+                if (Directory.Exists(GetVersionPath(version.Name, os)))
+                    Directory.Delete(GetVersionPath(version.Name, os));
+                if (File.Exists(archivePath))
+                    File.Delete(archivePath);
+            }
+        }
+
+        /// <summary>
+        /// Renders a batch of render settings in a single Blender instance.
+        /// </summary>
+        public List<string> RenderBatch(string version, string file, BlenderRenderSettings[] batch, Action<BlenderProcess> beforeStart = null)
+        {
+            if (Busy)
+                throw new InvalidOperationException("Currently already rendering");
+            Busy = true;
+
+            try
+            {
+
+                Directory.CreateDirectory(Path.GetFullPath(RenderData));
+                string os = SystemInfo.GetOSName();
+                string blenderDir = GetVersionPath(version, os);
+
+                try
+                {
+                    //Validate Settings
+                    for (int i = 0; i < batch.Length; i++)
+                    {
+                        BlenderRenderSettings settings = batch[i];
+
+                        //Finalize Settings
+                        if (settings == null)
+                        {
+                            settings = new BlenderRenderSettings();
+                            batch[i] = settings;
+                        }
+
+                        if (settings.Cores <= 0)
+                            settings.Cores = Environment.ProcessorCount;
+
+                        //Check for valid Tile sizes, otherwise, replace with proper one for given device
+                        if (settings.ComputeUnit == RenderType.CUDA || settings.ComputeUnit == RenderType.OPENCL)
+                        {
+                            if (settings.TileWidth <= 0) settings.TileWidth = 64;
+                            if (settings.TileHeight <= 0) settings.TileHeight = 64;
+                        }
+                        else
+                        {
+                            //CPU tile size is optimally 8 for full scenes, but 16 better deals with quick tiles
+                            if (settings.TileWidth <= 0) settings.TileWidth = 16;
+                            if (settings.TileHeight <= 0) settings.TileHeight = 16;
+                        }
+
+
+                        if (settings.TaskID == null)
+                            settings.TaskID = Guid.NewGuid().ToString();
+
+                        string outputPath = settings.Output;
+
+
+                        if (string.IsNullOrEmpty(outputPath))
+                        {
+                            string outputName = settings.TaskID;
+                            outputPath = Path.Combine(RenderData, outputName);
+                        }
+
+                        if (settings.Output == null)
+                            settings.Output = outputPath;
+
+                        settings.Output = Path.GetFullPath(outputPath);
+                        if (string.IsNullOrEmpty(Path.GetExtension(settings.Output)))
+                            settings.Output += ".png";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception("Failed to parse/finalize settings due to:" + ex.Message);
+                }
+
+                string json = JsonSerializer.Serialize(batch);
+                UseTemporaryFile(json, (path) =>
+                {
+
+                    string cmd = $"{blenderDir}/blender";
+                    string arg = $"-noaudio -b {Path.GetFullPath(file)} -P \"{GetRenderScriptPath()}\" -- \"{path}\"";
+
+
+                    RenderProcess = new BlenderProcess(cmd, arg);
+                    if (beforeStart != null)
+                        beforeStart(RenderProcess);
+
+                    RenderProcess.Run();
+                });
+                return batch.Select(x => x.Output).ToList();
+            }
+            finally
+            {
+                RenderSession = null;
+                RenderProcess = null;
+                Busy = false;
+            }
+        }
+        /// <summary>
+        /// Render a single render settings (calls batch underneath with single entry)
+        /// </summary>
+        public string Render(string version, string file, BlenderRenderSettings settings, Action<BlenderProcess> beforeStart = null)
+        {
+            return RenderBatch(version, file, new[] { settings }, beforeStart).FirstOrDefault();
+        }
+
+        /// <summary>
+        /// Cancel ongoing render
+        /// </summary>
+        public void Cancel()
+        {
+            RenderProcess?.Cancel();
+        }
+
+        /// <summary>
+        /// Reads render script from assembly 
+        /// </summary>
+        /// <returns></returns>
+        private static string GetRenderScript()
+        {
+            if (_scripts == null)
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+                var resourceName = "LogicReinc.BlendFarm.Server.render.py";
+
+                using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+                using (StreamReader reader = new StreamReader(stream))
+                {
+                    _scripts = reader.ReadToEnd();
+                }
+            }
+            return _scripts;
+        }
+        /// <summary>
+        /// Creates a temporary text file with data
+        /// Deleted after action is executed
+        /// </summary>
+        private static void UseTemporaryFile(string data, Action<string> action)
+        {
+            string filePath = Path.GetFullPath(Guid.NewGuid().ToString());
+            try
+            {
+                File.WriteAllText(filePath, data);
+
+                action(filePath);
+            }
+            finally
+            {
+                File.Delete(filePath);
+            }
+        }
+    }
+}

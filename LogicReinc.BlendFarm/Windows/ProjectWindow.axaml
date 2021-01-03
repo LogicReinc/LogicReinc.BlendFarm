@@ -1,0 +1,56 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="570"
+        x:Class="LogicReinc.BlendFarm.Windows.ProjectWindow"
+        Title="BlendFarm by LogicReinc" Background="#222222">
+  <Window.Styles>
+    <StyleInclude Source="avares://Avalonia.Themes.Default/Accents/BaseDark.xaml" />
+  </Window.Styles>
+
+
+  <StackPanel Margin="20">
+    <!--
+    <TextBlock Margin="0,20,0,0" TextAlignment="Center" Foreground="#666666" FontSize="20" FontWeight="Bold">
+      LogicReinc
+    </TextBlock>
+    <TextBlock Margin="0,0,0,20" TextAlignment="Center" Foreground="#6400d1" FontSize="30" FontWeight="Bold">
+      BlendFarm
+    </TextBlock>
+    -->
+    <Image Source="/Images/header.png" Height="100" />
+    <TextBlock TextAlignment="Center">Select your .blend Project</TextBlock>
+    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal" Margin="10">
+      <TextBox Width="440" FontSize="10" x:Name="fileSelect"></TextBox>
+      <Button Width="100" Command="{Binding ShowFileDialog}">Select your file</Button>
+    </StackPanel>
+
+    <ComboBox x:Name="versionSelect" HorizontalAlignment="Center" Width="540">
+      <ComboBox.ItemTemplate>
+        <DataTemplate>
+          <TextBlock Text="{Binding Name}"></TextBlock>
+        </DataTemplate>
+      </ComboBox.ItemTemplate>
+    </ComboBox>
+    
+    <TextBlock TextAlignment="Center" Margin="0,20,0,0">Recent Projects</TextBlock>
+    <ListBox x:Name="history" Margin="10" Background="#333333" Height="200">
+      <ListBox.ItemTemplate>
+        <DataTemplate>
+          <StackPanel Background="#222222">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="{Binding Name}" FontSize="15" Margin="10,10,10,0" Width="400"></TextBlock>
+              <TextBlock Text="{Binding Date}" FontSize="10" Margin="10,10,10,0" Width="50"></TextBlock>
+            </StackPanel>
+            <TextBlock Text="{Binding Path}" FontSize="9" Margin="10,0,10,10"></TextBlock>
+          </StackPanel>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+
+    <StackPanel>
+      <Button Margin="10,30,10,30" BorderThickness="0" FontSize="20" Height="50" Background="#400083" Command="{Binding LoadProject}">Load Project</Button>
+    </StackPanel>
+  </StackPanel>
+</Window>
