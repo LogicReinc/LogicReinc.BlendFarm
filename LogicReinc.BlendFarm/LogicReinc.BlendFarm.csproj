@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="Icons\become_a_patron_button3x.png" />
+    <None Remove="Icons\delete.png" />
+    <None Remove="Icons\gear.png" />
+    <None Remove="Icons\github.png" />
+    <None Remove="Icons\patreon.png" />
+    <None Remove="Icons\radioOff.png" />
+    <None Remove="Icons\radioOff.zip" />
+    <None Remove="Icons\radioOn.png" />
+    <None Remove="Icons\radioOn.zip" />
+    <None Remove="Images\header.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Icons\delete.png" />
+    <AvaloniaResource Include="Icons\gear.png" />
+    <AvaloniaResource Include="Icons\github.png" />
+    <AvaloniaResource Include="Icons\radioOff.png" />
+    <AvaloniaResource Include="Icons\radioOn.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Icons\patreon.png" />
+    <AvaloniaResource Include="Images\header.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="0.9.12" />
+    <PackageReference Include="Avalonia.Desktop" Version="0.9.12" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\LogicReinc.BlendFarm.Client\LogicReinc.BlendFarm.Client.csproj" />
+    <ProjectReference Include="..\LogicReinc.BlendFarm.Server\LogicReinc.BlendFarm.Server.csproj" />
+    <ProjectReference Include="..\LogicReinc.BlendFarm.Shared\LogicReinc.BlendFarm.Shared.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Content\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="Windows\YesNoNeverWindow.axaml.cs">
+      <DependentUpon>YesNoNeverWindow.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Windows\YesNowWindow.axaml.cs">
+      <DependentUpon>YesNowWindow.axaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
+</Project>
