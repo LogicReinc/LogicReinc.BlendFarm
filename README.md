@@ -7,7 +7,6 @@ Originally I only planned on using it for myself, but decided to make it more pr
 It consumed more time than I had planned.
 
 ![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/simplerender.gif)
-(TODO: Replace with a render using multiple pcs with heavier load)
 
 ## Why a Network Renderer
 ----
@@ -50,9 +49,10 @@ Quite some time went into getting this up. If you enjoy the software, please con
 https://patreon.com/LogicReinc
 ---
 ## Planned
- - Auto-discovery (asap)
  - OPTIX
+ - Settings Interface
  - GPU Take over CPU (when 2.92.0 releases)
+ - Improve Automatic Performance
  - General Improvement
  - More Testing
 
