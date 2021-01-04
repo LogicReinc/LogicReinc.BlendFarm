@@ -63,14 +63,12 @@ https://patreon.com/LogicReinc
 
 ## Limitations
 -----
-### Syncing
-Blender files have to be transfered over your network when they change. If your network is proper, this will only take a second. Wifi is **Not** recommend
 ### Overhead
 The software is not perfect, depending on the Render Strategy and blend file there will be overhead, but with the right settings additional hardware should be about 90% effective. Performance will likely improve overtime as well with features such as GUI taking over CPU tiles in Blender 2.92.0. **For the fastest rendering use RenderStrategy Splitted**, this does not show your image being rendered in chunks but in whole pieces per device. But has less overhead.
 ### Permissions (Linux)
 On Linux in particular, the application will need read, write and execute permissions in a directory. Unless you want to run it with sudo.
 ### Memory Usage
-Its still using Blender underneath, and thus you need to cough up the memory yo actually use your files.
+Its still using Blender underneath, and thus you need to cough up the memory you actually need for the files.
 
 ## Source Code Notes
 ----
