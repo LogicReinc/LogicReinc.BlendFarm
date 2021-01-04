@@ -29,6 +29,9 @@ namespace LogicReinc.BlendFarm.Client
         public string ComputerName { get; set; }
         public int Cores { get; set; } = -1;
 
+        public double Performance { get; set; } = 0;
+        public double PerformanceScorePP { get; set; } = 0;
+
         public RenderType RenderType { get; set; } = RenderType.CPU;
 
         //State
@@ -69,6 +72,12 @@ namespace LogicReinc.BlendFarm.Client
                 TriggerPropChange(nameof(Connected));
             OnDisconnected += (n) => 
                 TriggerPropChange(nameof(Connected));
+        }
+
+        public void UpdatePerformance(int pixelsRendered, int ms)
+        {
+            double msPerPixel = (double)((double)pixelsRendered / ms);
+            PerformanceScorePP = msPerPixel;
         }
 
         //Connection

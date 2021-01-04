@@ -1,15 +1,22 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
+using LogicReinc.BlendFarm.Client;
+using LogicReinc.BlendFarm.Server;
 using LogicReinc.BlendFarm.Shared;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Sockets;
 using static LogicReinc.BlendFarm.BlendFarmSettings;
 
 namespace LogicReinc.BlendFarm.Windows
 {
+    /// <summary>
+    /// Assumes only one on startup
+    /// </summary>
     public class ProjectWindow : Window
     {
         static List<BlenderVersion> versions = null;
@@ -20,11 +27,40 @@ namespace LogicReinc.BlendFarm.Windows
 
         private bool _startedNew = false;
 
+        private BlendFarmManager _manager = null;
+
+        private Dictionary<string, (string,string,int)> _previouslyFoundNodes = new Dictionary<string, (string, string, int)>();
+
         public ProjectWindow()
         {
             versions = BlenderVersion.GetBlenderVersions();
             DataContext = this;
 
+            LocalServer.OnServerException += (a, b) =>
+            {
+                Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    MessageWindow.Show(this, "Local Server Failure", 
+                        $@"Local server failed to start, if you're already using a port, change it in settings. 
+Or if you're running this program twice, ignore I guess. 
+(TCP: {ServerSettings.Instance.Port}, UDP: {ServerSettings.Instance.BroadcastPort})");
+                });
+            };
+            LocalServer.OnBroadcastException += (a, b) =>
+            {
+                Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    MessageWindow.Show(this, "Local Broadcast Failure",
+                        $@"Local Server failed to broadcast or receive broadcasts for auto-discovery.  It can be changed in settings.
+This may have to do with the port being in use. Note that to discover other pcs their broadcast port needs to be the same..
+(TCP: {ServerSettings.Instance.Port}, UDP: {ServerSettings.Instance.BroadcastPort})");
+                });
+            };
+            LocalServer.OnDiscoveredServer += (name, address, port) =>
+            {
+                if (_manager != null)
+                    _manager.TryAddDiscoveryNode(name, address, port);
+            };
             LocalServer.Start();
             Closed += (a, b) =>
             {
@@ -80,6 +116,9 @@ namespace LogicReinc.BlendFarm.Windows
             }
         }
 
+        /// <summary>
+        /// Assumes only one call
+        /// </summary>
         public void LoadProject()
         {
             string file = fileSelection.Text;
@@ -107,7 +146,19 @@ namespace LogicReinc.BlendFarm.Windows
             BlendFarmSettings.Instance.Save();
 
             _startedNew = true;
-            new RenderWindow(version, path).Show();
+
+
+            //Setup manager
+            _manager = new BlendFarmManager(path, version.Name, null, BlendFarmSettings.Instance.LocalBlendFiles);
+
+            if(!BlendFarmSettings.Instance.PastClients.Any(x=>x.Key == BlendFarmManager.LocalNodeName))
+                _manager.AddNode(BlendFarmManager.LocalNodeName, $"localhost:{LocalServer.ServerPort}");
+
+            foreach (var pair in BlendFarmSettings.Instance.PastClients.ToList())
+                _manager.AddNode(pair.Key, pair.Value.Address, pair.Value.RenderType);
+
+            //Start render window
+            new RenderWindow(_manager, version, path).Show();
 
             this.Close();
         }

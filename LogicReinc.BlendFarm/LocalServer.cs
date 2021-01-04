@@ -12,8 +12,12 @@ namespace LogicReinc.BlendFarm
 
         public static bool Available => _server != null;
 
-        public static int ServerPort { get; } = new Random().Next(14000, 14500);
+        public static int ServerPort { get; } = ServerSettings.Instance.Port;
+        public static int BroadcastPort { get; } = ServerSettings.Instance.BroadcastPort;
 
+        public static event Action<RenderServer, Exception> OnServerException;
+        public static event Action<RenderServer, Exception> OnBroadcastException;
+        public static event Action<string, string, int> OnDiscoveredServer;
 
         public static void Start()
         {
@@ -21,8 +25,12 @@ namespace LogicReinc.BlendFarm
                 return;
 
             if (_server == null)
-                _server = new RenderServer(ServerPort);
-
+            {
+                _server = new RenderServer(ServerPort, BroadcastPort, false);
+                _server.OnServerException += (a, b) => OnServerException?.Invoke(a, b);
+                _server.OnBroadcastException += (a, b) => OnBroadcastException?.Invoke(a, b);
+                _server.OnServerDiscovered += (a, b, c) => OnDiscoveredServer?.Invoke(a, b, c);
+            }
             _server.Start();
 
         }

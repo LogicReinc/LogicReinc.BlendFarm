@@ -150,7 +150,9 @@
                   Command="{Binding AddNewNode}" 
                   IsEnabled="{Binding ElementName=inputClientAddress, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">Connect New</Button>
             </StackPanel>
-            
+            <CheckBox IsChecked="{Binding UseAutomaticPerformance}">
+              Use Automatic Performance
+            </CheckBox>
           </StackPanel>
         </StackPanel>
 
