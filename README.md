@@ -107,14 +107,20 @@ Note that LogicReinc.BlendFarm is both client and server, so you can simply use 
 ### Getting Started on Linux
 
 #### Server (Render Node)
+ - install blender system dependencies (easiest way is to just apt-get blender (just for dependencies, doesn't need to be up2date)
  - Extract LogicReinc.BlendFarm.Server to any directory with read/write/execute access (chown/chmod u=rwx, or sudo)
  - (Optional: if firewall) Allow port 15000/tcp (default, can change) and port 16342/udp (default, can change) through your firewall
  - Run LogicReinc.BlendFarm.Server
 
 #### Client (GUI)
+ - install blender system dependencies (easiest way is to just apt-get blender, just for dependencies)
+ - install (apt-get/whatever) libgdiplus and libc6-dev
  - Extract LogicReinc.BlendFarm to any directory with read/write/execute access (chown/chmod u=rwx, or sudo)
  - (Optional: if firewall) Allow port 15000/tcp (default, can change) and port 16342/udp (default, can change) through your firewall
- - Run LogicReinc.BlendFarm.Server
+ - Run LogicReinc.BlendFarm
+
+### Getting Started on Mac
+At the moment I have not yet tested Mac so I can't give proper instructions. But expect something similar to Linux.
 
 
 ### Finding my RenderNodes
