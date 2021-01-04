@@ -213,6 +213,13 @@ In theory you can download the zip/tar.xz from blender directly and extract is i
 #### I fail to connect to another computer
 The most likely reason connection failed is simply a firewall on the target pc. If you can ping the computer and the firewall is allowed for the used port there should be no general connection issues.
 
+#### Render fails due to Gdip
+You're running Linux or Mac but did not install libgdiplus and libc6-dev, install these and you should be good.
+
+#### Render fails on Linux
+You may not have the required blender system dependencies. Easiest way to cover them all is to just run apt-get install blender to fetch them all.
+(It does not have to be an up2date blender package, its just for dependencies)
+
 #### I'm seeing artifacts in the end result
 Depending on your settings, there can be a variety of reasons for this. In general, if you're rendering for an actual export. I recommend using Render Strategy Split, this doesn't give you a nice live preview of progress, but it does render a single chunk for every device, this generally causes favorable results.
 When using strategy SplitChunked with Workaround enabled, this generally causes line to appear due to rounding issues.
