@@ -69,6 +69,25 @@ The software is not perfect, depending on the Render Strategy and blend file the
 On Linux in particular, the application will need read, write and execute permissions in a directory. Unless you want to run it with sudo.
 ### Memory Usage
 Its still using Blender underneath, and thus you need to cough up the memory you actually need for the files.
+___
+# Showcase
+
+### CPU Speed Comparison
+Below a simple example when rendering in split mode, using all computers and a single computer
+1700X + 3800X + G3420 | Solo 1700X
+:------------------------:|:----------------------:
+![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/renderSplitted.gif) | ![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/renderSolo.gif)
+Duration: +/- 4 Seconds | Duration: +/- 8 Seconds
+G3420 probably only slows it down
+
+### CPU/GPU Speed Comparison
+Todo, waiting for better hardware
+
+
+### More Computers
+Todo, waiting for better hardware
+ 
+___
 
 ## Source Code Notes
 ----
@@ -127,25 +146,7 @@ At the moment I have not yet tested Mac so I can't give proper instructions. But
 After you setup your computers render nodes should automatically appear in your nodes list through auto-discovery.
 If this is not the case, your network may block broadcasts. You can add nodes by IP using the fields under the list.
 For address use {deviceIP}:{devicePort} (eg. 192.168.1.123:15000)
- 
-___
-# Showcase
 
-### CPU Speed Comparison
-Below a simple example when rendering in split mode, using all computers and a single computer
-1700X + 3800X + G3420 | Solo 1700X
-:------------------------:|:----------------------:
-![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/renderSplitted.gif) | ![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/renderSolo.gif)
-Duration: +/- 4 Seconds | Duration: +/- 8 Seconds
-G3420 probably only slows it down
-
-### CPU/GPU Speed Comparison
-Todo, waiting for better hardware
-
-
-### More Computers
-Todo, waiting for better hardware
- 
 ___
 
 ## Changelog
