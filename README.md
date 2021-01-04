@@ -7,6 +7,9 @@ Originally I only planned on using it for myself, but decided to make it more pr
 It consumed more time than I had planned.
 
 ![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/simplerender.gif)
+A render using SplitChunked render strategy on BMW benchmark at low samples/res for showcase.
+
+Computers: Local=Ryzen 1700X (16 threads, 3.4Ghz), logicreinc=Pentium G3420 (2 threads, 3.2Ghz), Work-PC2=Ryzen 3700X (16 threads, 3.6Ghz)
 
 ## Why a Network Renderer
 ----
@@ -45,8 +48,10 @@ TODO: Add Video
  * **Cheap Chinese Hardware** - Get some cheap xeon systems from China and build your own render farm
 ___
 ## If you like the work, please consider a donation
+
 Quite some time went into getting this up. If you enjoy the software, please consider dropping a donation on my Patreon.
 https://patreon.com/LogicReinc
+
 ---
 ## Planned
  - OPTIX
@@ -118,6 +123,24 @@ Note that LogicReinc.BlendFarm is both client and server, so you can simply use 
 After you setup your computers render nodes should automatically appear in your nodes list through auto-discovery.
 If this is not the case, your network may block broadcasts. You can add nodes by IP using the fields under the list.
 For address use {deviceIP}:{devicePort} (eg. 192.168.1.123:15000)
+ 
+___
+# Showcase
+
+### CPU Speed Comparison
+Below a simple example when rendering in split mode, using all computers and a single computer
+1700X + 3800X + G3420 | Solo 1700X
+:------------------------:|:----------------------:
+![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/renderSplitted.gif) | ![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/renderSolo.gif)
+Duration: +/- 4 Seconds | Duration: +/- 8 Seconds
+G3420 probably only slows it down
+
+### CPU/GPU Speed Comparison
+Todo, waiting for better hardware
+
+
+### More Computers
+Todo, waiting for better hardware
  
 ___
 
