@@ -14,13 +14,15 @@ namespace LogicReinc.BlendFarm.Client
 {
     public class BlendFarmManager
     {
+        public const string LocalNodeName = "Local";
+
         public string SessionID { get; private set; }
         public string Version { get; private set; }
         public long FileID { get; private set; }
         public string BlendFile { get; private set; }
         public string LocalBlendFile { get; private set; }
 
-        public ObservableCollection<RenderNode> Nodes { get; private set; } = new ObservableCollection<RenderNode>();
+        public List<RenderNode> Nodes { get; private set; } = new List<RenderNode>();
         public int Connected => Nodes.ToList().Where(x => x.Connected).Count();
 
 
@@ -33,6 +35,8 @@ namespace LogicReinc.BlendFarm.Client
 
         public event Action<BlendFarmManager> OnFileChanged;
 
+        public event Action<BlendFarmManager, RenderNode> OnNodeAdded;
+        public event Action<BlendFarmManager, RenderNode> OnNodeRemoved;
 
 
         public BlendFarmManager(string file, string version, string sessionID = null, string localDir = "LocalBlendFiles")
@@ -52,6 +56,10 @@ namespace LogicReinc.BlendFarm.Client
             name = name.ToLower();
             return Nodes.FirstOrDefault(x => x.Name.ToLower() == name);
         }
+        public RenderNode GetNodeByAddress(string address)
+        {
+            return Nodes.FirstOrDefault(x => x.Address == address);
+        }
 
         public RenderNode AddNode(string name, string address, RenderType type = RenderType.CPU) => AddNode(new RenderNode() { Name = name, Address = address, RenderType = type });
         public RenderNode AddNode(RenderNode node)
@@ -65,10 +73,24 @@ namespace LogicReinc.BlendFarm.Client
             if (existing != null)
                 throw new ArgumentException($"Already have a node with name {node.Name}");
 
-            Nodes.Add(node);
+            if (node.Name == LocalNodeName)
+                Nodes.Insert(0, node);
+            else
+                Nodes.Add(node);
+            OnNodeAdded?.Invoke(this, node);
 
             return node;
         }
+        public RenderNode TryAddDiscoveryNode(string name, string address, int port)
+        {
+            string addressPort = $"{address}:{port}";
+            RenderNode existing = GetNodeByAddress($"{addressPort}");
+            if (existing != null)
+                return existing;
+
+            return AddNode(name, addressPort, RenderType.CPU);
+        }
+
         public void RemoveNode(string name)
         {
             RenderNode node = GetNodeByName(name);
@@ -76,6 +98,7 @@ namespace LogicReinc.BlendFarm.Client
             {
                 Nodes.Remove(node);
                 node.Disconnect();
+                OnNodeRemoved?.Invoke(this, node);
             }
         }
 

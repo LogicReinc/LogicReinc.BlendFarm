@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -291,6 +292,9 @@ namespace LogicReinc.BlendFarm.Shared
                     bool rendered = false;
                     for (int i = 0; i < 3; i++)
                     {
+                        if (Cancelled)
+                            return;
+
                         SubTaskResult taskPart = null;
                         try
                         {
@@ -406,16 +410,9 @@ namespace LogicReinc.BlendFarm.Shared
             Bitmap result = new Bitmap(Settings.OutputWidth, Settings.OutputHeight);
             Graphics g = Graphics.FromImage(result);
 
-            int totalCores = validNodes.Sum(x => x.Cores);
-
-            Dictionary<RenderNode, double> shares = validNodes.ToDictionary(x => x, y => ((double)y.Cores) / totalCores);
+            Dictionary<RenderNode, double> shares = GetRelativePerformance(validNodes);
 
             List<RenderSubTask> tasks = GetChunkedSubTasks();
-
-            //Add overlap
-            if (Settings.BlenderUpdateBugWorkaround)
-                foreach (RenderSubTask task in tasks)
-                    ;// task.AddPadding(0.004, 0.004);
 
             ConcurrentQueue<RenderSubTask> queue = GetTaskQueueInOrder(tasks, Settings.Order);
 
@@ -431,9 +428,7 @@ namespace LogicReinc.BlendFarm.Shared
                 RenderNode nextNode = validNodes.OrderBy(node =>
                 {
                     int nrTiles = assignment[node].Count;
-                    int nrCores = node.Cores;
-
-                    return nrTiles / nrCores;
+                    return nrTiles * shares[node];
                 }).FirstOrDefault();
                 assignment[nextNode].Add(nextTask);
             }
@@ -483,6 +478,36 @@ namespace LogicReinc.BlendFarm.Shared
                 return result;
             });
         }
+
+        /// <summary>
+        /// Determines device performance based on past renders or default
+        /// </summary>
+        public Dictionary<RenderNode, double> GetRelativePerformance(List<RenderNode> nodes)
+        {
+            Dictionary<RenderNode, double> perfs = new Dictionary<RenderNode, double>();
+            if (nodes.Count == 0)
+                return new Dictionary<RenderNode, double>();
+            if (Settings.UseAutoPerformance && !nodes.Any(x=>x.PerformanceScorePP <= 0))
+            {
+                double total = nodes.Sum(x => (x.PerformanceScorePP > 0) ? x.PerformanceScorePP : x.Cores);
+                foreach (RenderNode node in nodes)
+                {
+                    double perf = (node.PerformanceScorePP > 0) ? node.PerformanceScorePP : node.Cores;
+                    perfs.Add(node,  1 - (perf / total));
+                }
+            }
+            else
+            {
+                double total = nodes.Sum(x => (x.Performance > 0) ? x.Performance : x.Cores);
+                foreach(RenderNode node in nodes)
+                {
+                    double perf = (node.Performance > 0) ? node.Performance : node.Cores;
+                    perfs.Add(node, perf / total);
+                }
+            }
+            return perfs;
+        }
+
         
         /// <summary>
         /// Cancel ongoing rendering
@@ -504,13 +529,16 @@ namespace LogicReinc.BlendFarm.Shared
         /// </summary>
         private Dictionary<RenderNode, RenderSubTask> GetSplitSubTasks(List<RenderNode> validNodes)
         {
-            int totalCores = validNodes.Sum(x => x.Cores);
+            Dictionary<RenderNode, double> shares =  GetRelativePerformance(validNodes);
 
             Dictionary<RenderNode, RenderSubTask> tasks = new Dictionary<RenderNode, RenderSubTask>();
             decimal offsetX = 0;
             foreach (RenderNode node in validNodes)
             {
-                decimal share = ((decimal)node.Cores) / totalCores;
+                decimal share = (decimal)shares[node];
+
+                if (node == validNodes.Last())
+                    share = 1 - offsetX;
                 tasks.Add(node, new RenderSubTask(this, offsetX, offsetX + share, 0, 1, Settings.Frame));
                 offsetX += share;
             }
@@ -627,6 +655,8 @@ namespace LogicReinc.BlendFarm.Shared
                 }
             };
 
+            Stopwatch time = new Stopwatch();
+            time.Start();
             try
             {
                 node.OnBatchResult += onAnyResult;
@@ -641,10 +671,18 @@ namespace LogicReinc.BlendFarm.Shared
 
                 if (resp.Success == false)
                     return new SubTaskBatchResult(new Exception("Render fail: " + resp.Message));
+
+                if (req.Settings.Count > 0) 
+                {
+                    decimal pixelsRendered = req.Settings.Sum(x => (x.Height * (x.Y2 - x.Y)) * (x.Width * (x.X2 - x.X)));
+                    node.UpdatePerformance((int)pixelsRendered, (int)time.ElapsedMilliseconds);
+                }
+
             }
             finally
             {
                 node.OnBatchResult -= onAnyResult;
+                time.Stop();
             }
             return new SubTaskBatchResult(results.ToArray());
         }
@@ -662,18 +700,35 @@ namespace LogicReinc.BlendFarm.Shared
         {
             RenderRequest req = task.GetRenderRequest();
 
-            RenderResponse resp = await node.Render(req);
-
-            if (resp == null)
-                return new SubTaskResult(new Exception("Render fail: (null)"));
-
-            if(resp.Success == false)
-                return new SubTaskResult(new Exception("Render fail: " + resp.Message));
-
             Image bitmap = null;
-            using (MemoryStream str = new MemoryStream(resp.Data))
-                bitmap = Bitmap.FromStream(str);
-            resp = null;
+
+            Stopwatch time = new Stopwatch();
+            time.Start();
+            try
+            {
+
+
+                RenderResponse resp = await node.Render(req);
+
+
+                if (resp == null)
+                    return new SubTaskResult(new Exception("Render fail: (null)"));
+
+                if (resp.Success == false)
+                    return new SubTaskResult(new Exception("Render fail: " + resp.Message));
+
+                //Update Performance
+                node.UpdatePerformance((int)((req.Settings.Height * (req.Settings.Y2 - req.Settings.Y)) * (req.Settings.Width * (req.Settings.X2 - req.Settings.X))), 
+                    (int)time.ElapsedMilliseconds);
+
+                using (MemoryStream str = new MemoryStream(resp.Data))
+                    bitmap = Bitmap.FromStream(str);
+                resp = null;
+            }
+            finally
+            {
+                time.Stop();
+            }
 
             return new SubTaskResult(bitmap);
         }

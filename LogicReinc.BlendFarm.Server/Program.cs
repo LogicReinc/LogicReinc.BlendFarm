@@ -20,12 +20,12 @@ namespace LogicReinc.BlendFarm.Server
         {
             string localIP = Dns.GetHostEntry(Dns.GetHostName()).AddressList.FirstOrDefault(x => x.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)?.ToString();
             Console.WriteLine($"Host: {localIP}");
-            Console.WriteLine($"Port: {Settings.Instance.Port}");
+            Console.WriteLine($"Port: {ServerSettings.Instance.Port}");
 
             Console.WriteLine("Cleaning up old sessions..");
             CleanupOldSessions();
 
-            Server = new RenderServer(Settings.Instance.Port);
+            Server = new RenderServer(ServerSettings.Instance.Port, ServerSettings.Instance.BroadcastPort, true);
 
             Server.Start();
             Console.WriteLine("Server Started");
@@ -69,8 +69,8 @@ namespace LogicReinc.BlendFarm.Server
         {
             try
             {
-                if (Directory.Exists(Settings.Instance.BlenderFiles))
-                    Directory.Delete(Settings.Instance.BlenderFiles, true);
+                if (Directory.Exists(ServerSettings.Instance.BlenderFiles))
+                    Directory.Delete(ServerSettings.Instance.BlenderFiles, true);
             }
             catch { }
         }

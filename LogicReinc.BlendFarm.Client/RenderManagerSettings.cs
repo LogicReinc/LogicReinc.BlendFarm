@@ -47,6 +47,13 @@ namespace LogicReinc.BlendFarm.Client
         /// </summary>
         public int Samples { get; set; } = 128;
 
+
+        /// <summary>
+        /// Use automatic performance detection based on render times
+        /// </summary>
+        public bool UseAutoPerformance { get; set; } = true;
+
+
         /// <summary>
         /// A sad requirement that works around a problem in Blender.
         /// Blender doesn't properly update before rendering in subsequent tasks in a batch

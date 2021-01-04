@@ -44,7 +44,7 @@ namespace LogicReinc.BlendFarm.Tests
         public static void Init(TestContext context)
         {
             blender = new BlenderManager();
-            server = new RenderServer(PORT);
+            server = new RenderServer(PORT, -1, true);
             manager = new BlendFarmManager(BLEND_FILE, BLEND_VERSION);
             server.Start();
             Thread.Sleep(3000);

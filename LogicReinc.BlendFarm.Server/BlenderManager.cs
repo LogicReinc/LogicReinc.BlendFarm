@@ -39,8 +39,8 @@ namespace LogicReinc.BlendFarm.Server
         /// </summary>
         public BlenderManager()
         {
-            BlenderData = Settings.Instance.BlenderData;
-            RenderData = Settings.Instance.RenderData;
+            BlenderData = ServerSettings.Instance.BlenderData;
+            RenderData = ServerSettings.Instance.RenderData;
         }
         /// <summary>
         /// Use specific BlenderData and RenderData directories
@@ -73,7 +73,7 @@ namespace LogicReinc.BlendFarm.Server
         public string GetRenderScriptPath()
         {
             string path = Path.GetFullPath(Path.Combine(BlenderData, $"render.py"));
-            if (!File.Exists(path) || (!Settings.Instance.BypassScriptUpdate && File.ReadAllText(path) != _scripts))
+            if (!File.Exists(path) || (!ServerSettings.Instance.BypassScriptUpdate && File.ReadAllText(path) != _scripts))
             {
                 Directory.CreateDirectory(GetBlenderDataPath());
                 File.WriteAllText(path, GetRenderScript());
@@ -318,7 +318,7 @@ namespace LogicReinc.BlendFarm.Server
                 {
 
                     string cmd = $"{blenderDir}/blender";
-                    string arg = $"-noaudio -b {Path.GetFullPath(file)} -P \"{GetRenderScriptPath()}\" -- \"{path}\"";
+                    string arg = $"--factory-startup -noaudio -b {Path.GetFullPath(file)} -P \"{GetRenderScriptPath()}\" -- \"{path}\"";
 
 
                     RenderProcess = new BlenderProcess(cmd, arg);

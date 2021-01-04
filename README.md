@@ -31,6 +31,7 @@ Unlike some other network renderers, LogicReinc.BlendFarm runs as its own indepe
  * **Render Images in Chunks** - Supports different rendering strategies including those showing rendered chunks
  * **Live Update** - Re-Render automatically when you save your project
  * **Auto Discovery** - Application will attempt to automatically detect nodes in your network
+ * **Automatic Performance** - Measures performance after each render to improve distribution (todo improve)
 
 Watch the video below for an overview:
 TODO: Add Video
@@ -78,31 +79,36 @@ ___
 To get started, You will want 2 or more computers (if you actually want to distribute it).
 ### TL;DR; 
 Extract and run the executables, ensure read, write and execute access to directory and allow through firewall (port 15000 default)
-### Settings up a RenderNode
-To set up a computer that does rendering for you, You simply download the latest LogicReinc.BlendFarm.Server executable from the Releases. 
-And follow the following steps:
-### Windows
- * Just Extract and Run LogicReinc.BlendFarm.Server and allow through firewall when asked
-#### Linux
-* **Step 1:**
-Extract the server to a directory that has full read, write and execute access (Mostly for Linux, chown, chmod u=rwx)
-* **Step 2:** 
-Ensure your firewall allows port 15000 (default, can change in Settings), Windows will generally ask you when running
-* **Step 3:** 
-Run the program (console application, is headless)
+Note that LogicReinc.BlendFarm is both client and server, so you can simply use the GUI on every pc, but would add useless UI.
 
-## Setting up the Client/GUI
-This is the program you use where you work, it will sync with your .blend file
+### Getting Started on Windows
 
-#### All Platforms
-* **Step 1: (Mostly Linux Only)**
-Extract the client to a directory that has full read,write and execute access (Mostly for Linux, chown, chmod=rwx)
-* **Step 2:**
-Run the program, select your the .blend file you want to use and which blender version, Allow through Firewall
-* **Step 3.**
-Add Node with "ip:port" eg. "192.168.1.123:15000", or auto-discover
-* **Done:**
-You can now connect to said nodes and render your blend files. Nodes are saved between sessions
+#### Server (Render node)
+ - Extract and Run LogicReinc.BlendFarm.Server.exe to any directory with read/write access.
+ - When asked, allow the application through your firewall
+
+#### Client (GUI)
+ - Extract and Run LogicReinc.BlendFarm.exe to any directory with read/write access.
+ - When asked, allow the application through your firewall
+ 
+### Getting Started on Linux
+
+#### Server (Render Node)
+ - Extract LogicReinc.BlendFarm.Server to any directory with read/write/execute access (chown/chmod u=rwx, or sudo)
+ - (Optional: if firewall) Allow port 15000/tcp (default, can change) and port 16342/udp (default, can change) through your firewall
+ - Run LogicReinc.BlendFarm.Server
+
+#### Client (GUI)
+ - Extract LogicReinc.BlendFarm to any directory with read/write/execute access (chown/chmod u=rwx, or sudo)
+ - (Optional: if firewall) Allow port 15000/tcp (default, can change) and port 16342/udp (default, can change) through your firewall
+ - Run LogicReinc.BlendFarm.Server
+
+
+### Finding my RenderNodes
+After you setup your computers render nodes should automatically appear in your nodes list through auto-discovery.
+If this is not the case, your network may block broadcasts. You can add nodes by IP using the fields under the list.
+For address use {deviceIP}:{devicePort} (eg. 192.168.1.123:15000)
+ 
 ___
 
 ## Changelog
@@ -151,13 +157,18 @@ Currently I have not embeded ffmpeg into the application, you can easily merge i
 #### Do I need to port forward?
 Assuming you're running this over a local network, there is no reason
 
-### Can I run this over the internet?
+#### Can I run this over the internet?
 Sure, In that case you do need port forwarding, I do not recommend exposing the renderer on the internet cuz there is no security, private VPN maybe?
 Also note that syncronizing will be slower.
 
 #### The scene is rendered without textures or similar?
 This is likely due to missing texture files. Make sure you pack your textures into your .blend file (File->External Data->Automatically Pack into .blend).
 This ensures remote computers have the textures.
+
+#### Automatic Performance doesn't distribute work equally
+The software tries to equally distribute it based on past renders, there might be run-to-run variation that can cause it to be off.
+Also keep in mind that automatic performance is only applied after completing a renderin (so not cancelled).
+This is an area to improve. 
 
 #### My internet is slow, downloading the Blender version for every pc takes too long
 In theory you can download the zip/tar.xz from blender directly and extract is into AppDirectory/BlenderData (unless you changed it in settings). Just ensure you use the right naming format, generally blender-x.xx.x-osversion64, for example blender-2.91.0-windows64, and in case of linux ensure you chmod -R u=rwx that directory

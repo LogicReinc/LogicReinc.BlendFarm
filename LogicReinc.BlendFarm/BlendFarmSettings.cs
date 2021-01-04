@@ -17,6 +17,13 @@ namespace LogicReinc.BlendFarm
         /// </summary>
         public string LocalBlendFiles { get; set; } = "LocalBlendFiles";
 
+
+        /// <summary>
+        /// Determines if the application should listen for servers over udp broadcasts
+        /// </summary>
+        public bool ListenForBroadcasts { get; set; } = true;
+
+
         /// <summary>
         /// Previously used blend files
         /// </summary>
@@ -60,6 +67,7 @@ namespace LogicReinc.BlendFarm
             public string Address { get; set; }
 
             public RenderType RenderType { get; set; } = RenderType.CPU;
+            public double Performance { get; set; }
         }
 
         /// <summary>

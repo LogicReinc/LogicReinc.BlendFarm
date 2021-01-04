@@ -6,14 +6,19 @@ using System.Text.Json;
 
 namespace LogicReinc.BlendFarm.Server
 {
-    public class Settings
+    public class ServerSettings
     {
-        private const string SETTINGS_PATH = "Settings";
+        private const string SETTINGS_PATH = "ServerSettings";
 
         /// <summary>
         /// Port to use for communication (May be blocked by firewall)
         /// </summary>
         public int Port { get; set; } = 15000;
+        /// <summary>
+        /// Port to use for broadcasting (May be blocked by firewall),
+        /// -1 generally implies no broadcasting
+        /// </summary>
+        public int BroadcastPort { get; set; } = 16342;
 
         /// <summary>
         /// Used for storing different versions of Blender
@@ -36,8 +41,8 @@ namespace LogicReinc.BlendFarm.Server
 
 
         #region Boilerplate
-        private static Settings _instance = null;
-        public static Settings Instance
+        private static ServerSettings _instance = null;
+        public static ServerSettings Instance
         {
             get
             {
@@ -51,12 +56,12 @@ namespace LogicReinc.BlendFarm.Server
         {
             File.WriteAllText(SETTINGS_PATH, JsonSerializer.Serialize(this));
         }
-        public static Settings Load()
+        public static ServerSettings Load()
         {
             if (File.Exists(SETTINGS_PATH))
-                return JsonSerializer.Deserialize<Settings>(File.ReadAllText("Settings"));
+                return JsonSerializer.Deserialize<ServerSettings>(File.ReadAllText(SETTINGS_PATH));
             else
-                return new Settings();
+                return new ServerSettings();
         }
         #endregion
     }

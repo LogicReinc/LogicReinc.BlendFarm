@@ -55,12 +55,15 @@ namespace LogicReinc.BlendFarm.Windows
                 if (!await YesNoWindow.Show(this, "Node not saved yet", "The node was not yet saved, would you like to save it?"))
                     return;
                 else
-                    BlendFarmSettings.Instance.PastClients.Add(Node.Name, new HistoryClient()
+                {
+                    entry = new HistoryClient()
                     {
                         Name = Node.Name,
                         Address = Node.Address,
                         RenderType = Node.RenderType
-                    });
+                    };
+                    BlendFarmSettings.Instance.PastClients.Add(Node.Name, entry);
+                }
             }
             entry.RenderType = Node.RenderType;
             BlendFarmSettings.Instance.Save();

@@ -3,6 +3,7 @@ using System.IO;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Logging.Serilog;
+using LogicReinc.BlendFarm.Server;
 
 namespace LogicReinc.BlendFarm
 {
@@ -14,6 +15,11 @@ namespace LogicReinc.BlendFarm
         public static void Main(string[] args)
         {
             Server.Program.CleanupOldSessions();
+
+            Console.WriteLine("Saving current setting states");
+            BlendFarmSettings.Instance.Save();
+            ServerSettings.Instance.Save();
+
 
             try
             {

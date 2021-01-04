@@ -85,7 +85,7 @@ namespace LogicReinc.BlendFarm.Server
                 string uploadID = Guid.NewGuid().ToString();
                 if (req.FileID != session.FileID)
                 {
-                    Directory.CreateDirectory(Settings.Instance.BlenderFiles);
+                    Directory.CreateDirectory(ServerSettings.Instance.BlenderFiles);
                     _uploads.Add(uploadID, new FileUpload(session.GetBlendFilePath(), req));
                     session.UpdatingFile();
                 }

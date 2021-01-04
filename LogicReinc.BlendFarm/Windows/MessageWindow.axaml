@@ -13,8 +13,12 @@
     
     <StackPanel>
       <StackPanel Width="500" Height="150">
-        <TextBlock Margin="20" FontSize="20" FontWeight="Bold" TextAlignment="Center" Text="{Binding MsgTitle}" TextWrapping="Wrap"></TextBlock>
-        <TextBlock Margin="10" FontSize="15" TextAlignment="Center" Text="{Binding Description}"></TextBlock>
+        <TextBlock Margin="20" FontSize="20" FontWeight="Bold" TextAlignment="Center" Text="{Binding MsgTitle}" TextWrapping="Wrap">
+
+        </TextBlock>
+        <TextBlock Margin="10,0,10,10" FontSize="15" Height="60" TextWrapping="Wrap" TextAlignment="Center" Text="{Binding Description}">
+
+        </TextBlock>
       </StackPanel>
       <Button Height="40" Command="{Binding TriggerOk}">Ok</Button>
     </StackPanel>

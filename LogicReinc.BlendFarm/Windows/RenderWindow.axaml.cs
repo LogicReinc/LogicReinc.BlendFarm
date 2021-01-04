@@ -42,6 +42,7 @@ namespace LogicReinc.BlendFarm.Windows
         public int ChunkSize { get; set; } = 256;
         public int Samples { get; set; } = 32;
         public bool UseWorkaround { get; set; } = true;
+        public bool UseAutomaticPerformance { get; set; } = true;
 
         public string AnimationFileFormat { get; set; } = "#.png";
         public int FrameStart { get; set; } = 0;
@@ -49,7 +50,7 @@ namespace LogicReinc.BlendFarm.Windows
 
         public bool IsLiveChanging { get; set; } = false;
 
-        public ObservableCollection<RenderNode> Nodes { get; private set; }
+        public ObservableCollection<RenderNode> Nodes { get; private set; } = new ObservableCollection<RenderNode>();
         public BlendFarmManager Manager { get; set; } = null;
 
         public bool IsRendering => CurrentTask != null;
@@ -89,21 +90,31 @@ namespace LogicReinc.BlendFarm.Windows
             };
             Init();
         }
-        public RenderWindow(BlenderVersion version, string blenderFile, string sessionID = null)
+        public RenderWindow(BlendFarmManager manager, BlenderVersion version, string blenderFile, string sessionID = null)
         {
+            Manager = manager;
             File = blenderFile;
             Version = version;
-            Manager = new BlendFarmManager(blenderFile, version.Name, sessionID, BlendFarmSettings.Instance.LocalBlendFiles);
-            Manager.AddNode("Local", $"localhost:{LocalServer.ServerPort}");
-
-            foreach(var pair in BlendFarmSettings.Instance.PastClients.ToList())
-                Manager.AddNode(pair.Key, pair.Value.Address, pair.Value.RenderType);
 
             Init();
         }
         private void Init()
         {
-            Nodes = Manager?.Nodes ?? _testNodes;
+            if(Manager?.Nodes != null)
+            {
+                foreach(RenderNode node in Manager.Nodes.ToList())
+                    Nodes.Add(node);
+                Manager.OnNodeAdded += (manager, node) => Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    Nodes.Add(node);
+                });
+                Manager.OnNodeRemoved += (manager, node) => Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    Nodes.Remove(node);
+                });
+            }
+            else 
+                Nodes =  _testNodes;
             DataContext = this;
 
             this.Closed += (a, b) =>
@@ -133,7 +144,6 @@ namespace LogicReinc.BlendFarm.Windows
             _lastRenderTime = this.Find<TextBlock>("lastRenderTime");
             _selectStrategy = this.Find<ComboBox>("selectStrategy");
             _selectOrder = this.Find<ComboBox>("selectOrder");
-
 
             _selectStrategy.Items = Enum.GetValues(typeof(RenderStrategy));
             _selectStrategy.SelectedIndex = 2;
@@ -232,7 +242,8 @@ namespace LogicReinc.BlendFarm.Windows
                         ChunkHeight = ((decimal)ChunkSize / RenderHeight),
                         ChunkWidth = ((decimal)ChunkSize / RenderWidth),
                         Samples = Samples,
-                        BlenderUpdateBugWorkaround = UseWorkaround
+                        BlenderUpdateBugWorkaround = UseWorkaround,
+                        UseAutoPerformance = UseAutomaticPerformance
                     }, async (task, updated) =>
                     {
                         //Apply image to canvas
