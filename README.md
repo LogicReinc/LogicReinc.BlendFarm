@@ -7,6 +7,9 @@ Originally I only planned on using it for myself, but decided to make it more pr
 It consumed more time than I had planned.
 
 ![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/simplerender.gif)
+A render using SplitChunked render strategy on BMW benchmark at low samples/res for showcase.
+
+Computers: Local=Ryzen 1700X (16 threads, 3.4Ghz), logicreinc=Pentium G3420 (2 threads, 3.2Ghz), Work-PC2=Ryzen 3700X (16 threads, 3.6Ghz)
 
 ## Why a Network Renderer
 ----
@@ -45,8 +48,10 @@ TODO: Add Video
  * **Cheap Chinese Hardware** - Get some cheap xeon systems from China and build your own render farm
 ___
 ## If you like the work, please consider a donation
+
 Quite some time went into getting this up. If you enjoy the software, please consider dropping a donation on my Patreon.
 https://patreon.com/LogicReinc
+
 ---
 ## Planned
  - OPTIX
@@ -58,14 +63,31 @@ https://patreon.com/LogicReinc
 
 ## Limitations
 -----
-### Syncing
-Blender files have to be transfered over your network when they change. If your network is proper, this will only take a second. Wifi is **Not** recommend
 ### Overhead
 The software is not perfect, depending on the Render Strategy and blend file there will be overhead, but with the right settings additional hardware should be about 90% effective. Performance will likely improve overtime as well with features such as GUI taking over CPU tiles in Blender 2.92.0. **For the fastest rendering use RenderStrategy Splitted**, this does not show your image being rendered in chunks but in whole pieces per device. But has less overhead.
 ### Permissions (Linux)
 On Linux in particular, the application will need read, write and execute permissions in a directory. Unless you want to run it with sudo.
 ### Memory Usage
-Its still using Blender underneath, and thus you need to cough up the memory yo actually use your files.
+Its still using Blender underneath, and thus you need to cough up the memory you actually need for the files.
+___
+# Showcase
+
+### CPU Speed Comparison
+Below a simple example when rendering in split mode, using all computers and a single computer
+1700X + 3800X + G3420 | Solo 1700X
+:------------------------:|:----------------------:
+![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/renderSplitted.gif) | ![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/renderSolo.gif)
+Duration: +/- 4 Seconds | Duration: +/- 8 Seconds
+G3420 probably only slows it down
+
+### CPU/GPU Speed Comparison
+Todo, waiting for better hardware
+
+
+### More Computers
+Todo, waiting for better hardware
+ 
+___
 
 ## Source Code Notes
 ----
@@ -104,21 +126,27 @@ Note that LogicReinc.BlendFarm is both client and server, so you can simply use 
 ### Getting Started on Linux
 
 #### Server (Render Node)
+ - install blender system dependencies (easiest way is to just apt-get blender (just for dependencies, doesn't need to be up2date)
  - Extract LogicReinc.BlendFarm.Server to any directory with read/write/execute access (chown/chmod u=rwx, or sudo)
  - (Optional: if firewall) Allow port 15000/tcp (default, can change) and port 16342/udp (default, can change) through your firewall
  - Run LogicReinc.BlendFarm.Server
 
 #### Client (GUI)
+ - install blender system dependencies (easiest way is to just apt-get blender, just for dependencies)
+ - install (apt-get/whatever) libgdiplus and libc6-dev
  - Extract LogicReinc.BlendFarm to any directory with read/write/execute access (chown/chmod u=rwx, or sudo)
  - (Optional: if firewall) Allow port 15000/tcp (default, can change) and port 16342/udp (default, can change) through your firewall
- - Run LogicReinc.BlendFarm.Server
+ - Run LogicReinc.BlendFarm
+
+### Getting Started on Mac
+At the moment I have not yet tested Mac so I can't give proper instructions. But expect something similar to Linux.
 
 
 ### Finding my RenderNodes
 After you setup your computers render nodes should automatically appear in your nodes list through auto-discovery.
 If this is not the case, your network may block broadcasts. You can add nodes by IP using the fields under the list.
 For address use {deviceIP}:{devicePort} (eg. 192.168.1.123:15000)
- 
+
 ___
 
 ## Changelog
@@ -185,6 +213,13 @@ In theory you can download the zip/tar.xz from blender directly and extract is i
 
 #### I fail to connect to another computer
 The most likely reason connection failed is simply a firewall on the target pc. If you can ping the computer and the firewall is allowed for the used port there should be no general connection issues.
+
+#### Render fails due to Gdip
+You're running Linux or Mac but did not install libgdiplus and libc6-dev, install these and you should be good.
+
+#### Render fails on Linux
+You may not have the required blender system dependencies. Easiest way to cover them all is to just run apt-get install blender to fetch them all.
+(It does not have to be an up2date blender package, its just for dependencies)
 
 #### I'm seeing artifacts in the end result
 Depending on your settings, there can be a variety of reasons for this. In general, if you're rendering for an actual export. I recommend using Render Strategy Split, this doesn't give you a nice live preview of progress, but it does render a single chunk for every device, this generally causes favorable results.
