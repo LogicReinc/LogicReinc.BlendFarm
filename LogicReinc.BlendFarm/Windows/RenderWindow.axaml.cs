@@ -18,6 +18,7 @@ using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Image = Avalonia.Controls.Image;
 
@@ -168,22 +169,29 @@ namespace LogicReinc.BlendFarm.Windows
         {
             if (!string.IsNullOrEmpty(InputClientAddress) && !string.IsNullOrEmpty(InputClientName))
             {
-                if(BlendFarmSettings.Instance.PastClients.Any(x=>x.Key == InputClientName || x.Value.Address == InputClientAddress))
+                if (BlendFarmSettings.Instance.PastClients.Any(x => x.Key == InputClientName || x.Value.Address == InputClientAddress))
                 {
                     MessageWindow.Show(this, "Node already exists", "Node already exists, use a different name and address");
                     return;
-                }    
+                }
+                if(!Regex.IsMatch(InputClientAddress, "^([a-zA-Z0-9\\.]*?):[0-9][0-9]?[0-9]?[0-9]?[0-9]?$"))
+                {
+                    MessageWindow.Show(this, "Invalid Address", "The address provided seems to be invalid, expected format is {hostname}:{port} or {ip}{port}, eg. 192.168.1.123:15000");
+                    return;
+                }
 
                 Manager.AddNode(InputClientName, InputClientAddress);
 
                 BlendFarmSettings.Instance.PastClients.Add(InputClientName, new BlendFarmSettings.HistoryClient()
                 {
-                    Address= InputClientAddress,
+                    Address = InputClientAddress,
                     Name = InputClientName,
                     RenderType = RenderType.CPU
                 });
                 BlendFarmSettings.Instance.Save();
             }
+            else
+                MessageWindow.Show(this, "No name or address", "A node requires both a name and an address");
         }
 
         public void DeleteNode(RenderNode node)

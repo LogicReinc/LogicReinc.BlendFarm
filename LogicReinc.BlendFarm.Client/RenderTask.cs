@@ -410,7 +410,7 @@ namespace LogicReinc.BlendFarm.Shared
             Bitmap result = new Bitmap(Settings.OutputWidth, Settings.OutputHeight);
             Graphics g = Graphics.FromImage(result);
 
-            Dictionary<RenderNode, double> shares = GetRelativePerformance(validNodes);
+            Dictionary<RenderNode, decimal> shares = GetRelativePerformance(validNodes);
 
             List<RenderSubTask> tasks = GetChunkedSubTasks();
 
@@ -482,26 +482,26 @@ namespace LogicReinc.BlendFarm.Shared
         /// <summary>
         /// Determines device performance based on past renders or default
         /// </summary>
-        public Dictionary<RenderNode, double> GetRelativePerformance(List<RenderNode> nodes)
+        public Dictionary<RenderNode, decimal> GetRelativePerformance(List<RenderNode> nodes)
         {
-            Dictionary<RenderNode, double> perfs = new Dictionary<RenderNode, double>();
+            Dictionary<RenderNode, decimal> perfs = new Dictionary<RenderNode, decimal>();
             if (nodes.Count == 0)
-                return new Dictionary<RenderNode, double>();
+                return new Dictionary<RenderNode, decimal>();
             if (Settings.UseAutoPerformance && !nodes.Any(x=>x.PerformanceScorePP <= 0))
             {
-                double total = nodes.Sum(x => (x.PerformanceScorePP > 0) ? x.PerformanceScorePP : x.Cores);
+                decimal total = (decimal)nodes.Sum(x => (x.PerformanceScorePP > 0) ? x.PerformanceScorePP : x.Cores);
                 foreach (RenderNode node in nodes)
                 {
-                    double perf = (node.PerformanceScorePP > 0) ? node.PerformanceScorePP : node.Cores;
-                    perfs.Add(node,  1 - (perf / total));
+                    decimal perf = (node.PerformanceScorePP > 0) ? node.PerformanceScorePP : node.Cores;
+                    perfs.Add(node,  perf / total);
                 }
             }
             else
             {
-                double total = nodes.Sum(x => (x.Performance > 0) ? x.Performance : x.Cores);
+                decimal total = (decimal)nodes.Sum(x => (x.Performance > 0) ? x.Performance : x.Cores);
                 foreach(RenderNode node in nodes)
                 {
-                    double perf = (node.Performance > 0) ? node.Performance : node.Cores;
+                    decimal perf = (node.Performance > 0) ? (decimal)node.Performance : node.Cores;
                     perfs.Add(node, perf / total);
                 }
             }
@@ -529,13 +529,13 @@ namespace LogicReinc.BlendFarm.Shared
         /// </summary>
         private Dictionary<RenderNode, RenderSubTask> GetSplitSubTasks(List<RenderNode> validNodes)
         {
-            Dictionary<RenderNode, double> shares =  GetRelativePerformance(validNodes);
+            Dictionary<RenderNode, decimal> shares =  GetRelativePerformance(validNodes);
 
             Dictionary<RenderNode, RenderSubTask> tasks = new Dictionary<RenderNode, RenderSubTask>();
             decimal offsetX = 0;
             foreach (RenderNode node in validNodes)
             {
-                decimal share = (decimal)shares[node];
+                decimal share = shares[node];
 
                 if (node == validNodes.Last())
                     share = 1 - offsetX;
@@ -707,6 +707,7 @@ namespace LogicReinc.BlendFarm.Shared
             try
             {
 
+                req.Settings.RenderType = node.RenderType;
 
                 RenderResponse resp = await node.Render(req);
 
