@@ -30,7 +30,7 @@ namespace LogicReinc.BlendFarm.Client
         public int Cores { get; set; } = -1;
 
         public double Performance { get; set; } = 0;
-        public double PerformanceScorePP { get; set; } = 0;
+        public decimal PerformanceScorePP { get; set; } = 0;
 
         public RenderType RenderType { get; set; } = RenderType.CPU;
 
@@ -76,7 +76,7 @@ namespace LogicReinc.BlendFarm.Client
 
         public void UpdatePerformance(int pixelsRendered, int ms)
         {
-            double msPerPixel = (double)((double)pixelsRendered / ms);
+            decimal msPerPixel = (decimal)((decimal)pixelsRendered / ms);
             PerformanceScorePP = msPerPixel;
         }
 

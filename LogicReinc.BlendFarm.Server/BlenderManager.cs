@@ -275,16 +275,25 @@ namespace LogicReinc.BlendFarm.Server
                             settings.Cores = Environment.ProcessorCount;
 
                         //Check for valid Tile sizes, otherwise, replace with proper one for given device
-                        if (settings.ComputeUnit == RenderType.CUDA || settings.ComputeUnit == RenderType.OPENCL)
-                        {
-                            if (settings.TileWidth <= 0) settings.TileWidth = 64;
-                            if (settings.TileHeight <= 0) settings.TileHeight = 64;
-                        }
-                        else
+                        switch (settings.ComputeUnit)
                         {
                             //CPU tile size is optimally 8 for full scenes, but 16 better deals with quick tiles
-                            if (settings.TileWidth <= 0) settings.TileWidth = 16;
-                            if (settings.TileHeight <= 0) settings.TileHeight = 16;
+                            case RenderType.CPU:
+                                if (settings.TileWidth <= 0) settings.TileWidth = 16;
+                                if (settings.TileHeight <= 0) settings.TileHeight = 16;
+                                break;
+                            //CPU/GPU tile size is optimally 64, untill gpu takeover is possible
+                            case RenderType.CUDA:
+                            case RenderType.OPENCL:
+                                if (settings.TileWidth <= 0) settings.TileWidth = 64;
+                                if (settings.TileHeight <= 0) settings.TileHeight = 64;
+                                break;
+                            //GPU tile size is optimally 256
+                            case RenderType.CUDA_GPUONLY:
+                            case RenderType.OPENCL_GPUONLY:
+                                if (settings.TileWidth <= 0) settings.TileWidth = 256;
+                                if (settings.TileHeight <= 0) settings.TileHeight = 256;
+                                break;
                         }
 
 

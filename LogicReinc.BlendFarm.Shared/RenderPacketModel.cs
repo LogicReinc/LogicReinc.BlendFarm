@@ -9,6 +9,8 @@ namespace LogicReinc.BlendFarm.Shared
         CPU = 0,
         CUDA = 1,
         OPENCL = 2,
+        CUDA_GPUONLY = 3,
+        OPENCL_GPUONLY = 4
     }
     /// <summary>
     /// Model used to transfer render settings between client and render node

@@ -13,6 +13,7 @@ namespace LogicReinc.BlendFarm.Windows
 {
     public class DeviceSettingsWindow : Window
     {
+        private ComboBox selectRenderType = null;
 
         public RenderType[] RenderTypes { get; } = (RenderType[])Enum.GetValues(typeof(RenderType));
         public RenderNode Node { get; set; }
@@ -42,8 +43,14 @@ namespace LogicReinc.BlendFarm.Windows
         private void InitializeComponent()
         {
             AvaloniaXamlLoader.Load(this);
+            selectRenderType = this.Find<ComboBox>("selectRenderType");
+            selectRenderType.SelectedItem = Node.RenderType;
             Width = 300;
-            Height = 260;
+            Height = 300;
+            MinHeight = 300;
+            MaxHeight = 300;
+            MinWidth = 300;
+            MaxWidth = 300;
         }
 
 
@@ -65,6 +72,7 @@ namespace LogicReinc.BlendFarm.Windows
                     BlendFarmSettings.Instance.PastClients.Add(Node.Name, entry);
                 }
             }
+            Node.RenderType = ((RenderType)selectRenderType.SelectedItem);
             entry.RenderType = Node.RenderType;
             BlendFarmSettings.Instance.Save();
         }

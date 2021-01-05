@@ -27,14 +27,20 @@ scn = bpy.data.scenes["Scene"]
 
 jsonPath = argv[0];
 
-def useGPU(type):
-    bpy.context.preferences.addons[
-        "cycles"
-    ].preferences.compute_device_type = type
-    bpy.context.preferences.addons["cycles"].preferences.get_devices()
-    print(bpy.context.preferences.addons["cycles"].preferences.compute_device_type)
-    for d in bpy.context.preferences.addons["cycles"].preferences.devices:
-        d["use"] = 1
+def useGPU(type, gpuOnly):
+    cyclesPref = bpy.context.preferences.addons["cycles"].preferences;
+
+    cyclesPref.compute_device_type = type
+    cuda_devices, opencl_devices = cyclesPref.get_devices()
+    print(cyclesPref.compute_device_type)
+    
+    devices = None;
+    if(type == "CUDA"):
+        devices = cuda_devices;
+    else:
+        devices = opencl_devices;
+    for d in devices:
+        d.use = (not gpuOnly) or (d.type != "CPU");
         print(type + " Device:", d["name"], d["use"]);
 
 
@@ -81,13 +87,25 @@ def renderWithSettings(renderSettings, id, path):
             scn.cycles.device = "CPU";
             print("Use CPU");
         elif renderType == 1: #Cuda
+            useGPU("CUDA", False);
             scn.cycles.device = 'GPU';
-            useGPU("CUDA");
+            bpy.context.scene.cycles.device = "GPU";
             print("Use Cuda");
         elif renderType == 2: #OpenCL
+            useGPU("OPENCL", False);
             scn.cycles.device = 'GPU';
-            useGPU("OPENCL");
+            bpy.context.scene.cycles.device = "GPU";
             print("Use OpenCL");
+        elif renderType == 3: #Cuda
+            useGPU("CUDA", True);
+            scn.cycles.device = 'GPU';
+            bpy.context.scene.cycles.device = "GPU";
+            print("Use Cuda (GPU)");
+        elif renderType == 4: #OpenCL
+            useGPU("OPENCL", True);
+            scn.cycles.device = 'GPU';
+            bpy.context.scene.cycles.device = "GPU";
+            print("Use OpenCL (GPU)");
         
         # Set frame
         scn.frame_set(frame)

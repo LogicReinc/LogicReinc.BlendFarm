@@ -26,6 +26,10 @@ namespace LogicReinc.BlendFarm.Windows
             this.DataContext = this;
             Height = 200;
             Width = 500;
+            MinHeight = 200;
+            MaxHeight = 200;
+            MinWidth = 500;
+            MaxWidth = 500;
             CanResize = false;
 
             this.InitializeComponent();
