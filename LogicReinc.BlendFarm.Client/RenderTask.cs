@@ -428,7 +428,7 @@ namespace LogicReinc.BlendFarm.Shared
                 RenderNode nextNode = validNodes.OrderBy(node =>
                 {
                     int nrTiles = assignment[node].Count;
-                    return nrTiles * shares[node];
+                    return nrTiles * (1 / shares[node]);
                 }).FirstOrDefault();
                 assignment[nextNode].Add(nextTask);
             }
