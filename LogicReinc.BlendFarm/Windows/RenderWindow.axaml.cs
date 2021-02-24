@@ -147,7 +147,7 @@ namespace LogicReinc.BlendFarm.Windows
             _selectOrder = this.Find<ComboBox>("selectOrder");
 
             _selectStrategy.Items = Enum.GetValues(typeof(RenderStrategy));
-            _selectStrategy.SelectedIndex = 2;
+            _selectStrategy.SelectedIndex = 0;
             _selectOrder.Items = Enum.GetValues(typeof(TaskOrder));
             _selectOrder.SelectedIndex = 0;
         }
