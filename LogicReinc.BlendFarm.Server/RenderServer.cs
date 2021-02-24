@@ -128,7 +128,8 @@ namespace LogicReinc.BlendFarm.Server
                                 }
                                 catch (Exception ex)
                                 {
-                                    Console.WriteLine($"Failed to send broadcast due to:" + ex.Message);
+                                    Console.WriteLine($"Failed to receive broadcast due to:" + ex.Message);
+                                    Thread.Sleep(1000);
                                 }
                             }
                         }
@@ -160,6 +161,7 @@ namespace LogicReinc.BlendFarm.Server
                             catch (Exception ex)
                             {
                                 Console.WriteLine($"Failed to send broadcast due to:" + ex.Message);
+                                Thread.Sleep(1000);
                             }
                         }
                     }
