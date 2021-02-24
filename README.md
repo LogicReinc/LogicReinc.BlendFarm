@@ -158,6 +158,8 @@ ___
  - blender-2.83.9-linux64
  - blender-2.91.0-windows64
  - blender-2.91.0-linux64
+ - blender-2.91.2-windows64
+ - blender-2.91.2-linux64
  
 ___
 
