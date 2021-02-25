@@ -55,6 +55,10 @@ https://patreon.com/LogicReinc
 ---
 ## Planned
  - OPTIX
+ - Batch Animation Frames (Reduce "Render Loading.. between frames)
+ - Auto-merge animations into video/gifs
+ - Render Focus (target a specific area to render first)
+ - Render Rectangle (just render a specific area)
  - Settings Interface
  - GPU Take over CPU (when 2.92.0 releases)
  - Improve Automatic Performance
