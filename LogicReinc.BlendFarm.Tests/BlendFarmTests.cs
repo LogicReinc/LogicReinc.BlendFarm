@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -25,7 +26,7 @@ namespace LogicReinc.BlendFarm.Tests
         private static bool REMOVE_BLENDER = false;
         private static bool REMOVE_RESULTS = false;
 
-        private static string BLEND_FILE = "bmw27.blend";
+        private static string BLEND_FILE = "BlendFarmDemo.blend";
         private static string BLEND_VERSION = "blender-2.91.0";
 
         private static int PORT = 18585;
@@ -129,10 +130,35 @@ namespace LogicReinc.BlendFarm.Tests
 
             SyncResponse resp = null;
             using (FileStream stream = new FileStream(BLEND_FILE, FileMode.Open))
-                resp = await node.SyncFile(SESSION, lastFileChange, stream);
+                resp = await node.SyncFile(SESSION, lastFileChange, stream, Compression.Raw);
 
             Assert.IsTrue(resp.Success);
         }
+        [TestMethod]
+        public async Task SyncCompressed()
+        {
+            await BasicConnect();
+
+            RenderNode node = manager.GetNodeByName(THIS_NAME);
+
+            long lastFileChange = new FileInfo(BLEND_FILE).LastWriteTime.Ticks;
+
+            SyncResponse resp = null;
+            using (MemoryStream str = new MemoryStream())
+            using (GZipStream zip = new GZipStream(str, CompressionMode.Compress))
+            using (FileStream stream = new FileStream(BLEND_FILE, FileMode.Open))
+            {
+                byte[] buffer = new byte[4096];
+                int read = 0;
+                while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
+                    zip.Write(buffer, 0, read);
+
+                str.Seek(0, SeekOrigin.Begin);
+                resp = await node.SyncFile(SESSION, lastFileChange, str, Compression.GZip);
+            }
+            Assert.IsTrue(resp.Success);
+        }
+
 
         [TestMethod]
         public async Task Render()
@@ -144,7 +170,7 @@ namespace LogicReinc.BlendFarm.Tests
             long lastFileChange = new FileInfo(BLEND_FILE).LastWriteTime.Ticks;
             SyncResponse respSync = null;
             using (FileStream stream = new FileStream(BLEND_FILE, FileMode.Open))
-                respSync = await node.SyncFile(SESSION, lastFileChange, stream);
+                respSync = await node.SyncFile(SESSION, lastFileChange, stream, Compression.Raw);
             Assert.IsTrue(respSync.Success);
 
 

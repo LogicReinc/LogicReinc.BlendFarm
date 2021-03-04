@@ -6,11 +6,18 @@ namespace LogicReinc.BlendFarm.Shared.Communication.RenderNode
 {
     //Packets for syncing
 
+    public enum Compression
+    {
+        Raw = 0,
+        GZip = 1
+    }
+
     [BlendFarmHeader("sync")]
     public class SyncRequest : BlendFarmMessage
     {
         public string SessionID { get; set; }
         public long FileID { get; set; }
+        public Compression Compression { get; set; }
     }
 
     [BlendFarmHeader("syncResp")]

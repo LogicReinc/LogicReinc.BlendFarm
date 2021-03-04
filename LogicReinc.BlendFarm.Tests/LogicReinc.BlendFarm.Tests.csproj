@@ -31,6 +31,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="BlendfarmDemo.blend">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="street.blend">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
