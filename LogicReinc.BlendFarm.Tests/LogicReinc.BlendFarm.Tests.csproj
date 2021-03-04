@@ -7,12 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="BlendfarmDemo.blend" />
     <None Remove="bmw27.blend" />
     <None Remove="room.blend" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="bmw27.blend">
+    <Content Include="BlendfarmDemo.blend">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
@@ -31,9 +32,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="BlendfarmDemo.blend">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Update="street.blend">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
