@@ -150,9 +150,14 @@
                   Command="{Binding AddNewNode}" 
                   IsEnabled="{Binding ElementName=inputClientAddress, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">Connect New</Button>
             </StackPanel>
-            <CheckBox IsChecked="{Binding UseAutomaticPerformance}">
-              Use Automatic Performance
-            </CheckBox>
+            <StackPanel Orientation="Horizontal">
+              <CheckBox IsChecked="{Binding UseAutomaticPerformance}">
+                Use Automatic Performance
+              </CheckBox>
+              <CheckBox IsChecked="{Binding UseSyncCompression}" Margin="10,0,0,0">
+                Use Sync Compression
+              </CheckBox>
+            </StackPanel>
           </StackPanel>
         </StackPanel>
 

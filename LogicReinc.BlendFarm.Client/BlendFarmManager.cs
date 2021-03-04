@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Drawing;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -242,31 +243,64 @@ namespace LogicReinc.BlendFarm.Client
         /// Synchronize a the Blend file with all connected nodes
         /// </summary>
         /// <returns></returns>
-        public async Task Sync()
+        public async Task Sync(bool compress = false)
         {
             try
             {
                 Syncing = true;
                 //Optimize
                 long id = FileID;
-                await Task.WhenAll(Nodes.ToList().Select(async node =>
+
+                using (MemoryStream mem = new MemoryStream())
                 {
-                    SyncResponse resp = null;
-                    try
+                    byte[] buffer = new byte[4096];
+
+                    await Task.Run(() =>
                     {
-                        using (FileStream str = new FileStream(BlendFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                            resp = await node.SyncFile(SessionID, id, str);
-                    }
-                    catch (Exception ex)
+                        if (compress)
+                        {
+                            Nodes.ToList().ForEach(x => x.UpdateActivity("Compressing.."));
+
+                            using (FileStream str = new FileStream(BlendFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                            using (Stream zip = new GZipStream(mem, CompressionMode.Compress, true))
+                            {
+                                int read = 0;
+                                while ((read = str.Read(buffer, 0, buffer.Length)) > 0)
+                                    zip.Write(buffer, 0, buffer.Length);
+                            }
+
+                            Nodes.ToList().ForEach(x => x.UpdateActivity(""));
+                        }
+                        else
+                        {
+                            using (FileStream str = new FileStream(BlendFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                            {
+                                int read = 0;
+                                while ((read = str.Read(buffer, 0, buffer.Length)) > 0)
+                                    mem.Write(buffer, 0, buffer.Length);
+                            }
+                        }
+                        mem.Seek(0, SeekOrigin.Begin);
+                    });
+
+                    await Task.WhenAll(Nodes.ToList().Select(async node =>
                     {
-                        node.UpdateException(ex.Message);
-                        return;
-                    }
-                    if (resp == null)
-                        node.LastStatus = $"Sync Failed: No version..";
-                    else
-                        node.LastStatus = $"Ready";
-                }).ToArray());
+                        SyncResponse resp = null;
+                        try
+                        {
+                            resp = await node.SyncFile(SessionID, id, mem, (compress) ? Compression.GZip : Compression.Raw);
+                        }
+                        catch (Exception ex)
+                        {
+                            node.UpdateException(ex.Message);
+                            return;
+                        }
+                        if (resp == null)
+                            node.LastStatus = $"Sync Failed: No version..";
+                        else
+                            node.LastStatus = $"Ready";
+                    }).ToArray());
+                }
             }
             finally
             {

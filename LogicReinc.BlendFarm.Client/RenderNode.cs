@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.IO.Compression;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -198,7 +199,7 @@ namespace LogicReinc.BlendFarm.Client
         /// <param name="sess">An identifier for the session</param>
         /// <param name="fileid">An identifier used to differentiate versions</param>
         /// <returns></returns>
-        public async Task<SyncResponse> SyncFile(string sess, long fileid, Stream file)
+        public async Task<SyncResponse> SyncFile(string sess, long fileid, Stream file, Compression compression)
         {
             if (Client == null)
                 throw new InvalidOperationException("Client not connected");
@@ -213,7 +214,8 @@ namespace LogicReinc.BlendFarm.Client
                 resp = await Client.Send<SyncResponse>(new SyncRequest()
                 {
                     SessionID = sess,
-                    FileID = fileid
+                    FileID = fileid,
+                    Compression = compression
                 }, CancellationToken.None);
 
                 if (!resp.Success)
@@ -222,7 +224,7 @@ namespace LogicReinc.BlendFarm.Client
                     return resp;
 
                 //Transfer file
-                byte[] chunk = new byte[1024 * 1024];
+                byte[] chunk = new byte[1024 * 1024 * 10];
                 int read = 0;
                 int written = 0;
                 while ((read = file.Read(chunk, 0, chunk.Length)) > 0)
@@ -455,6 +457,11 @@ namespace LogicReinc.BlendFarm.Client
                 Exception = excp;
                 TriggerPropChange(nameof(Exception));
             }
+        }
+        public void UpdateLastStatus(string status)
+        {
+            LastStatus = status;
+            TriggerPropChange(nameof(LastStatus));
         }
         public void UpdateSyncedStatus(bool val)
         {

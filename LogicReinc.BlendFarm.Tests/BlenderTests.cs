@@ -13,7 +13,7 @@ namespace LogicReinc.BlendFarm.Tests
     [TestClass]
     public class BlenderTests
     {
-        private static string BLEND_FILE = "bmw27.blend";
+        private static string BLEND_FILE = "BlendFarmDemo.blend";
         private static string BLEND_VERSION = "blender-2.91.0";
 
         private static string RESULTS_DIRECTORY = "BlendFrameTests_Results";

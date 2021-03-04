@@ -44,6 +44,7 @@ namespace LogicReinc.BlendFarm.Windows
         public int Samples { get; set; } = 32;
         public bool UseWorkaround { get; set; } = true;
         public bool UseAutomaticPerformance { get; set; } = true;
+        public bool UseSyncCompression { get; set; } = false;
 
         public string AnimationFileFormat { get; set; } = "#.png";
         public int FrameStart { get; set; } = 0;
@@ -162,7 +163,7 @@ namespace LogicReinc.BlendFarm.Windows
         }
         public async Task SyncAll()
         {
-            await Manager?.Sync();
+            await Manager?.Sync(UseSyncCompression);
         }
 
         public void AddNewNode()
@@ -227,7 +228,7 @@ namespace LogicReinc.BlendFarm.Windows
             if(!noSync && Manager.Nodes.Any(x=> x.Connected && !x.IsSynced))
             {
                 if(await YesNoNeverWindow.Show(this, "Unsynced nodes", "You have nodes that are not yet synced, would you like to sync them to use for rendering?", "syncBeforeRendering"))
-                    await Manager.Sync();
+                    await Manager.Sync(UseSyncCompression);
             }
 
             //Start rendering thread
