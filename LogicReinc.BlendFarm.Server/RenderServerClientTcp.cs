@@ -86,7 +86,7 @@ namespace LogicReinc.BlendFarm.Server
                 if (req.FileID != session.FileID)
                 {
                     Directory.CreateDirectory(ServerSettings.Instance.BlenderFiles);
-                    _uploads.Add(uploadID, new FileUpload(session.GetBlendFilePath(), req));
+                    _uploads.Add(uploadID, new FileUpload(session.GetBlendFilePath(), req, req.Compression));
                     session.UpdatingFile();
                 }
 
@@ -149,6 +149,8 @@ namespace LogicReinc.BlendFarm.Server
                         Success = false
                     };
                 _uploads.Remove(complete.UploadID);
+
+                upload.FinalWrite();
 
                 SyncRequest obj = upload.GetContext<SyncRequest>();
                 string fileName = upload.TargetPath;
