@@ -9,7 +9,7 @@ It consumed more time than I had planned.
 ![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/simplerender.gif)
 A render using SplitChunked render strategy on BMW benchmark at low samples/res for showcase.
 
-Computers: Local=Ryzen 1700X (16 threads, 3.4Ghz), logicreinc=Pentium G3420 (2 threads, 3.2Ghz), Work-PC2=Ryzen 3700X (16 threads, 3.6Ghz)
+Computers: Local=Ryzen 1700X (16 threads, 3.4Ghz), WORK-PC=Ryzen 3700X (16 threads, 3.6Ghz), AUDIO-PC=Ryzen 5600X (12 threads, 3.7Ghz), render=Xeon e5 2578 v3 (24 threads, 2.5Ghz), render2=Xeon e5 2573 v3 *2 (48 threads, 2.4Ghz)
 
 ## Why a Network Renderer
 ----
