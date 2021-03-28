@@ -1,7 +1,7 @@
 # **BlendFarm**
 A open-source, cross-platform, stand-alone, Network Renderer for Blender
 ---
-When I was trying to build a render server I was suprised most network renderers out there for Blender are either outdated, obsolete or require very specific environments to work properly. Thus, I spend the last weeks writing a stand-alone network renderer that requires barely any setup and should work with most if not all recent versions of Blender. And should even work with future releases. 
+When I was trying to build a render server I was suprised most network renderers out there for Blender are either outdated, obsolete or require very specific environments to work properly. Thus, I spend the last months writing and testing a stand-alone network renderer that requires barely any setup and should work with most if not all recent versions of Blender. And should even work with future releases. 
 
 Originally I only planned on using it for myself, but decided to make it more production ready and release it to the public, and hopefully solve this for others. 
 It consumed more time than I had planned.
@@ -16,6 +16,20 @@ Computers: Local=Ryzen 1700X (16 threads, 3.4Ghz), logicreinc=Pentium G3420 (2 t
 Not everyone has RTX 3090's stacked up, and even if you do, you can only run maybe 2 in the same system. A network renderer allows you to use multiple pcs in your network to work on a single image or animation. Old hardware that is still relatively fast can be used to accelerate your rendering or live preview. 
 While a network renderer is not perfect and does have some overhead. With 2 identical computers on a sufficiently large scene I estimate you can speed up your render time by about 80-90% with the right settings.
 
+##  TL;DR: Features
+----
+Watch the video below for an overview:
+
+[![Demonstration Video](https://img.youtube.com/vi/J5fYMfi6Nb0/0.jpg)](https://www.youtube.com/watch?v=J5fYMfi6Nb0)
+ * **Distributed Rendering** - Duh, Network renderer. Support both CPU and GPU (CUDA/OPENCL, OPTIX planned when I obtain Ampere)
+ * **Stand-alone client** - Automatically updates when your .blend updates, doesn't slow Blender
+ * **Headless server** - Easy deployment with a single executable
+ * **Blender Versions** - Automatically downloads the right version of Blender
+ * **Render Images in Chunks** - Supports different rendering strategies including those showing rendered chunks
+ * **Live Update** - Re-Render automatically when you save your project
+ * **Auto Discovery** - Application will attempt to automatically detect nodes in your network
+ * **Automatic Performance** - Measures performance after each render to improve distribution (todo improve)
+
 ## Why Stand-alone
 ----
 Unlike some other network renderers, LogicReinc.BlendFarm runs as its own independent application. This is for various reasons:
@@ -27,22 +41,9 @@ Unlike some other network renderers, LogicReinc.BlendFarm runs as its own indepe
  - **Responsive** - Doesn't slow down Blender. Python is also extremely slow in comparison.
  - **Stable** - Doesn't cause Blender to crash on odd failures, You don't want to lose that project.
 
-##  TL;DR: Features
-----
- * **Distributed Rendering** - Duh, Network renderer. Support both CPU and GPU (CUDA/OPENCL, OPTIX planned when I obtain Ampere)
- * **Stand-alone client** - Automatically updates when your .blend updates, doesn't slow Blender
- * **Headless server** - Easy deployment with a single executable
- * **Blender Versions** - Automatically downloads the right version of Blender
- * **Render Images in Chunks** - Supports different rendering strategies including those showing rendered chunks
- * **Live Update** - Re-Render automatically when you save your project
- * **Auto Discovery** - Application will attempt to automatically detect nodes in your network
- * **Automatic Performance** - Measures performance after each render to improve distribution (todo improve)
-
-Watch the video below for an overview:
-TODO: Add Video
 
 ## Use-Cases
- * **Old Hardware** - Recently upgraded your still powerful system? Let it render
+ * **Old Hardware** - Recently upgraded from your still powerful system? Let it render
  * **GPU Limit** - You can't fit a GPU into your existing system? Let it render in another computer
  * **Powerfull side Laptop** - Got a powerful laptop with a good GPU? Let it render
  * **Cheap Chinese Hardware** - Get some cheap xeon systems from China and build your own render farm
@@ -52,6 +53,10 @@ ___
 Quite some time went into getting this up. If you enjoy the software, please consider dropping a donation on my Patreon.
 https://patreon.com/LogicReinc
 
+If you like to donate crypto:
+Bitcoin: 3FidXvMfvqusmXzKroCLZ2gUE1YMNVVHoz
+Ethereum: 0xd2C3BCCc981d359e037457f0CdB9d48fdc289Feb
+
 ---
 ## Planned
  - OPTIX
@@ -60,9 +65,9 @@ https://patreon.com/LogicReinc
  - Render Focus (target a specific area to render first)
  - Render Rectangle (just render a specific area)
  - Settings Interface
- - GPU Take over CPU (when 2.92.0 releases)
  - Improve Automatic Performance
  - General Improvement
+ - Docker Image?
  - More Testing
 
 ## Limitations
@@ -78,18 +83,20 @@ ___
 
 ### CPU Speed Comparison
 Below a simple example when rendering in split mode, using all computers and a single computer
-1700X + 3800X + G3420 | Solo 1700X
+1700X + 3700X + Xeon e5 2578 v3 + 2x Xeon e5 2573 v3 | Solo 1700X
 :------------------------:|:----------------------:
 ![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/renderSplitted.gif) | ![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/renderSolo.gif)
-Duration: +/- 4 Seconds | Duration: +/- 8 Seconds
-G3420 probably only slows it down
+Duration: +/- 25 Seconds | Duration: +/- 90 Seconds
+With a well distributed scene performance scaling can be >90%
 
-### CPU/GPU Speed Comparison
-Todo, waiting for better hardware
+### Animation Rendering
+Using BlendFarm you can render multiple frames at the same time.
+![AnimationRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/renderAnimation.gif)
 
+### Live Render
+You can run BlendFarm besides Blender, and have it re-render your scene using all your connected computers whenever you save in blender
+![LiveRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/renderLive.gif)
 
-### More Computers
-Todo, waiting for better hardware
  
 ___
 
@@ -113,7 +120,13 @@ ___
 # Getting Started
 ----
 To get started, You will want 2 or more computers (if you actually want to distribute it).
-### TL;DR; 
+
+Below is a video on how you do a basic render using BlendFarm
+
+[![BlendFarm Tutorial](https://img.youtube.com/vi/EXdwD5t53wc/0.jpg)](https://www.youtube.com/watch?v=EXdwD5t53wc)
+
+
+### Platform Specific TL;DR; 
 Extract and run the executables, ensure read, write and execute access to directory and allow through firewall (port 15000 default)
 Note that LogicReinc.BlendFarm is both client and server, so you can simply use the GUI on every pc, but would add useless UI.
 
@@ -130,21 +143,22 @@ Note that LogicReinc.BlendFarm is both client and server, so you can simply use 
 ### Getting Started on Linux
 
 #### Server (Render Node)
- - install blender system dependencies (easiest way is to just apt-get blender (just for dependencies, doesn't need to be up2date)
  - Extract LogicReinc.BlendFarm.Server to any directory with read/write/execute access (chown/chmod u=rwx, or sudo)
  - (Optional: if firewall) Allow port 15000/tcp (default, can change) and port 16342/udp (default, can change) through your firewall
  - Run LogicReinc.BlendFarm.Server
 
 #### Client (GUI)
- - install blender system dependencies (easiest way is to just apt-get blender, just for dependencies)
- - install (apt-get/whatever) libgdiplus and libc6-dev
  - Extract LogicReinc.BlendFarm to any directory with read/write/execute access (chown/chmod u=rwx, or sudo)
  - (Optional: if firewall) Allow port 15000/tcp (default, can change) and port 16342/udp (default, can change) through your firewall
  - Run LogicReinc.BlendFarm
 
 ### Getting Started on Mac
-At the moment I have not yet tested Mac so I can't give proper instructions. But expect something similar to Linux.
+At this point in time OSX is not capable of rendering, but can use other computers to render.
 
+#### Client (GUI)
+ - Extract LogicReinc.BlendFarm-OSX64 to any directory with read/write
+ - (Optional: if firewall) Allow port 15000/tcp (default, can change) and port 16342/udp (default, can change) through your firewall
+ - Run LogicReinc.BlendFarm.command
 
 ### Finding my RenderNodes
 After you setup your computers render nodes should automatically appear in your nodes list through auto-discovery.
@@ -154,6 +168,11 @@ For address use {deviceIP}:{devicePort} (eg. 192.168.1.123:15000)
 ___
 
 ## Changelog
+### V1.0.0 Release Candidate
+ - Contains most advertised features
+ - Still missing MacOS rendering
+ - Minor issues with network discovery on MacOS/Linux
+
 ### V0.1 Initial Release
  - Enjoy
  - I'm sure there are bugs, I'm not superhuman
@@ -164,6 +183,8 @@ ___
  - blender-2.91.0-linux64
  - blender-2.91.2-windows64
  - blender-2.91.2-linux64
+ - blender-2.92.0-linux64
+ - blender-2-92.0-windows64
  
 ___
 
@@ -183,7 +204,7 @@ Yes, both the renderer and gui should work on Windows64.
 Yes, both the renderer and gui should work on Linux64. 
 
 #### Can I run this on Mac?
-No, At the moment Mac has not been implemented. This is however not too hard to do and will likely be done at a later date (and if there is demand). GUI should work on Mac (after disabling local server) but I still have to test this first before releasing executables.
+At the moment OSX can run the GUI to use RenderNodes, but cannot render itself, thus "Local" will not be visible.
 
 #### Can I run this in Docker?
 I haven't made a docker file yet, but I plan on it since its not that much effort. So expect it in the future Iguess.
