@@ -80,6 +80,7 @@ namespace LogicReinc.BlendFarm.Shared.Communication
         public void Write(byte[] bytes, int offset, int length, Stream target)
         {
             target.Write(bytes, offset, length);
+            target.Flush();
         }
 
         public void FinalWrite(Stream stream)

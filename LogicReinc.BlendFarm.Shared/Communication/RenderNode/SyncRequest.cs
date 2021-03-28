@@ -34,6 +34,7 @@ namespace LogicReinc.BlendFarm.Shared.Communication.RenderNode
     {
         public string UploadID { get; set; }
         public byte[] Data { get; set; }
+        public string Hash { get; set; }
     }
     [BlendFarmHeader("syncUploadResp")]
     public class SyncUploadResponse : BlendFarmMessage

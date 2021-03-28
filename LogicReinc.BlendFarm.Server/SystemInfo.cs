@@ -26,6 +26,8 @@ namespace LogicReinc.BlendFarm.Server
                 return "linux64";
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 return "windows64";
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                return "macOS";
             else
                 throw new NotImplementedException("Unknown OS");
         }

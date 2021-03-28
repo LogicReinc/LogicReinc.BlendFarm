@@ -98,6 +98,11 @@ namespace LogicReinc.BlendFarm.Windows
             File = blenderFile;
             Version = version;
 
+            using (Stream icoStream = Program.GetIconStream())
+            {
+                this.Icon = new WindowIcon(icoStream);
+            }
+
             Init();
         }
         private void Init()
@@ -151,6 +156,18 @@ namespace LogicReinc.BlendFarm.Windows
             _selectStrategy.SelectedIndex = 0;
             _selectOrder.Items = Enum.GetValues(typeof(TaskOrder));
             _selectOrder.SelectedIndex = 0;
+
+            _image.KeyDown += async (a, b) =>
+            {
+                if (b.Key == Avalonia.Input.Key.Delete)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        _image.Source = FromDrawingBitmap(new System.Drawing.Bitmap(1, 1));
+                        _lastRenderTime.Text = "";
+                    });
+                }
+            };
         }
 
         public async void ConnectAll()

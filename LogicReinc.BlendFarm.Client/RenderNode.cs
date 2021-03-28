@@ -71,8 +71,11 @@ namespace LogicReinc.BlendFarm.Client
         {
             OnConnected += (n) => 
                 TriggerPropChange(nameof(Connected));
-            OnDisconnected += (n) => 
+            OnDisconnected += (n) =>
+            {
+                UpdateSyncedStatus(false);
                 TriggerPropChange(nameof(Connected));
+            };
         }
 
         public void UpdatePerformance(int pixelsRendered, int ms)
@@ -229,11 +232,13 @@ namespace LogicReinc.BlendFarm.Client
                 int written = 0;
                 while ((read = file.Read(chunk, 0, chunk.Length)) > 0)
                 {
+                    byte[] toSend = (read == chunk.Length) ? chunk : chunk.AsSpan(0, read).ToArray();
                     //Send chunk
                     var uploadResp = await Client.Send<SyncUploadResponse>(new SyncUploadRequest()
                     {
-                        Data = (read == chunk.Length) ? chunk : chunk.AsSpan(0, read).ToArray(), //Convert.ToBase64String(chunk, 0, read),
-                        UploadID = resp.UploadID
+                        Data = toSend, //Convert.ToBase64String(chunk, 0, read),
+                        UploadID = resp.UploadID,
+                        //Hash = Hash.ComputeSyncHash(toSend) //Used during debugging
                     }, CancellationToken.None);
 
                     if (!uploadResp.Success)
@@ -244,6 +249,7 @@ namespace LogicReinc.BlendFarm.Client
                     double progress = (double)written / file.Length;
                     double p = Math.Round(progress * 100, 1);
                     UpdateActivity($"Syncing ({p}%)", p);
+                    //Thread.Sleep(100);
                 }
 
                 //Indicate Transfer Complete

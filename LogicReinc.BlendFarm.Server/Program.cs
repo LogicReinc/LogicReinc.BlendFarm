@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace LogicReinc.BlendFarm.Server
 {
@@ -30,7 +31,12 @@ namespace LogicReinc.BlendFarm.Server
             Server.Start();
             Console.WriteLine("Server Started");
 
-            HandleConsole();
+            //HandleConsole();
+            while (true)
+            {
+                Thread.Sleep(500);
+            }
+
 
             Server.Stop();
         }
