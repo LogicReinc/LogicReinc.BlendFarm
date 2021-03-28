@@ -118,8 +118,11 @@ namespace LogicReinc.BlendFarm.Shared
                     case RenderStrategy.Chunked:
                         result = await RenderChunked(validNodes, onSubTaskFinished);
                         break;
-                    case RenderStrategy.Split:
-                        result = await RenderSplit(validNodes, onSubTaskFinished);
+                    case RenderStrategy.SplitHorizontal:
+                        result = await RenderSplit(validNodes, onSubTaskFinished, false);
+                        break;
+                    case RenderStrategy.SplitVertical:
+                        result = await RenderSplit(validNodes, onSubTaskFinished, true);
                         break;
                     case RenderStrategy.SplitChunked:
                         result = await RenderSplitChunked(validNodes, onSubTaskFinished);
@@ -270,13 +273,13 @@ namespace LogicReinc.BlendFarm.Shared
         /// Renders file with Settings in maximum chunks based on Cores and Performance
         /// eg. 3 valid nodes of equal performance will render a single part on each node with a 0.33 ratio
         /// </summary>
-        private async Task<Bitmap> RenderSplit(List<RenderNode> validNodes, Action<RenderSubTask> onSubTaskFinished = null)
+        private async Task<Bitmap> RenderSplit(List<RenderNode> validNodes, Action<RenderSubTask> onSubTaskFinished = null, bool isVertical = false)
         {
             object drawLock = new object();
             Bitmap result = new Bitmap(Settings.OutputWidth, Settings.OutputHeight);
             Graphics g = Graphics.FromImage(result);
 
-            Dictionary<RenderNode, RenderSubTask> assignment = GetSplitSubTasks(validNodes);
+            Dictionary<RenderNode, RenderSubTask> assignment = GetSplitSubTasks(validNodes, isVertical);
 
             int finished = 0;
             List<string> exceptions = new List<string>();
@@ -527,7 +530,7 @@ namespace LogicReinc.BlendFarm.Shared
         /// Splits up file into subtasks among validNodes based on performance
         /// Single subtask per node (see RenderSplit description)
         /// </summary>
-        private Dictionary<RenderNode, RenderSubTask> GetSplitSubTasks(List<RenderNode> validNodes)
+        private Dictionary<RenderNode, RenderSubTask> GetSplitSubTasks(List<RenderNode> validNodes, bool isVertical = false, decimal overlap = 0.01m)
         {
             Dictionary<RenderNode, decimal> shares =  GetRelativePerformance(validNodes);
 
@@ -539,7 +542,21 @@ namespace LogicReinc.BlendFarm.Shared
 
                 if (node == validNodes.Last())
                     share = 1 - offsetX;
-                tasks.Add(node, new RenderSubTask(this, offsetX, offsetX + share, 0, 1, Settings.Frame));
+
+                decimal startX = offsetX;
+                decimal endX = offsetX + share;
+
+                if (overlap > 0)
+                {
+                    startX = Math.Max(0, startX - overlap);
+                    endX = Math.Min(1, endX + overlap);
+                }
+
+                if(!isVertical)
+                    tasks.Add(node, new RenderSubTask(this, startX, endX, 0, 1, Settings.Frame));
+                else
+                    tasks.Add(node, new RenderSubTask(this, 0, 1, startX, endX, Settings.Frame));
+
                 offsetX += share;
             }
             return tasks;
@@ -549,7 +566,7 @@ namespace LogicReinc.BlendFarm.Shared
         /// <summary>
         /// Splits up file into subtasks based on Settings.ChunkWidth/Height
         /// </summary>
-        private List<RenderSubTask> GetChunkedSubTasks()
+        private List<RenderSubTask> GetChunkedSubTasks(decimal overlap = 0.003m)
         {
             decimal blockSizeX = Settings.ChunkWidth;
             decimal blockSizeY = Settings.ChunkHeight;
@@ -586,8 +603,14 @@ namespace LogicReinc.BlendFarm.Shared
                     decimal startY = y * blockSizeY;
                     decimal endY = Math.Min(1, (y + 1) * blockSizeY);
 
+                    startX = Math.Max(0, startX - overlap);
+                    endX = Math.Min(1, endX + overlap);
+                    startY = Math.Max(0, startY - overlap);
+                    endY = Math.Min(1, endY + overlap);
+
                     if (startX >= 1 || startY >= 1)
                         continue;
+
 
                     tasks.Add(new RenderSubTask(this, startX, endX, startY, endY, Settings.Frame));
                 }

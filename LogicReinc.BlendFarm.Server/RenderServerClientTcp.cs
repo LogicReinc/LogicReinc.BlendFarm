@@ -1,4 +1,5 @@
-﻿using LogicReinc.BlendFarm.Shared.Communication;
+﻿using LogicReinc.BlendFarm.Shared;
+using LogicReinc.BlendFarm.Shared.Communication;
 using LogicReinc.BlendFarm.Shared.Communication.RenderNode;
 using System;
 using System.Collections.Generic;
@@ -119,13 +120,28 @@ namespace LogicReinc.BlendFarm.Server
                         Message = "Upload does not exist"
                     };
 
-                //upload.WriteBase64(req.Data);
-                upload.Write(req.Data, 0, req.Data.Length);
-
-                return new SyncUploadResponse()
+                /* //Used during debugging
+                string hash = Hash.ComputeSyncHash(req.Data);
+                if (hash != req.Hash)
                 {
-                    Success = true
-                };
+                    Console.WriteLine("Expected [" + req.Hash + "], Received: [" + hash + "]");
+                    return new SyncUploadResponse()
+                    {
+                        Success = false,
+                        Message = "Corrupted upload"
+                    };
+                }*/
+
+                lock (upload)
+                {
+                    //upload.WriteBase64(req.Data);
+                    upload.Write(req.Data, 0, req.Data.Length);
+
+                    return new SyncUploadResponse()
+                    {
+                        Success = true
+                    };
+                }
             }
             catch(Exception ex)
             {
@@ -149,21 +165,24 @@ namespace LogicReinc.BlendFarm.Server
                         Success = false
                     };
                 _uploads.Remove(complete.UploadID);
-
-                upload.FinalWrite();
-
-                SyncRequest obj = upload.GetContext<SyncRequest>();
-                string fileName = upload.TargetPath;
-                upload.Dispose();
-
-                SessionData session = SessionData.GetOrCreate(obj.SessionID);
-
-                session.UpdatedFile(obj.FileID);
-
-                return new SyncCompleteResponse()
+                lock (upload)
                 {
-                    Success = true
-                };
+
+                    upload.FinalWrite();
+
+                    SyncRequest obj = upload.GetContext<SyncRequest>();
+                    string fileName = upload.TargetPath;
+                    upload.Dispose();
+
+                    SessionData session = SessionData.GetOrCreate(obj.SessionID);
+
+                    session.UpdatedFile(obj.FileID);
+
+                    return new SyncCompleteResponse()
+                    {
+                        Success = true
+                    };
+                }
             }
             catch (Exception ex)
             {

@@ -2,6 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <ApplicationIcon>render.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Icons\become_a_patron_button3x.png" />
@@ -14,6 +15,7 @@
     <None Remove="Icons\radioOn.png" />
     <None Remove="Icons\radioOn.zip" />
     <None Remove="Images\header.png" />
+    <None Remove="Images\render.ico" />
   </ItemGroup>
   <ItemGroup>
     <AvaloniaResource Include="Icons\delete.png" />
@@ -27,8 +29,15 @@
     <AvaloniaResource Include="Images\header.png" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Images\render.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Avalonia" Version="0.9.12" />
     <PackageReference Include="Avalonia.Desktop" Version="0.9.12" />
+    <PackageReference Include="runtime.linux-x64.CoreCompat.System.Drawing" Version="1.0.0-beta009" />
+    <PackageReference Include="runtime.osx.10.10-x64.CoreCompat.System.Drawing" Version="5.8.64" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\LogicReinc.BlendFarm.Client\LogicReinc.BlendFarm.Client.csproj" />

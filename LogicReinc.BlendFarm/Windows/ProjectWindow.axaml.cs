@@ -31,42 +31,61 @@ namespace LogicReinc.BlendFarm.Windows
 
         private Dictionary<string, (string,string,int)> _previouslyFoundNodes = new Dictionary<string, (string, string, int)>();
 
+        private bool _noServer = false;
+
         public ProjectWindow()
         {
             versions = BlenderVersion.GetBlenderVersions();
             DataContext = this;
-
-            LocalServer.OnServerException += (a, b) =>
+            using(Stream icoStream = Program.GetIconStream())
             {
-                Dispatcher.UIThread.InvokeAsync(() =>
+                this.Icon = new WindowIcon(icoStream);
+            }
+
+            try
+            {
+                _noServer = SystemInfo.GetOSName() == "macOS";
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine("No server due to:" + ex.Message);
+                _noServer = true;
+            }
+
+            if (!_noServer)
+            {
+                LocalServer.OnServerException += (a, b) =>
                 {
-                    MessageWindow.Show(this, "Local Server Failure", 
-                        $@"Local server failed to start, if you're already using a port, change it in settings. 
+                    Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        MessageWindow.Show(this, "Local Server Failure",
+                            $@"Local server failed to start, if you're already using a port, change it in settings. 
 Or if you're running this program twice, ignore I guess. 
 (TCP: {ServerSettings.Instance.Port}, UDP: {ServerSettings.Instance.BroadcastPort})");
-                });
-            };
-            LocalServer.OnBroadcastException += (a, b) =>
-            {
-                Dispatcher.UIThread.InvokeAsync(() =>
+                    });
+                };
+                LocalServer.OnBroadcastException += (a, b) =>
                 {
-                    MessageWindow.Show(this, "Local Broadcast Failure",
-                        $@"Local Server failed to broadcast or receive broadcasts for auto-discovery.  It can be changed in settings.
+                    Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        MessageWindow.Show(this, "Local Broadcast Failure",
+                            $@"Local Server failed to broadcast or receive broadcasts for auto-discovery.  It can be changed in settings.
 This may have to do with the port being in use. Note that to discover other pcs their broadcast port needs to be the same..
 (TCP: {ServerSettings.Instance.Port}, UDP: {ServerSettings.Instance.BroadcastPort})");
-                });
-            };
-            LocalServer.OnDiscoveredServer += (name, address, port) =>
-            {
-                if (_manager != null)
-                    _manager.TryAddDiscoveryNode(name, address, port);
-            };
-            LocalServer.Start();
-            Closed += (a, b) =>
-            {
-                if (!_startedNew)
-                    LocalServer.Stop();
-            };
+                    });
+                };
+                LocalServer.OnDiscoveredServer += (name, address, port) =>
+                {
+                    if (_manager != null)
+                        _manager.TryAddDiscoveryNode(name, address, port);
+                };
+                LocalServer.Start();
+                Closed += (a, b) =>
+                {
+                    if (!_startedNew)
+                        LocalServer.Stop();
+                };
+            }
 
             this.InitializeComponent();
 #if DEBUG
@@ -98,6 +117,9 @@ This may have to do with the port being in use. Note that to discover other pcs 
                     fileSelection.Text = list;
                 }
             };
+
+            if(_noServer)
+                MessageWindow.Show(this, "OSX Rendering", "Rendering using Blender is disabled for OSX due to it not being implemented fully yet. You can however render using other machines in your network. (Local render node will not be available)");
         }
 
         public async void ShowFileDialog()
@@ -151,7 +173,7 @@ This may have to do with the port being in use. Note that to discover other pcs 
             //Setup manager
             _manager = new BlendFarmManager(path, version.Name, null, BlendFarmSettings.Instance.LocalBlendFiles);
 
-            if(!BlendFarmSettings.Instance.PastClients.Any(x=>x.Key == BlendFarmManager.LocalNodeName))
+            if(!_noServer && !BlendFarmSettings.Instance.PastClients.Any(x=>x.Key == BlendFarmManager.LocalNodeName))
                 _manager.AddNode(BlendFarmManager.LocalNodeName, $"localhost:{LocalServer.ServerPort}");
 
             foreach (var pair in BlendFarmSettings.Instance.PastClients.ToList())

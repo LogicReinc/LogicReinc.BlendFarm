@@ -14,7 +14,7 @@ namespace LogicReinc.BlendFarm.Client
         /// <summary>
         /// How to render among nodes
         /// </summary>
-        public RenderStrategy Strategy { get; set; } = RenderStrategy.Split;
+        public RenderStrategy Strategy { get; set; } = RenderStrategy.SplitHorizontal;
         /// <summary>
         /// Order to render tiles (only used when tiles are used)
         /// </summary>
@@ -71,7 +71,8 @@ namespace LogicReinc.BlendFarm.Client
 
     public enum RenderStrategy
     {
-        Split = 0,
+        SplitHorizontal = 0,
+        SplitVertical = 3,
         Chunked = 1,
         SplitChunked = 2
     }

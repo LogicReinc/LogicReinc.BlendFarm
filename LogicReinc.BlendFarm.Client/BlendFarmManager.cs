@@ -251,6 +251,7 @@ namespace LogicReinc.BlendFarm.Client
                 //Optimize
                 long id = FileID;
 
+                byte[] toSend = null;
                 using (MemoryStream mem = new MemoryStream())
                 {
                     byte[] buffer = new byte[4096];
@@ -281,9 +282,12 @@ namespace LogicReinc.BlendFarm.Client
                             }
                         }
                         mem.Seek(0, SeekOrigin.Begin);
+                        toSend = mem.ToArray();
                     });
-
-                    await Task.WhenAll(Nodes.ToList().Select(async node =>
+                }
+                await Task.WhenAll(Nodes.ToList().Select(async node =>
+                {
+                    using (MemoryStream mem = new MemoryStream(toSend))
                     {
                         SyncResponse resp = null;
                         try
@@ -299,8 +303,8 @@ namespace LogicReinc.BlendFarm.Client
                             node.LastStatus = $"Sync Failed: No version..";
                         else
                             node.LastStatus = $"Ready";
-                    }).ToArray());
-                }
+                    }
+                }).ToArray());
             }
             finally
             {
