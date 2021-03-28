@@ -4,7 +4,7 @@ A open-source, cross-platform, stand-alone, Network Renderer for Blender
 When I was trying to build a render server I was suprised most network renderers out there for Blender are either outdated, obsolete or require very specific environments to work properly. Thus, I spend the last months writing and testing a stand-alone network renderer that requires barely any setup and should work with most if not all recent versions of Blender. And should even work with future releases. 
 
 Originally I only planned on using it for myself, but decided to make it more production ready and release it to the public, and hopefully solve this for others. 
-It consumed more time than I had planned.
+It consumed more time than I had planned. But as we're in a time where any modern GPU is effectively unobtainium, there is not a better time for it to exist.
 
 ![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/simplerender.gif)
 A render using SplitChunked render strategy on BMW benchmark at low samples/res for showcase.
@@ -54,7 +54,9 @@ Quite some time went into getting this up. If you enjoy the software, please con
 https://patreon.com/LogicReinc
 
 If you like to donate crypto:
+
 Bitcoin: 3FidXvMfvqusmXzKroCLZ2gUE1YMNVVHoz
+
 Ethereum: 0xd2C3BCCc981d359e037457f0CdB9d48fdc289Feb
 
 ---
