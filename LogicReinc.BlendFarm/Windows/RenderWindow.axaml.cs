@@ -66,6 +66,8 @@ namespace LogicReinc.BlendFarm.Windows
         private ComboBox _selectStrategy = null;
         private ComboBox _selectOrder = null;
 
+        private Bitmap _lastBitmap = null;
+
         //Debug data
         private ObservableCollection<RenderNode> _testNodes = new ObservableCollection<RenderNode>(new List<RenderNode>()
         {
@@ -133,7 +135,7 @@ namespace LogicReinc.BlendFarm.Windows
 
             this.InitializeComponent();
 #if DEBUG
-            this.AttachDevTools();
+            //this.AttachDevTools();
 #endif
         }
 
@@ -163,7 +165,8 @@ namespace LogicReinc.BlendFarm.Windows
                 {
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        _image.Source = FromDrawingBitmap(new System.Drawing.Bitmap(1, 1));
+                        _lastBitmap = FromDrawingBitmap(new System.Drawing.Bitmap(1, 1));
+                        _image.Source = _lastBitmap;
                         _lastRenderTime.Text = "";
                     });
                 }
@@ -275,7 +278,8 @@ namespace LogicReinc.BlendFarm.Windows
                         //Apply image to canvas
                         await Dispatcher.UIThread.InvokeAsync(() =>
                             {
-                                _image.Source = FromDrawingBitmap(updated);
+                                _lastBitmap = FromDrawingBitmap(updated);
+                                _image.Source = _lastBitmap;
                                 _lastRenderTime.Text = watch.Elapsed.ToString();
                             });
                     });
@@ -301,7 +305,8 @@ namespace LogicReinc.BlendFarm.Windows
                     {
                         if (finalBitmap != null)
                         {
-                            _image.Source = FromDrawingBitmap(finalBitmap);
+                            _lastBitmap = FromDrawingBitmap(finalBitmap);
+                            _image.Source = _lastBitmap;
                             finalBitmap.Save("lastRender.png");
                         }
                         _lastRenderTime.Text = watch.Elapsed.ToString();
@@ -352,10 +357,14 @@ namespace LogicReinc.BlendFarm.Windows
             //Request output directory and UI
             await Dispatcher.UIThread.InvokeAsync(async () =>
             {
-                outputDir = await new OpenFolderDialog()
-                {
+                outputDir = null;
 
-                }.ShowAsync(this);
+                OpenFolderDialog dialog = new OpenFolderDialog()
+                {
+                    Title = "Select folder to save animation frames to"
+                };
+
+                outputDir = await dialog.ShowAsync(this);
 
                 this._imageProgress.IsVisible = true;
                 this._imageProgress.IsIndeterminate = true;
@@ -400,7 +409,15 @@ namespace LogicReinc.BlendFarm.Windows
                         //Apply image to canvas
                         await Dispatcher.UIThread.InvokeAsync(() =>
                         {
-                            _image.Source = new Bitmap(filePath);
+                            try
+                            {
+                                _lastBitmap = new Bitmap(filePath);
+                                _image.Source = _lastBitmap;
+                            }
+                            catch(Exception ex)
+                            {
+                                MessageWindow.Show(this, "GUI Exception", "An error occured trying to load animation Bitmap in GUI.\n(Animation frame should still be saved)");
+                            }
                             _lastRenderTime.Text = watch.Elapsed.ToString();
                         });
                     });
@@ -462,12 +479,15 @@ namespace LogicReinc.BlendFarm.Windows
 
         public async void SaveImage()
         {
-            SaveFileDialog dialog = new SaveFileDialog();
+            SaveFileDialog dialog = new SaveFileDialog()
+            {
+                Title = "Save current BlendFarm render"
+            };
             dialog.InitialFileName = "render.png";
 
             string result = await dialog.ShowAsync(this);
-            if (result != null)
-                _image.Source.Save(result);
+            if (result != null && _lastBitmap != null)
+                _lastBitmap.Save(result);
         }
 
 

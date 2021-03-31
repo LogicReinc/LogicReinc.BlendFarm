@@ -19,8 +19,22 @@ namespace LogicReinc.BlendFarm.Server
 
         static void Main(string[] args)
         {
-            string localIP = Dns.GetHostEntry(Dns.GetHostName()).AddressList.FirstOrDefault(x => x.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)?.ToString();
-            Console.WriteLine($"Host: {localIP}");
+            try
+            {
+                string[] addresses = Dns.GetHostEntry(Dns.GetHostName()).AddressList
+                    .Where(x => x.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork).Select(x => x?.ToString())
+                    .ToArray();
+                Console.WriteLine("IP Addresses of this Server:");
+                for (int i = 0; i < addresses.Length; i++)
+                {
+                    string address = addresses[i];
+                    Console.WriteLine($"Host Address #{(i + 1)}: {address}");
+                }
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine($"Failed to obtain host address due to [{ex.GetType().Name}]: {ex.Message}");
+            }
             Console.WriteLine($"Port: {ServerSettings.Instance.Port}");
 
             Console.WriteLine("Cleaning up old sessions..");
