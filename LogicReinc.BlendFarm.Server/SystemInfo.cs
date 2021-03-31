@@ -7,6 +7,11 @@ namespace LogicReinc.BlendFarm.Server
 {
     public class SystemInfo
     {
+        public const string OS_LINUX64 = "linux64";
+        public const string OS_WINDOWS64 = "windows64";
+        public const string OS_MACOS = "macOS";
+
+
         /// <summary>
         /// Ignore actual OS and override it with provided version.
         /// Mostly for testing
@@ -23,13 +28,25 @@ namespace LogicReinc.BlendFarm.Server
                 return OverrideOS;
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                return "linux64";
+                return OS_LINUX64;
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                return "windows64";
+                return OS_WINDOWS64;
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                return "macOS";
+                return OS_MACOS;
             else
                 throw new NotImplementedException("Unknown OS");
+        }
+
+
+        public static bool IsOS(string osName)
+        {
+            string name = null;
+            try
+            {
+                name = GetOSName();
+            }
+            catch (NotImplementedException ex) { }
+            return name == osName;
         }
     }
 }

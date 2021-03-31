@@ -221,7 +221,7 @@ namespace LogicReinc.BlendFarm.Tests
             {
                 OutputWidth = 640,
                 OutputHeight = 360,
-                Strategy = RenderStrategy.Split,
+                Strategy = RenderStrategy.SplitHorizontal,
                 Samples = 8
             }, (task, bitmap) =>
             {

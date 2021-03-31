@@ -3,7 +3,6 @@ using System.IO;
 using System.Reflection;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Logging.Serilog;
 using LogicReinc.BlendFarm.Server;
 
 namespace LogicReinc.BlendFarm
@@ -49,8 +48,12 @@ namespace LogicReinc.BlendFarm
 
         // Avalonia configuration, don't remove; also used by visual designer.
         public static AppBuilder BuildAvaloniaApp()
-            => AppBuilder.Configure<App>()
-                .UsePlatformDetect()
-                .LogToDebug();
+        {
+            AppBuilder builder = AppBuilder.Configure<App>()
+                .UsePlatformDetect();
+            if (SystemInfo.IsOS(SystemInfo.OS_LINUX64))
+                builder = Avalonia.Dialogs.ManagedFileDialogExtensions.UseManagedSystemDialogs(builder);
+            return builder.LogToDebug();
+        }
     }
 }

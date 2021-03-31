@@ -10,6 +10,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
+using System.Reflection;
+using System.Threading.Tasks;
 using static LogicReinc.BlendFarm.BlendFarmSettings;
 
 namespace LogicReinc.BlendFarm.Windows
@@ -27,6 +29,7 @@ namespace LogicReinc.BlendFarm.Windows
 
         private bool _startedNew = false;
 
+        private string _os = null;
         private BlendFarmManager _manager = null;
 
         private Dictionary<string, (string,string,int)> _previouslyFoundNodes = new Dictionary<string, (string, string, int)>();
@@ -44,7 +47,8 @@ namespace LogicReinc.BlendFarm.Windows
 
             try
             {
-                _noServer = SystemInfo.GetOSName() == "macOS";
+                _os = SystemInfo.GetOSName();
+                _noServer = _os == SystemInfo.OS_MACOS;
             }
             catch(Exception ex)
             {
@@ -89,7 +93,7 @@ This may have to do with the port being in use. Note that to discover other pcs 
 
             this.InitializeComponent();
 #if DEBUG
-            this.AttachDevTools();
+            //this.AttachDevTools();
 #endif
         }
 
@@ -125,16 +129,39 @@ This may have to do with the port being in use. Note that to discover other pcs 
         public async void ShowFileDialog()
         {
             OpenFileDialog dialog = new OpenFileDialog();
+            dialog.Title = "Select your Blendfile";
             dialog.Filters.Add(new FileDialogFilter()
             {
                 Name = "Blender File",
                 Extensions = { "blend" }
             });
             dialog.AllowMultiple = false;
-            string[] results = await dialog.ShowAsync(this);
-            if(results.Length > 0)
+
+            Console.Write("Showing OpenFileDialog");
+
+            //Workaround for Linux?
+
+            string[] results = null;
+
+            //if (_os == SystemInfo.OS_LINUX64)
+            //    results = await Avalonia.Dialogs.ManagedFileDialogExtensions.ShowManagedAsync(dialog, this, new Avalonia.Dialogs.ManagedFileDialogOptions()
+            //    {
+            //        AllowDirectorySelection = false
+            //    });
+            //else
+                results = await dialog.ShowAsync(this);
+
+            
+
+            if (results == null)
+                Console.WriteLine("ShowFileDialog Results: null");
+            else
             {
-                fileSelection.Text = results[0];
+                Console.Write("ShowFileDialog Results: " + string.Join(", ", results));
+                if (results.Length > 0)
+                {
+                    fileSelection.Text = results[0];
+                }
             }
         }
 
