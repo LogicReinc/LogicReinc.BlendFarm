@@ -94,7 +94,10 @@ namespace LogicReinc.BlendFarm.Server
         /// </summary>
         public bool IsVersionAvailable(string version)
         {
-            return Directory.Exists(GetVersionPath(version, SystemInfo.GetOSName()));
+            if (!SystemInfo.IsOS(SystemInfo.OS_MACOS))
+                return Directory.Exists(GetVersionPath(version, SystemInfo.GetOSName()));
+            else
+                return File.Exists(GetVersionPath(version, SystemInfo.GetOSName()) + ".dmg");
         }
         /// <summary>
         /// Attempt to provide a version of Blender
@@ -142,6 +145,9 @@ namespace LogicReinc.BlendFarm.Server
                     break;
                 case "linux64":
                     DownloadLinux(version);
+                    break;
+                case "macOS":
+                    DownloadMacOS(version);
                     break;
                 default:
                     throw new NotImplementedException("Unknown OS");
@@ -240,6 +246,79 @@ namespace LogicReinc.BlendFarm.Server
                     File.Delete(archivePath);
             }
         }
+        /// <summary>
+        /// Downloads macos version of a specific version of Blender (And extract it)
+        /// </summary>
+        /// <param name="version"></param>
+        public void DownloadMacOS(BlenderVersion version)
+        {
+            string os = "macOS";
+            string ext = "dmg";
+            string archiveName = $"{version.Name}-{os}.{ext}";
+            string archivePath = Path.GetFullPath(Path.Combine(BlenderData, archiveName));
+            try
+            {
+                Directory.CreateDirectory(Path.GetFullPath(BlenderData));
+
+                using (WebClient client = new WebClient())
+                {
+                    Console.WriteLine($"Downloading {version.Name}...");
+                    client.DownloadFile(version.UrlMacOS, archivePath);
+                }
+                Console.WriteLine($"Extracting {version.Name}...");
+
+                string versionPath = GetVersionPath(version.Name, os);
+                string imagePath = versionPath + "-image";
+
+                Directory.CreateDirectory(imagePath);
+
+                Console.WriteLine($"Mounting [{archivePath}] to [{imagePath}]");
+                Process mountProcess = new Process()
+                {
+                    StartInfo = new ProcessStartInfo()
+                    {
+                        FileName = "hdiutil",
+                        Arguments = $"attach -mountpoint \"{imagePath}\" \"{archivePath}\"",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        CreateNoWindow = true
+                    }
+                };
+                mountProcess.Start();
+                mountProcess.WaitForExit();
+                Console.WriteLine("Mounted");
+
+                Directory.CreateDirectory(versionPath);
+
+                Console.WriteLine("Copying Blender Files");
+                CopyRecursive(Path.Combine(imagePath, "Blender.app"), versionPath);
+
+                Console.WriteLine("Unmounting");
+                Process unmountProcess = new Process()
+                {
+                    StartInfo = new ProcessStartInfo()
+                    {
+                        FileName = "hdiutil",
+                        Arguments = $"detach \"{imagePath}\"",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        CreateNoWindow = true
+                    }
+                };
+                unmountProcess.Start();
+                unmountProcess.WaitForExit();
+                Console.WriteLine("Unmounted");
+
+                Console.WriteLine($"{version.Name} ready");
+            }
+            catch (Exception ex)
+            {
+                if (Directory.Exists(GetVersionPath(version.Name, os)))
+                    Directory.Delete(GetVersionPath(version.Name, os));
+                if (File.Exists(archivePath))
+                    File.Delete(archivePath);
+            }
+        }
 
         /// <summary>
         /// Renders a batch of render settings in a single Blender instance.
@@ -259,63 +338,7 @@ namespace LogicReinc.BlendFarm.Server
 
                 try
                 {
-                    //Validate Settings
-                    for (int i = 0; i < batch.Length; i++)
-                    {
-                        BlenderRenderSettings settings = batch[i];
-
-                        //Finalize Settings
-                        if (settings == null)
-                        {
-                            settings = new BlenderRenderSettings();
-                            batch[i] = settings;
-                        }
-
-                        if (settings.Cores <= 0)
-                            settings.Cores = Environment.ProcessorCount;
-
-                        //Check for valid Tile sizes, otherwise, replace with proper one for given device
-                        switch (settings.ComputeUnit)
-                        {
-                            //CPU tile size is optimally 8 for full scenes, but 16 better deals with quick tiles
-                            case RenderType.CPU:
-                                if (settings.TileWidth <= 0) settings.TileWidth = 16;
-                                if (settings.TileHeight <= 0) settings.TileHeight = 16;
-                                break;
-                            //CPU/GPU tile size is optimally 64, untill gpu takeover is possible
-                            case RenderType.CUDA:
-                            case RenderType.OPENCL:
-                                if (settings.TileWidth <= 0) settings.TileWidth = 64;
-                                if (settings.TileHeight <= 0) settings.TileHeight = 64;
-                                break;
-                            //GPU tile size is optimally 256
-                            case RenderType.CUDA_GPUONLY:
-                            case RenderType.OPENCL_GPUONLY:
-                                if (settings.TileWidth <= 0) settings.TileWidth = 256;
-                                if (settings.TileHeight <= 0) settings.TileHeight = 256;
-                                break;
-                        }
-
-
-                        if (settings.TaskID == null)
-                            settings.TaskID = Guid.NewGuid().ToString();
-
-                        string outputPath = settings.Output;
-
-
-                        if (string.IsNullOrEmpty(outputPath))
-                        {
-                            string outputName = settings.TaskID;
-                            outputPath = Path.Combine(RenderData, outputName);
-                        }
-
-                        if (settings.Output == null)
-                            settings.Output = outputPath;
-
-                        settings.Output = Path.GetFullPath(outputPath);
-                        if (string.IsNullOrEmpty(Path.GetExtension(settings.Output)))
-                            settings.Output += ".png";
-                    }
+                    FinalizeSettings(batch);
                 }
                 catch (Exception ex)
                 {
@@ -327,6 +350,11 @@ namespace LogicReinc.BlendFarm.Server
                 {
 
                     string cmd = $"{blenderDir}/blender";
+
+                    //MacOS has to be special.
+                    if (SystemInfo.IsOS(SystemInfo.OS_MACOS))
+                        cmd = $"{blenderDir}/Contents/MacOS/Blender";
+
                     string arg = $"--factory-startup -noaudio -b {Path.GetFullPath(file)} -P \"{GetRenderScriptPath()}\" -- \"{path}\"";
 
 
@@ -345,6 +373,74 @@ namespace LogicReinc.BlendFarm.Server
                 Busy = false;
             }
         }
+
+        /// <summary>
+        /// Checks settings and fills in missing data
+        /// </summary>
+        /// <param name="batch"></param>
+        private void FinalizeSettings(BlenderRenderSettings[] batch)
+        {
+            //Validate Settings
+            for (int i = 0; i < batch.Length; i++)
+            {
+                BlenderRenderSettings settings = batch[i];
+
+                //Finalize Settings
+                if (settings == null)
+                {
+                    settings = new BlenderRenderSettings();
+                    batch[i] = settings;
+                }
+
+                if (settings.Cores <= 0)
+                    settings.Cores = Environment.ProcessorCount;
+
+                //Check for valid Tile sizes, otherwise, replace with proper one for given device
+                switch (settings.ComputeUnit)
+                {
+                    //CPU tile size is optimally 8 for full scenes, but 16 better deals with quick tiles
+                    case RenderType.CPU:
+                        if (settings.TileWidth <= 0) settings.TileWidth = 16;
+                        if (settings.TileHeight <= 0) settings.TileHeight = 16;
+                        break;
+                    //CPU/GPU tile size is optimally 64, untill gpu takeover is possible
+                    case RenderType.CUDA:
+                    case RenderType.OPENCL:
+                        if (settings.TileWidth <= 0) settings.TileWidth = 64;
+                        if (settings.TileHeight <= 0) settings.TileHeight = 64;
+                        break;
+                    //GPU tile size is optimally 256
+                    case RenderType.CUDA_GPUONLY:
+                    case RenderType.OPENCL_GPUONLY:
+                        if (settings.TileWidth <= 0) settings.TileWidth = 256;
+                        if (settings.TileHeight <= 0) settings.TileHeight = 256;
+                        break;
+                }
+
+
+                if (settings.TaskID == null)
+                    settings.TaskID = Guid.NewGuid().ToString();
+
+                string outputPath = settings.Output;
+
+
+                if (string.IsNullOrEmpty(outputPath))
+                {
+                    string outputName = settings.TaskID;
+                    outputPath = Path.Combine(RenderData, outputName);
+                }
+
+                if (settings.Output == null)
+                    settings.Output = outputPath;
+
+                settings.Output = Path.GetFullPath(outputPath);
+                if (string.IsNullOrEmpty(Path.GetExtension(settings.Output)))
+                    settings.Output += ".png";
+            }
+        }
+
+
+
         /// <summary>
         /// Render a single render settings (calls batch underneath with single entry)
         /// </summary>
@@ -396,6 +492,40 @@ namespace LogicReinc.BlendFarm.Server
             finally
             {
                 File.Delete(filePath);
+            }
+        }
+    
+    
+        /// <summary>
+        /// Recursively copies directory dir to dest
+        /// </summary>
+        /// <param name="dir">Directory to copy</param>
+        /// <param name="dest">Destination</param>
+        private static void CopyRecursive(string dir, string dest)
+        {
+            DirectoryInfo info = new DirectoryInfo(dir);
+
+            if (!info.Exists)
+                throw new DirectoryNotFoundException(dir);
+
+            Directory.CreateDirectory(dest);
+
+            DirectoryInfo destInfo = new DirectoryInfo(dest);
+
+            foreach (FileInfo file in info.GetFiles())
+            {
+                string targetPath = Path.Combine(destInfo.FullName, file.Name);
+                Console.WriteLine($"[{file.FullName}] =>\n    [{targetPath}]");
+                file.CopyTo(targetPath);
+            }
+
+            foreach (DirectoryInfo subInfo in info.GetDirectories())
+            {
+                //Ignore empty paths in dmgs
+                if (subInfo.Name.Length == 0)
+                    continue;
+                Console.WriteLine($"[{subInfo.Name}] {subInfo.FullName}");
+                CopyRecursive(subInfo.FullName, Path.Combine(dest, subInfo.Name));
             }
         }
     }

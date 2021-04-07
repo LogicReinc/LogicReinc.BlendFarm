@@ -33,7 +33,6 @@ namespace LogicReinc.BlendFarm
             BlendFarmSettings.Instance.Save();
             ServerSettings.Instance.Save();
 
-
             try
             {
                 if (Directory.Exists(BlendFarmSettings.Instance.LocalBlendFiles))
