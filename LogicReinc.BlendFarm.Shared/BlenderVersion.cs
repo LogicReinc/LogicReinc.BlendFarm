@@ -13,6 +13,10 @@ namespace LogicReinc.BlendFarm.Shared
     /// </summary>
     public class BlenderVersion
     {
+        private const string OS_LINUX = "linux64";
+        private const string OS_WINDOWS = "windows64";
+        private const string OS_MACOS = "macOS";
+
         private const string VERSIONS_URL = "https://download.blender.org/release/";
         private static Regex REGEX_BLENDERVERSION = new Regex("Blender[0-9]\\.[0-9]*\\/");
         private static Regex REGEX_BLENDERSUBVERSION = new Regex("(blender-[0-9]\\.[0-9][0-9]\\.[0-9])-(.*?)\\.(.*)");
@@ -112,10 +116,12 @@ namespace LogicReinc.BlendFarm.Shared
         {
             switch (os)
             {
-                case "linux64":
+                case OS_LINUX:
                     return UrlLinux64;
-                case "windows64":
+                case OS_WINDOWS:
                     return UrlWindows64;
+                case OS_MACOS:
+                    return UrlMacOS;
                 default:
                     throw new ArgumentException("Invalid operating system");
             }
@@ -129,21 +135,18 @@ namespace LogicReinc.BlendFarm.Shared
             bool valid = false;
             switch (os)
             {
-                case "windows64":
+                case OS_WINDOWS:
                     if (ext == "zip")
                         valid = true;
                     break;
-                case "linux64":
+                case OS_LINUX:
                     if (ext == "tar.xz")
                         valid = true;
                     break;
-
-                    //Lets leave out MacOS for now.
-                    /*
-                    case "macOS":
-                        if (ext == "dmg")
-                            valid = true;
-                        break;*/
+                case OS_MACOS:
+                    if (ext == "dmg")
+                        valid = true;
+                    break;
             }
             return valid;
         }
@@ -152,11 +155,14 @@ namespace LogicReinc.BlendFarm.Shared
         {
             switch (os)
             {
-                case "linux64":
+                case OS_LINUX:
                     UrlLinux64 = url;
                     break;
-                case "windows64":
+                case OS_WINDOWS:
                     UrlWindows64 = url;
+                    break;
+                case OS_MACOS:
+                    UrlMacOS = url;
                     break;
                 default:
                     throw new ArgumentException("Invalid operating system");

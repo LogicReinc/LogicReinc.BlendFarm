@@ -48,7 +48,7 @@ namespace LogicReinc.BlendFarm.Windows
             try
             {
                 _os = SystemInfo.GetOSName();
-                _noServer = _os == SystemInfo.OS_MACOS;
+                _noServer = false;// _os == SystemInfo.OS_MACOS;
             }
             catch(Exception ex)
             {
