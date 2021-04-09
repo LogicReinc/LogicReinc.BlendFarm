@@ -47,6 +47,9 @@ Unlike some other network renderers, LogicReinc.BlendFarm runs as its own indepe
  * **GPU Limit** - You can't fit a GPU into your existing system? Let it render in another computer
  * **Powerfull side Laptop** - Got a powerful laptop with a good GPU? Let it render
  * **Cheap Chinese Hardware** - Get some cheap xeon systems from China and build your own render farm
+---
+## Downloads
+https://github.com/LogicReinc/LogicReinc.BlendFarm/releases
 ___
 ## If you like the work, please consider a donation
 
@@ -169,16 +172,7 @@ For address use {deviceIP}:{devicePort} (eg. 192.168.1.123:15000)
 
 ___
 
-## Changelog
-### V1.0.0 Release Candidate
- - Contains most advertised features
- - Still missing MacOS rendering
- - Minor issues with network discovery on MacOS/Linux
-
-### V0.1 Initial Release
- - Enjoy
- - I'm sure there are bugs, I'm not superhuman
-##### Tested (Server)
+## Tested Blender Versions (Server)
  - blender-2.83.9-windows64
  - blender-2.83.9-linux64
  - blender-2.91.0-windows64
@@ -187,6 +181,7 @@ ___
  - blender-2.91.2-linux64
  - blender-2.92.0-linux64
  - blender-2-92.0-windows64
+ - blender-2-92.0-macOS
  
 ___
 
@@ -231,6 +226,13 @@ Also note that syncronizing will be slower.
 #### The scene is rendered without textures or similar?
 This is likely due to missing texture files. Make sure you pack your textures into your .blend file (File->External Data->Automatically Pack into .blend).
 This ensures remote computers have the textures.
+
+#### My Blenderfile requires script to run during rendering, can these be run?
+At this point in time Blendfarm will not execute scripts in your Blendfile as this would be a security concern. I may add something so you can explicitly enable it somehow at a later point. (While I do not recommend it, create an issue if you really need this)
+
+#### My Blendfile requires special addons to be active while rendering, can I add these?
+Blendfarm has its own versions of Blender in the BlenderData directory, and it runs these versions always in factory startup, thus without any added addons. This is done on purpose to make sure the environment is not altered. Most addons don't have to be active during rendering as they generate geometry etc.
+If you really need this, make an issue and I see what I can do. However do realise that this may make the workflow less smooth. (As you may need to set up these plugins for every Blender version instead of just letting BlendFarm do all the work.
 
 #### Automatic Performance doesn't distribute work equally
 The software tries to equally distribute it based on past renders, there might be run-to-run variation that can cause it to be off.
