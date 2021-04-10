@@ -536,6 +536,10 @@ namespace LogicReinc.BlendFarm.Windows
         {
             OpenUrl("https://www.patreon.com/LogicReinc");
         }
+        public void Help()
+        {
+            OpenUrl("https://www.youtube.com/watch?v=EXdwD5t53wc");
+        }
         private static void OpenUrl(string url)
         {
             Process.Start(new ProcessStartInfo(url)
