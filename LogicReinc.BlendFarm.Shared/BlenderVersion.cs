@@ -35,18 +35,18 @@ namespace LogicReinc.BlendFarm.Shared
         public bool HasAll => !string.IsNullOrEmpty(UrlLinux64) && !string.IsNullOrEmpty(UrlWindows64);
 
 
-        public static BlenderVersion FindVersion(string version)
+        public static BlenderVersion FindVersion(string version, string cacheFile = null)
         {
-            return GetBlenderVersions().FirstOrDefault(x => x.Name == version);
+            return GetBlenderVersions(cacheFile).FirstOrDefault(x => x.Name == version);
         }
 
         /// <summary>
         /// Retrieve available versions of Blender (from cache if available/recent)
         /// </summary>
-        public static List<BlenderVersion> GetBlenderVersions()
+        public static List<BlenderVersion> GetBlenderVersions(string cacheFile = null)
         {
             //IMPORTANT: always use cache if able, or get a chance to get your IP blacklisted.
-            Cache cache = Cache.GetCache();
+            Cache cache = Cache.GetCache(cacheFile);
             if(cache != null)
                 //Refresh every >= CACHE_DAYS days
                 if (Math.Abs(cache.Date.DayOfYear - DateTime.Now.DayOfYear) < CACHE_DAYS)
@@ -96,7 +96,7 @@ namespace LogicReinc.BlendFarm.Shared
                 //Prevent server spam
                 Thread.Sleep(500);
 
-                Cache.UpdateCache(vs);
+                Cache.UpdateCache(vs, cacheFile);
                 return vs;
             }
             catch(Exception ex)
@@ -178,19 +178,24 @@ namespace LogicReinc.BlendFarm.Shared
             public DateTime Date { get; set; }
             public List<BlenderVersion> Versions { get; set; } = new List<BlenderVersion>();
 
-            public static Cache GetCache()
+            public static Cache GetCache(string cacheFile = null)
             {
-                if (File.Exists("VersionCache"))
+                if (cacheFile == null)
+                    cacheFile = "VersionCache";
+
+                if (File.Exists(cacheFile))
                 {
-                    string cached = File.ReadAllText("VersionCache");
+                    string cached = File.ReadAllText(cacheFile);
                     return JsonSerializer.Deserialize<Cache>(cached);
                 }
                 return null;
             }
 
-            public static void UpdateCache(List<BlenderVersion> versions)
+            public static void UpdateCache(List<BlenderVersion> versions, string cacheFile = null)
             {
-                File.WriteAllText("VersionCache", JsonSerializer.Serialize(new Cache()
+                if(cacheFile == null)
+                    cacheFile = "VersionCache";
+                File.WriteAllText(cacheFile, JsonSerializer.Serialize(new Cache()
                 {
                     Date = DateTime.Now,
                     Versions = versions

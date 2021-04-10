@@ -11,16 +11,13 @@ namespace LogicReinc.BlendFarm.Server
     //Contains lots of test code
     public class Program
     {
-        private static string _override_os = null;
-
-        private static BlenderManager _blender = new BlenderManager();
-
         public static RenderServer Server { get; private set; }
 
         static void Main(string[] args)
         {
             try
             {
+                //List IP addreses of this machine
                 string[] addresses = Dns.GetHostEntry(Dns.GetHostName()).AddressList
                     .Where(x => x.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork).Select(x => x?.ToString())
                     .ToArray();
@@ -35,121 +32,41 @@ namespace LogicReinc.BlendFarm.Server
             {
                 Console.WriteLine($"Failed to obtain host address due to [{ex.GetType().Name}]: {ex.Message}");
             }
+            //List host port
             Console.WriteLine($"Port: {ServerSettings.Instance.Port}");
 
+            //Clears any sessions left after previous close
             Console.WriteLine("Cleaning up old sessions..");
             CleanupOldSessions();
 
+            //RenderNode Server
             Server = new RenderServer(ServerSettings.Instance.Port, ServerSettings.Instance.BroadcastPort, true);
 
             Server.Start();
             Console.WriteLine("Server Started");
 
-            //HandleConsole();
-            while (true)
-            {
-                Thread.Sleep(500);
-            }
 
+            //ReadLines in main loop removed for deployment as this can freeze background threads under specific conditions
+            while (true)
+                Thread.Sleep(500);
 
             Server.Stop();
         }
 
-        public static void HandleConsole()
-        {
-            string line = null;
-            while((line = Console.ReadLine()) != "exit")
-            {
-                try
-                {
-                    switch (line)
-                    {
-                        case "download":
-                            DownloadVersion();
-                            break;
-                        case "render":
-                            RenderVersion();
-                            break;
-                        case "setos":
-                            SetOS();
-                            break;
-                    }
-                }
-                catch(Exception ex)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine(ex.Message);
-                    Console.ResetColor();
-                }
-            }
-
-        }
-
+        /// <summary>
+        /// Deletes the BlenderFiles directory, which is used for temporary file storage
+        /// </summary>
         public static void CleanupOldSessions()
         {
             try
             {
-                if (Directory.Exists(ServerSettings.Instance.BlenderFiles))
-                    Directory.Delete(ServerSettings.Instance.BlenderFiles, true);
+                string path = SystemInfo.RelativeToApplicationDirectory(ServerSettings.Instance.BlenderFiles);
+                if (Directory.Exists(path))
+                    Directory.Delete(path, true);
             }
             catch { }
         }
 
-        public static void SetOS()
-        {
-            Console.WriteLine("Changing OS will cause things to malfunction... restart if not indented");
-            Console.WriteLine("OS:");
-            string os = Console.ReadLine();
-
-            _override_os = os;
-            Console.WriteLine("OS set to " + os);
-        }
-        public static void RenderVersion()
-        {
-            Console.WriteLine("Version:");
-            string version = Console.ReadLine();
-            Console.WriteLine("BlenderFile:");
-            string blend = Console.ReadLine();
-
-            Console.WriteLine("Cut? (Y/n)");
-
-            decimal x = 0;
-            decimal x2 = 1;
-            decimal y = 0;
-            decimal y2 = 1;
-            if(Console.ReadLine() == "Y")
-            {
-                Console.WriteLine("Rectangle: (x x2 y y2)");
-                string[] parts = Console.ReadLine().Split(' ');
-                if (parts.Length != 4)
-                    throw new ArgumentException("Invalid format");
-                x = decimal.Parse(parts[0]);
-                x2 = decimal.Parse(parts[1]);
-                y = decimal.Parse(parts[2]);
-                y2 = decimal.Parse(parts[3]);
-            }
-            
-            if(!_blender.TryPrepare(version))
-            {
-                Console.WriteLine($"Failed to prepare Blender version {version}");
-                return;
-            }
-            _blender.Render(version, blend, new BlenderRenderSettings()
-            {
-                Frame = 1,
-                X = x,
-                X2 = x2,
-                Y = y,
-                Y2 = y2
-            });
-        }
-
-        public static void DownloadVersion()
-        {
-            Console.WriteLine("Version:");
-            string version = Console.ReadLine();
-            _blender.Prepare(version);
-        }
 
     }
 }

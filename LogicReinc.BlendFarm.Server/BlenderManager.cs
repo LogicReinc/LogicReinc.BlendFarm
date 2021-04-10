@@ -39,16 +39,16 @@ namespace LogicReinc.BlendFarm.Server
         /// </summary>
         public BlenderManager()
         {
-            BlenderData = ServerSettings.Instance.BlenderData;
-            RenderData = ServerSettings.Instance.RenderData;
+            BlenderData = SystemInfo.RelativeToApplicationDirectory(ServerSettings.Instance.BlenderData);
+            RenderData = SystemInfo.RelativeToApplicationDirectory(ServerSettings.Instance.RenderData);
         }
         /// <summary>
         /// Use specific BlenderData and RenderData directories
         /// </summary>
         public BlenderManager(string blenderData, string renderData)
         {
-            BlenderData = blenderData;
-            RenderData = renderData;
+            BlenderData = SystemInfo.RelativeToApplicationDirectory(blenderData);
+            RenderData = SystemInfo.RelativeToApplicationDirectory(renderData);
         }
 
         /// <summary>
@@ -72,7 +72,7 @@ namespace LogicReinc.BlendFarm.Server
         /// </summary>
         public string GetRenderScriptPath()
         {
-            string path = Path.GetFullPath(Path.Combine(BlenderData, $"render.py"));
+            string path = Path.Combine(GetBlenderDataPath(), $"render.py");
             if (!File.Exists(path) || (!ServerSettings.Instance.BypassScriptUpdate && File.ReadAllText(path) != _scripts))
             {
                 Directory.CreateDirectory(GetBlenderDataPath());
@@ -121,7 +121,7 @@ namespace LogicReinc.BlendFarm.Server
         /// <param name="version"></param>
         public void Prepare(string version)
         {
-            BlenderVersion v = BlenderVersion.FindVersion(version);
+            BlenderVersion v = BlenderVersion.FindVersion(version, SystemInfo.RelativeToApplicationDirectory("VersionCache"));
 
             if (v == null)
                 throw new ArgumentException("Version not found");
@@ -163,10 +163,10 @@ namespace LogicReinc.BlendFarm.Server
             string os = "windows64";
             string ext = "zip";
             string archiveName = $"{version.Name}-{os}.{ext}";
-            string archivePath = Path.GetFullPath(Path.Combine(BlenderData, archiveName));
+            string archivePath = Path.Combine(GetBlenderDataPath(), archiveName);
             try
             {
-                Directory.CreateDirectory(Path.GetFullPath(BlenderData));
+                Directory.CreateDirectory(GetBlenderDataPath());
 
                 using (WebClient client = new WebClient())
                 {
@@ -175,7 +175,7 @@ namespace LogicReinc.BlendFarm.Server
                 }
                 Console.WriteLine($"Extracting {version.Name}...");
 
-                ZipFile.ExtractToDirectory(archivePath, Path.GetFullPath(BlenderData));
+                ZipFile.ExtractToDirectory(archivePath, GetBlenderDataPath());
 
                 Console.WriteLine($"{version.Name} ready");
             }
@@ -196,10 +196,10 @@ namespace LogicReinc.BlendFarm.Server
             string os = "linux64";
             string ext = "tar.xz";
             string archiveName = $"{version.Name}-{os}.{ext}";
-            string archivePath = Path.GetFullPath(Path.Combine(BlenderData, archiveName));
+            string archivePath = Path.Combine(GetBlenderDataPath(), archiveName);
             try
             {
-                Directory.CreateDirectory(Path.GetFullPath(BlenderData));
+                Directory.CreateDirectory(GetBlenderDataPath());
 
                 using (WebClient client = new WebClient())
                 {
@@ -215,7 +215,7 @@ namespace LogicReinc.BlendFarm.Server
                     {
                         if (!reader.Entry.IsDirectory)
                         {
-                            reader.WriteEntryToDirectory(Path.GetFullPath(BlenderData), new SharpCompress.Common.ExtractionOptions()
+                            reader.WriteEntryToDirectory(GetBlenderDataPath(), new SharpCompress.Common.ExtractionOptions()
                             {
                                 ExtractFullPath = true,
                                 Overwrite = true
@@ -255,10 +255,10 @@ namespace LogicReinc.BlendFarm.Server
             string os = "macOS";
             string ext = "dmg";
             string archiveName = $"{version.Name}-{os}.{ext}";
-            string archivePath = Path.GetFullPath(Path.Combine(BlenderData, archiveName));
+            string archivePath = Path.Combine(GetBlenderDataPath(), archiveName);
             try
             {
-                Directory.CreateDirectory(Path.GetFullPath(BlenderData));
+                Directory.CreateDirectory(GetBlenderDataPath());
 
                 using (WebClient client = new WebClient())
                 {
@@ -355,7 +355,7 @@ namespace LogicReinc.BlendFarm.Server
                     if (SystemInfo.IsOS(SystemInfo.OS_MACOS))
                         cmd = $"{blenderDir}/Contents/MacOS/Blender";
 
-                    string arg = $"--factory-startup -noaudio -b {Path.GetFullPath(file)} -P \"{GetRenderScriptPath()}\" -- \"{path}\"";
+                    string arg = $"--factory-startup -noaudio -b \"{Path.GetFullPath(file)}\" -P \"{GetRenderScriptPath()}\" -- \"{path}\"";
 
 
                     RenderProcess = new BlenderProcess(cmd, arg);
@@ -482,7 +482,7 @@ namespace LogicReinc.BlendFarm.Server
         /// </summary>
         private static void UseTemporaryFile(string data, Action<string> action)
         {
-            string filePath = Path.GetFullPath(Guid.NewGuid().ToString());
+            string filePath = Path.GetFullPath(SystemInfo.RelativeToApplicationDirectory(Guid.NewGuid().ToString()));
             try
             {
                 File.WriteAllText(filePath, data);

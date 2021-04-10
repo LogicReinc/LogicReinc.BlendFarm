@@ -17,26 +17,74 @@ namespace LogicReinc.BlendFarm.Client
     {
         public const string LocalNodeName = "Local";
 
+        /// <summary>
+        /// ID used to identify a session (mostly by render nodes)
+        /// </summary>
         public string SessionID { get; private set; }
+        /// <summary>
+        /// Blender Version to use for renders
+        /// </summary>
         public string Version { get; private set; }
+        /// <summary>
+        /// A unique identifier used to detect change in file
+        /// </summary>
         public long FileID { get; private set; }
+        /// <summary>
+        /// Blendfile to render
+        /// </summary>
         public string BlendFile { get; private set; }
+        /// <summary>
+        /// Path to Blendfile copy used for rendering
+        /// </summary>
         public string LocalBlendFile { get; private set; }
 
+        /// <summary>
+        /// Possible RenderNodes
+        /// </summary>
         public List<RenderNode> Nodes { get; private set; } = new List<RenderNode>();
+
+        /// <summary>
+        /// Nr of RenderNodes that are connected
+        /// </summary>
         public int Connected => Nodes.ToList().Where(x => x.Connected).Count();
 
 
+        /// <summary>
+        /// Interval (ms) to check for file change
+        /// </summary>
         public int WatchInterval { get; set; } = 1000;
+
+        /// <summary>
+        /// If Blendfile is being watched for change
+        /// </summary>
         public bool IsWatchingFile { get; private set; } = false;
 
+        /// <summary>
+        /// If Live Render is being used
+        /// </summary>
         public bool AlwaysUpdateFile { get; set; }
+
+        /// <summary>
+        /// If currently syncing
+        /// </summary>
         public bool Syncing { get; private set; } = false;
+        /// <summary>
+        /// Current render task (null if none)
+        /// </summary>
         public RenderTask CurrentTask { get; private set; } = null;
 
+        /// <summary>
+        /// Event on Blendfile changed
+        /// </summary>
         public event Action<BlendFarmManager> OnFileChanged;
 
+        /// <summary>
+        /// Event on RenderNode added
+        /// </summary>
         public event Action<BlendFarmManager, RenderNode> OnNodeAdded;
+        /// <summary>
+        /// Event on RenderNode removed
+        /// </summary>
         public event Action<BlendFarmManager, RenderNode> OnNodeRemoved;
 
 
@@ -82,6 +130,9 @@ namespace LogicReinc.BlendFarm.Client
 
             return node;
         }
+        /// <summary>
+        /// Attempts to add a node that was auto-discovered if its not already in the list of rendernodes
+        /// </summary>
         public RenderNode TryAddDiscoveryNode(string name, string address, int port)
         {
             string addressPort = $"{address}:{port}";

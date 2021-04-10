@@ -33,13 +33,14 @@ namespace LogicReinc.BlendFarm
             BlendFarmSettings.Instance.Save();
             ServerSettings.Instance.Save();
 
+            string localPath = SystemInfo.RelativeToApplicationDirectory(BlendFarmSettings.Instance.LocalBlendFiles);
             try
             {
-                if (Directory.Exists(BlendFarmSettings.Instance.LocalBlendFiles))
-                    Directory.Delete(BlendFarmSettings.Instance.LocalBlendFiles, true);
+                if (Directory.Exists(localPath))
+                    Directory.Delete(localPath, true);
             }
             catch { }
-            Directory.CreateDirectory(BlendFarmSettings.Instance.LocalBlendFiles);
+            Directory.CreateDirectory(localPath);
 
             BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);

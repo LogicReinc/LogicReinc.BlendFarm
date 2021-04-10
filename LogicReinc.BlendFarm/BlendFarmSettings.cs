@@ -1,4 +1,5 @@
-﻿using LogicReinc.BlendFarm.Shared;
+﻿using LogicReinc.BlendFarm.Server;
+using LogicReinc.BlendFarm.Shared;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -49,12 +50,13 @@ namespace LogicReinc.BlendFarm
 
         public void Save()
         {
-            File.WriteAllText(FILE_NAME, JsonSerializer.Serialize(this));
+            File.WriteAllText(SystemInfo.RelativeToApplicationDirectory(FILE_NAME), JsonSerializer.Serialize(this));
         }
         public static BlendFarmSettings Load()
         {
-            if (File.Exists(FILE_NAME))
-                return JsonSerializer.Deserialize<BlendFarmSettings>(File.ReadAllText(FILE_NAME));
+            string path = SystemInfo.RelativeToApplicationDirectory(FILE_NAME);
+            if (File.Exists(path))
+                return JsonSerializer.Deserialize<BlendFarmSettings>(File.ReadAllText(path));
             else
                 return new BlendFarmSettings();
         }

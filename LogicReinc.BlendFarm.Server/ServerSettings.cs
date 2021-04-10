@@ -54,12 +54,13 @@ namespace LogicReinc.BlendFarm.Server
 
         public void Save()
         {
-            File.WriteAllText(SETTINGS_PATH, JsonSerializer.Serialize(this));
+            File.WriteAllText(SystemInfo.RelativeToApplicationDirectory(SETTINGS_PATH), JsonSerializer.Serialize(this));
         }
         public static ServerSettings Load()
         {
-            if (File.Exists(SETTINGS_PATH))
-                return JsonSerializer.Deserialize<ServerSettings>(File.ReadAllText(SETTINGS_PATH));
+            string path = SystemInfo.RelativeToApplicationDirectory(SETTINGS_PATH);
+            if (File.Exists(path))
+                return JsonSerializer.Deserialize<ServerSettings>(File.ReadAllText(path));
             else
                 return new ServerSettings();
         }

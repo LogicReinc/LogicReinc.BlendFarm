@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -37,6 +38,28 @@ namespace LogicReinc.BlendFarm.Server
                 throw new NotImplementedException("Unknown OS");
         }
 
+        public static string RelativeToApplicationDirectory(string path)
+        {
+            if (!Path.IsPathRooted(path))
+            {
+                switch (GetOSName())
+                {
+                    case OS_WINDOWS64:
+                        return path;
+                    case OS_LINUX64:
+                        return path;
+                    case OS_MACOS:
+                        string userDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                        string appPath = Path.Combine(userDir, "Library/Application Support", "BlendFarm");
+                        if (!Directory.Exists(appPath))
+                            Directory.CreateDirectory(appPath);
+                        return Path.Combine(appPath, path);
+                    default:
+                        return path;
+                }
+            }
+            return path;
+        }
 
         public static bool IsOS(string osName)
         {

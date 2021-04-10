@@ -27,6 +27,9 @@ namespace LogicReinc.BlendFarm.Server
 
         private List<string> sessions = new List<string>();
 
+        /// <summary>
+        /// Event on client disconnected
+        /// </summary>
         public event Action<RenderServerClientTcp> OnDisconnect;
 
         public RenderServerClientTcp(BlenderManager manager, TcpClient client) : base(client)
@@ -44,6 +47,9 @@ namespace LogicReinc.BlendFarm.Server
 
         #region Handlers
 
+        /// <summary>
+        /// Handler computerInfo, returns computer info
+        /// </summary>
         [BlendFarmHeader("computerInfo")]
         public ComputerInfoResponse Packet_ComputerInfo(ComputerInfoRequest req)
         {
@@ -55,6 +61,9 @@ namespace LogicReinc.BlendFarm.Server
             };
         }
 
+        /// <summary>
+        /// Handler isVersionAvailable, returns if a specified Blender versions is available
+        /// </summary>
         [BlendFarmHeader("isVersionAvailable")]
         public IsVersionAvailableResponse Packet_Available(IsVersionAvailableRequest req)
         {
@@ -64,6 +73,9 @@ namespace LogicReinc.BlendFarm.Server
             };
         }
 
+        /// <summary>
+        /// Handler checkSync, returns if file is synced by FileID
+        /// </summary>
         [BlendFarmHeader("checkSync")]
         public CheckSyncResponse Packet_CheckSync(CheckSyncRequest req)
         {
@@ -73,6 +85,9 @@ namespace LogicReinc.BlendFarm.Server
             };
         }
 
+        /// <summary>
+        /// Handler sync, Starts a Sync process, registering a file upload
+        /// </summary>
         [BlendFarmHeader("sync")]
         public SyncResponse Packet_Sync(SyncRequest req)
         {
@@ -86,7 +101,7 @@ namespace LogicReinc.BlendFarm.Server
                 string uploadID = Guid.NewGuid().ToString();
                 if (req.FileID != session.FileID)
                 {
-                    Directory.CreateDirectory(ServerSettings.Instance.BlenderFiles);
+                    Directory.CreateDirectory(SystemInfo.RelativeToApplicationDirectory(ServerSettings.Instance.BlenderFiles));
                     _uploads.Add(uploadID, new FileUpload(session.GetBlendFilePath(), req, req.Compression));
                     session.UpdatingFile();
                 }
@@ -107,6 +122,9 @@ namespace LogicReinc.BlendFarm.Server
                 };
             }
         }
+        /// <summary>
+        /// Handler syncUpload, Process chunk of Blendfile
+        /// </summary>
         [BlendFarmHeader("syncUpload")]
         public SyncUploadResponse Packet_SyncUpload(SyncUploadRequest req)
         {
@@ -153,6 +171,9 @@ namespace LogicReinc.BlendFarm.Server
             }
         }
 
+        /// <summary>
+        /// Handler syncComplete, Finalize Sync process
+        /// </summary>
         [BlendFarmHeader("syncComplete")]
         public SyncCompleteResponse Packet_Complete(SyncCompleteRequest complete)
         {
@@ -194,6 +215,9 @@ namespace LogicReinc.BlendFarm.Server
             }
         }
 
+        /// <summary>
+        /// Handler isBusy, Checks if RenderNode is busy
+        /// </summary>
         [BlendFarmHeader("isBusy")]
         public IsBusyResponse Packet_IsBusy(IsBusyRequest req)
         {
@@ -203,6 +227,9 @@ namespace LogicReinc.BlendFarm.Server
             };
         }
 
+        /// <summary>
+        /// Handler prepare, Prepare a specific Blender version
+        /// </summary>
         [BlendFarmHeader("prepare")]
         public PrepareResponse Packet_Prepare(PrepareRequest req)
         {
@@ -219,7 +246,9 @@ namespace LogicReinc.BlendFarm.Server
             };
         }
 
-
+        /// <summary>
+        /// Handler renderBatch, render multiple requests using a single Blender instance
+        /// </summary>
         [BlendFarmHeader("renderBatch")]
         public RenderBatchResponse Packet_RenderBatch(RenderBatchRequest req)
         {
@@ -352,6 +381,9 @@ namespace LogicReinc.BlendFarm.Server
             }
         }
 
+        /// <summary>
+        /// Handler render, Render a single request
+        /// </summary>
         [BlendFarmHeader("render")]
         public RenderResponse Packet_Render(RenderRequest req)
         {
@@ -452,6 +484,9 @@ namespace LogicReinc.BlendFarm.Server
             }
         }
 
+        /// <summary>
+        /// Handler cancelRender, Cancels an ongoing render
+        /// </summary>
         [BlendFarmHeader("cancelRender")]
         public void Packet_Cancel_Render(CancelRenderRequest req)
         {

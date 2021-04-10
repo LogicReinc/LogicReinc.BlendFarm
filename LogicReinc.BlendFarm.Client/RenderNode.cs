@@ -19,51 +19,135 @@ namespace LogicReinc.BlendFarm.Client
     public class RenderNode : INotifyPropertyChanged
     {
         //Info
+        /// <summary>
+        /// Name of node
+        /// </summary>
         public string Name { get; set; }
+        /// <summary>
+        /// Network address of node
+        /// </summary>
         public string Address { get; set; }
+        /// <summary>
+        /// Current status of node
+        /// </summary>
         public string Status { get; set; }
+        /// <summary>
+        /// Operating system of node
+        /// </summary>
         public string OS { get; set; }
 
+        /// <summary>
+        /// Networking client for node
+        /// </summary>
         private RenderClient Client { get; set; }
 
         //ClientDerived
+        /// <summary>
+        /// Computer name of node
+        /// </summary>
         public string ComputerName { get; set; }
+        /// <summary>
+        /// Number of CPU Logical cores
+        /// </summary>
         public int Cores { get; set; } = -1;
 
+        /// <summary>
+        /// Performance based on cores or user-defined
+        /// </summary>
         public double Performance { get; set; } = 0;
+        /// <summary>
+        /// Auto-balanced Performance score
+        /// </summary>
         public decimal PerformanceScorePP { get; set; } = 0;
 
+        /// <summary>
+        /// Render type this node will use
+        /// </summary>
         public RenderType RenderType { get; set; } = RenderType.CPU;
 
         //State
+        /// <summary>
+        /// If node is not doing anything
+        /// </summary>
         public bool IsIdle => string.IsNullOrEmpty(Activity);
+        /// <summary>
+        /// If node is connected
+        /// </summary>
         public bool Connected => Client != null && Client.Connected;
 
+        /// <summary>
+        /// FileID of the version of the file this node has synced
+        /// </summary>
         public long LastFileID { get; set; } = -1;
+        /// <summary>
+        /// Descriptive name of current activity
+        /// </summary>
         public string Activity { get; set; } = null;
+        /// <summary>
+        /// Progress of current activity
+        /// </summary>
         public double ActivityProgress { get; set; } = 0;
+        /// <summary>
+        /// If activity has any progress
+        /// </summary>
         public bool HasActivityProgress => ActivityProgress > 0;
 
+        /// <summary>
+        /// Last exception
+        /// </summary>
         public string Exception { get; set; } = null;
+        /// <summary>
+        /// Last status
+        /// </summary>
         public string LastStatus { get; set; }
 
+        /// <summary>
+        /// If the node is prepared with the required Blender version
+        /// </summary>
         public bool IsPrepared { get; set; }
+        /// <summary>
+        /// If the node has synced up with the latest file
+        /// </summary>
         public bool IsSynced { get; set; }
 
+        /// <summary>
+        /// Current Task ID
+        /// </summary>
         public string CurrentTask { get; set; }
         private CancellationTokenSource _taskCancelToken = null;
 
+        /// <summary>
+        /// Blender Versions that have been checked and are available
+        /// </summary>
         public List<string> AvailableVersions { get; set; } = new List<string>();
 
 
         //Events
+        /// <summary>
+        /// Event on node connected
+        /// </summary>
         public event Action<RenderNode> OnConnected;
+        /// <summary>
+        /// Event on node disconnected
+        /// </summary>
         public event Action<RenderNode> OnDisconnected;
 
+        /// <summary>
+        /// Event whenever Activity changed
+        /// </summary>
         public event Action<RenderNode, string> OnActivityChanged;
+        /// <summary>
+        /// Event whenever FileID changed
+        /// </summary>
         public event Action<RenderNode, long> OnFileIDChanged;
+        /// <summary>
+        /// Event whenever a BatchResult came in
+        /// </summary>
         public event Action<RenderNode, RenderBatchResult> OnBatchResult;
 
+        /// <summary>
+        /// Whenever a relevant property changed
+        /// </summary>
         public event PropertyChangedEventHandler PropertyChanged;
 
 
