@@ -17,7 +17,6 @@
     <None Remove="Icons\radioOn.zip" />
     <None Remove="Images\header.png" />
     <None Remove="Images\render.ico" />
-    <None Remove="Resources\LogicReinc.BlendFarm.icns" />
   </ItemGroup>
   <ItemGroup>
     <AvaloniaResource Include="Icons\delete.png" />
@@ -31,7 +30,7 @@
     <AvaloniaResource Include="Images\header.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\LogicReinc.BlendFarm.icns">
+    <EmbeddedResource Include="Images\LogicReinc.BlendFarm.icns">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </EmbeddedResource>
   </ItemGroup>
