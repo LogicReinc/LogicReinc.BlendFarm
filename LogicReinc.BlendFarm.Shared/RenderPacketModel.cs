@@ -18,29 +18,74 @@ namespace LogicReinc.BlendFarm.Shared
     /// </summary>
     public class RenderPacketModel
     {
+        /// <summary>
+        /// Identifier for Task
+        /// </summary>
         public string TaskID { get; set; }
+        /// <summary>
+        /// Frame of Blenderifle to render
+        /// </summary>
         public int Frame { get; set; } = 0;
 
         //System
 
+        /// <summary>
+        /// Number of cores to use (in case of CPU, -1 is all)
+        /// </summary>
         public int Cores { get; set; } = -1;
+        /// <summary>
+        /// Render strategy to use
+        /// </summary>
         public RenderType RenderType { get; set; }
 
         //Render Info
+        /// <summary>
+        /// Render resolution Width
+        /// </summary>
         public int Width { get; set; } = 1920;
+        /// <summary>
+        /// Render resolution Height
+        /// </summary>
         public int Height { get; set; } = 1080;
 
+        /// <summary>
+        /// Render tile width
+        /// </summary>
         public int TileWidth { get; set; } = -1;
+        /// <summary>
+        /// Render tile height
+        /// </summary>
         public int TileHeight { get; set; } = -1;
 
+        /// <summary>
+        /// Cycles samples to render with
+        /// </summary>
         public int Samples { get; set; } = 128;
 
+        /// <summary>
+        /// RenderBorder X1 0..1
+        /// </summary>
         public decimal X { get; set; } = 0;
+        /// <summary>
+        /// RenderBorder X2 0..1
+        /// </summary>
         public decimal X2 { get; set; } = 1;
+        /// <summary>
+        /// RenderBorder Y1 0..1
+        /// </summary>
         public decimal Y { get; set; } = 0;
+        /// <summary>
+        /// RenderBorder Y2 0..1
+        /// </summary>
         public decimal Y2 { get; set; } = 1;
 
+        /// <summary>
+        /// If render should be cropped (otherwise transparant background for non-rendered parts)
+        /// </summary>
         public bool Crop { get; set; }
+        /// <summary>
+        /// If Blender Workaround should be used to assume render settings not updating properly.
+        /// </summary>
         public bool Workaround { get; set; }
     }
 }

@@ -3,6 +3,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <ApplicationIcon>render.ico</ApplicationIcon>
+	<RuntimeIdentifiers>win-x64;linux-x64;osx-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Icons\become_a_patron_button3x.png" />
@@ -16,6 +17,7 @@
     <None Remove="Icons\radioOn.zip" />
     <None Remove="Images\header.png" />
     <None Remove="Images\render.ico" />
+    <None Remove="Resources\LogicReinc.BlendFarm.icns" />
   </ItemGroup>
   <ItemGroup>
     <AvaloniaResource Include="Icons\delete.png" />
@@ -27,6 +29,11 @@
   <ItemGroup>
     <AvaloniaResource Include="Icons\patreon.png" />
     <AvaloniaResource Include="Images\header.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\LogicReinc.BlendFarm.icns">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Images\render.ico">

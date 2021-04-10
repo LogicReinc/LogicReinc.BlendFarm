@@ -36,18 +36,42 @@ namespace LogicReinc.BlendFarm.Shared
         /// </summary>
         public long FileID { get; set; }
 
+        /// <summary>
+        /// Settings on what to render
+        /// </summary>
         public RenderManagerSettings Settings { get; set; }
 
         public List<RenderNode> Nodes = new List<RenderNode>();
 
+        /// <summary>
+        /// Progress of render
+        /// </summary>
         public double Progress { get; set; }
 
+        /// <summary>
+        /// Event whenever a tile has finished rendering
+        /// </summary>
         public event Action<RenderSubTask, Bitmap> OnTileProcessed;
+        /// <summary>
+        /// Event whenever the result bitmap is changed
+        /// </summary>
         public event Action<RenderSubTask, Bitmap> OnResultUpdated;
+        /// <summary>
+        /// Event whenever progress is made
+        /// </summary>
         public event Action<RenderTask, double> OnProgress;
+        /// <summary>
+        /// Event whenever relevant ui properties change
+        /// </summary>
         public event PropertyChangedEventHandler PropertyChanged;
 
+        /// <summary>
+        /// If the task has been executed
+        /// </summary>
         public bool Consumed { get; set; }
+        /// <summary>
+        /// If the task has been cancelled
+        /// </summary>
         public bool Cancelled { get; set; }
 
         private List<RenderNode> _usedNodes = new List<RenderNode>();

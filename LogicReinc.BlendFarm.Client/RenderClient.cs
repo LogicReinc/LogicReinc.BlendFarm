@@ -22,7 +22,6 @@ namespace LogicReinc.BlendFarm.Client
 
         private CancellationToken _receivingToken = new CancellationToken();
 
-        //private ClientWebSocket Socket = new ClientWebSocket();
         private TcpRenderClient Socket = null;
         public string Address { get; set; }
         public int Port { get; set; }

@@ -38,7 +38,7 @@ namespace LogicReinc.BlendFarm.Windows
 
         public ProjectWindow()
         {
-            versions = BlenderVersion.GetBlenderVersions();
+            versions = BlenderVersion.GetBlenderVersions(SystemInfo.RelativeToApplicationDirectory("VersionCache"));
             DataContext = this;
             using(Stream icoStream = Program.GetIconStream())
             {
@@ -196,9 +196,9 @@ This may have to do with the port being in use. Note that to discover other pcs 
 
             _startedNew = true;
 
-
+            string localPath = SystemInfo.RelativeToApplicationDirectory(BlendFarmSettings.Instance.LocalBlendFiles);
             //Setup manager
-            _manager = new BlendFarmManager(path, version.Name, null, BlendFarmSettings.Instance.LocalBlendFiles);
+            _manager = new BlendFarmManager(path, version.Name, null, localPath);
 
             if(!_noServer && !BlendFarmSettings.Instance.PastClients.Any(x=>x.Key == BlendFarmManager.LocalNodeName))
                 _manager.AddNode(BlendFarmManager.LocalNodeName, $"localhost:{LocalServer.ServerPort}");

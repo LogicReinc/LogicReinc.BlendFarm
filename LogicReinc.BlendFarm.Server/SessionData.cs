@@ -13,11 +13,23 @@ namespace LogicReinc.BlendFarm.Server
     /// </summary>
     public class SessionData
     {
+        /// <summary>
+        /// Keeps track of ongoing sessions by SessionID
+        /// </summary>
         public static Dictionary<string, SessionData> Sessions { get; private set; } = new Dictionary<string, SessionData>();
 
+        /// <summary>
+        /// Identifier for session
+        /// </summary>
         public string SessionID { get; set; }
 
+        /// <summary>
+        /// FileID of session (Blendfile version)
+        /// </summary>
         public long FileID { get; set; }
+        /// <summary>
+        /// Last Sync datetime
+        /// </summary>
         public DateTime Updated { get; set; }
 
         /// <summary>
@@ -84,7 +96,7 @@ namespace LogicReinc.BlendFarm.Server
         /// <returns></returns>
         public string GetBlendFilePath()
         {
-            return Path.GetFullPath(Path.Combine(ServerSettings.Instance.BlenderFiles, SessionID)) + ".blend";
+            return Path.Combine(SystemInfo.RelativeToApplicationDirectory(ServerSettings.Instance.BlenderFiles), SessionID) + ".blend";
         }
 
         /// <summary>
