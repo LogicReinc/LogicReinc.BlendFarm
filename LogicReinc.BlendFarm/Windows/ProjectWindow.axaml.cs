@@ -21,7 +21,7 @@ namespace LogicReinc.BlendFarm.Windows
     /// </summary>
     public class ProjectWindow : Window
     {
-        static List<BlenderVersion> versions = null;
+        static List<BlenderVersion> versions = new List<BlenderVersion>();
 
         private TextBox fileSelection = null;
         private ComboBox comboVersions = null;
@@ -38,7 +38,6 @@ namespace LogicReinc.BlendFarm.Windows
 
         public ProjectWindow()
         {
-            versions = BlenderVersion.GetBlenderVersions(SystemInfo.RelativeToApplicationDirectory("VersionCache"));
             DataContext = this;
             using(Stream icoStream = Program.GetIconStream())
             {
@@ -104,6 +103,17 @@ This may have to do with the port being in use. Note that to discover other pcs 
             Height = 570;
 
             fileSelection = this.FindControl<TextBox>("fileSelect");
+
+            try
+            {
+                versions = BlenderVersion.GetBlenderVersions(SystemInfo.RelativeToApplicationDirectory("VersionCache"));
+            }
+            catch(Exception ex)
+            {
+                MessageWindow.Show(this, "Exception retrieving versions", 
+                    $"Failed to retrieve versions due to {ex.Message}, this may be due to no internet connection.An internet connection is required to retrieve version info and download Blender installations. Restart application with internet connection for Blender versions..",
+                    600, 250);
+            }
 
             comboVersions = this.FindControl<ComboBox>("versionSelect");
             comboVersions.Items = versions;

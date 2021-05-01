@@ -12,11 +12,11 @@
   </Window.Styles>
     
     <StackPanel>
-      <StackPanel Width="500" Height="150">
+      <StackPanel Width="500">
         <TextBlock Margin="20" FontSize="20" FontWeight="Bold" TextAlignment="Center" Text="{Binding MsgTitle}" TextWrapping="Wrap">
 
         </TextBlock>
-        <TextBlock Margin="10,0,10,10" FontSize="15" Height="60" TextWrapping="Wrap" TextAlignment="Center" Text="{Binding Description}">
+        <TextBlock Margin="10,0,10,10" FontSize="15" TextWrapping="Wrap" TextAlignment="Center" Text="{Binding Description}">
 
         </TextBlock>
       </StackPanel>
