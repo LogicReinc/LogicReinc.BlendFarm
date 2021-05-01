@@ -138,29 +138,33 @@ Note that LogicReinc.BlendFarm is both client and server, so you can simply use 
 ### Getting Started on Windows
 
 #### Server (Render node)
+ - Download the latest LogicReinc.BlendFarm.Server release at https://github.com/LogicReinc/LogicReinc.BlendFarm/releases (LogicReinc.BlendFarm.Server-Win64)
  - Extract and Run LogicReinc.BlendFarm.Server.exe to any directory with read/write access.
  - When asked, allow the application through your firewall
 
 #### Client (GUI)
+ - Download the latest LogicReinc.BlendFarm release at https://github.com/LogicReinc/LogicReinc.BlendFarm/releases (LogicReinc.BlendFarm-Win64)
  - Extract and Run LogicReinc.BlendFarm.exe to any directory with read/write access.
  - When asked, allow the application through your firewall
  
 ### Getting Started on Linux
 
 #### Server (Render Node)
+ - Download the latest LogicReinc.BlendFarm.Server release at https://github.com/LogicReinc/LogicReinc.BlendFarm/releases (LogicReinc.BlendFarm.Server-Linux64)
  - Extract LogicReinc.BlendFarm.Server to any directory with read/write/execute access (chown/chmod u=rwx, or sudo)
  - (Optional: if firewall) Allow port 15000/tcp (default, can change) and port 16342/udp (default, can change) through your firewall
  - Run LogicReinc.BlendFarm.Server
 
 #### Client (GUI)
+ - Download the latest LogicReinc.BlendFarm release at https://github.com/LogicReinc/LogicReinc.BlendFarm/releases (LogicReinc.BlendFarm-Linux64)
  - Extract LogicReinc.BlendFarm to any directory with read/write/execute access (chown/chmod u=rwx, or sudo)
  - (Optional: if firewall) Allow port 15000/tcp (default, can change) and port 16342/udp (default, can change) through your firewall
  - Run LogicReinc.BlendFarm
 
 ### Getting Started on Mac
-At this point in time OSX is not capable of rendering, but can use other computers to render.
 
 #### Client (GUI)
+ - Download the latest LogicReinc.BlendFarm release at https://github.com/LogicReinc/LogicReinc.BlendFarm/releases (LogicReinc.BlendFarm-OSX64)
  - Extract LogicReinc.BlendFarm-OSX64 to any directory with read/write
  - (Optional: if firewall) Allow port 15000/tcp (default, can change) and port 16342/udp (default, can change) through your firewall
  - Run LogicReinc.BlendFarm.command
@@ -181,6 +185,7 @@ ___
  - blender-2.91.2-linux64
  - blender-2.92.0-linux64
  - blender-2-92.0-windows64
+ - blender-2.91.2-macOS
  - blender-2-92.0-macOS
  
 ___
