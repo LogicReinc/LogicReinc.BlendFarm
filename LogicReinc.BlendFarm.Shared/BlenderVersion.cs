@@ -64,6 +64,15 @@ namespace LogicReinc.BlendFarm.Shared
         /// </summary>
         public static List<BlenderVersion> GetBlenderVersions(string cacheFile = null, string customFile = null)
         {
+            if (cacheFile != null)
+            {
+                string fullCachePath = Path.GetFullPath(cacheFile);
+
+                //Intercept designer
+                if (fullCachePath.StartsWith("C:\\Windows"))
+                    return new List<BlenderVersion>();
+            }
+
             List<BlenderVersion> custom = GetCustomBlenderVersions(customFile);
 
             //IMPORTANT: always use cache if able, or get a chance to get your IP blacklisted.
