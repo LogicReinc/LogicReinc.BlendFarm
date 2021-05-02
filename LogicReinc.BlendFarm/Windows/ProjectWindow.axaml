@@ -25,14 +25,16 @@
       <TextBox Width="440" FontSize="10" x:Name="fileSelect"></TextBox>
       <Button Width="100" Command="{Binding ShowFileDialog}">Select your file</Button>
     </StackPanel>
-
-    <ComboBox x:Name="versionSelect" HorizontalAlignment="Center" Width="540">
-      <ComboBox.ItemTemplate>
-        <DataTemplate>
-          <TextBlock Text="{Binding Name}"></TextBlock>
-        </DataTemplate>
-      </ComboBox.ItemTemplate>
-    </ComboBox>
+    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal" Margin="10">
+      <ComboBox x:Name="versionSelect" HorizontalAlignment="Center" Width="390">
+        <ComboBox.ItemTemplate>
+          <DataTemplate>
+            <TextBlock Text="{Binding Name}"></TextBlock>
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <Button Width="150" Command="{Binding ShowCustomWizard}">Add Custom Version</Button>
+    </StackPanel>
     
     <TextBlock TextAlignment="Center" Margin="0,20,0,0">Recent Projects</TextBlock>
     <ListBox x:Name="history" Margin="10" Background="#333333" Height="200">

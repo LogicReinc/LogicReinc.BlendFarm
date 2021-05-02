@@ -1,0 +1,94 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450" MinWidth="800" MinHeight="450" MaxWidth="800" MaxHeight="450" Width="800" Height="450"
+        x:Class="LogicReinc.BlendFarm.Windows.CustomBlenderBuildWizard"
+        Title="CustomBlenderBuildWizard">
+  <Window.Styles>
+    <StyleInclude Source="avares://Avalonia.Themes.Default/Accents/BaseDark.xaml" />
+  </Window.Styles>
+  <StackPanel>
+    <StackPanel Name="interfaceWarning" Orientation="Vertical" IsVisible="True">
+      <TextBlock TextAlignment="Center" Margin="0,60,0,20" FontSize="30">
+        Custom Blender Wizard
+      </TextBlock>
+      <TextBlock TextAlignment="Center" Foreground="Orange" FontSize="15" Margin="0,30,0,0">
+        When using custom versions of Blender you work outside of BlendFarms automated versioning.
+        It requires you to add this custom version of Blender on every render node. 
+        Or a "Failed to prepare version" error will occur.
+      </TextBlock>
+      <TextBlock TextAlignment="Center" Foreground="White" FontSize="12" Margin="0,30,0,0">
+        On the BlenderFarm.Server you can add custom versions manually by adding a VersionCustom file.
+      </TextBlock>
+      <TextBlock TextAlignment="Center" Foreground="White" FontSize="12" Margin="0,00,0,0">
+        VersionCustom has to be located in the same directory as VersionCache, typically this is the app directory.
+      </TextBlock>
+      <TextBlock TextAlignment="Center" Foreground="White" FontSize="12" Margin="0,00,0,0">
+        Each line being a version name, and installations being in the same location as described in this process.
+      </TextBlock>
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,50,0,0">
+        <Button FontSize="20" Margin="20" Width="150">
+          Cancel
+        </Button>
+        <Button FontSize="20" Margin="20" Width="150" Command="{Binding ShowInterfaceName}">
+          Continue
+        </Button>
+      </StackPanel>
+    </StackPanel>
+    <StackPanel Name="interfaceName" IsVisible="False">
+      <TextBlock TextAlignment="Center" Margin="0,60,0,20" FontSize="30">
+        Custom Blender Wizard
+      </TextBlock>
+      <TextBlock TextAlignment="Center" Foreground="White" FontSize="15" Margin="0,30,0,0">
+        Enter the name of your custom build. 
+      </TextBlock>
+      <TextBlock TextAlignment="Center" Foreground="Red" FontSize="12">
+        (Ensure this name is unique and does not match official names such as blender-2.91.0)
+      </TextBlock>
+      <TextBlock TextAlignment="Center" Foreground="Red" FontSize="12" Margin="0,00,0,0">
+        (This name should match on all render nodes)
+      </TextBlock>
+      <TextBox Margin="20" TextAlignment="Center" Watermark="Your-Blender-Version-Name" Text="{Binding VersionName}">
+
+      </TextBox>
+      <Button Width="200" FontSize="20" Command="{Binding ShowInterfaceInstall}">
+        Continue
+      </Button>
+    </StackPanel>
+    <StackPanel Name="interfaceInstall" IsVisible="False">
+      <TextBlock TextAlignment="Center" Margin="0,60,0,20" FontSize="30">
+        Custom Blender Wizard
+      </TextBlock>
+      <TextBlock TextAlignment="Center" Foreground="White" FontSize="15" Margin="0,30,0,0">
+        Copy your Blender installation to the BlenderData directory.
+      </TextBlock>
+      <TextBlock TextAlignment="Center" Foreground="White" FontSize="15" Margin="0,0,0,0">
+        The directory name is your version name with your operating system surfix.
+      </TextBlock>
+      <TextBlock TextAlignment="Center" Foreground="White" FontSize="15" Margin="0,0,0,0">
+        (Windows: -windows64, Linux: -linux64, Mac: -macOS)
+      </TextBlock>
+      <TextBlock TextAlignment="Center" Foreground="White" FontSize="15" Margin="0,10,0,0">
+        On this computer it should be located at:
+      </TextBlock>
+      <TextBox Margin="0,20,0,0" Width="700" Name="outputPath" TextAlignment="Center">
+
+      </TextBox>
+      <Button Width="300" FontSize="20" Margin="0,30,0,0" Command="{Binding ShowInterfaceComplete}">
+        Check Installation
+      </Button>
+    </StackPanel>
+    <StackPanel Name="interfaceComplete" IsVisible="False">
+      <TextBlock TextAlignment="Center" Margin="0,60,0,20" FontSize="30">
+        Custom Blender Wizard
+      </TextBlock>
+      <TextBlock TextAlignment="Center" FontSize="15" Margin="0,50,0,0" Foreground="#AAFFAA">
+        The custom Blender installation should now be available in version selection.
+      </TextBlock>
+      <Button Width="300" FontSize="20" Margin="0,50,0,0">
+        Done
+      </Button>
+    </StackPanel>
+  </StackPanel>
+</Window>

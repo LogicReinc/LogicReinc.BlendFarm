@@ -59,12 +59,17 @@ namespace LogicReinc.BlendFarm.Server
         {
             return Path.GetFullPath(BlenderData);
         }
+
+        public static string GetVersionPath(string blenderDataPath, string version, string os)
+        {
+            return Path.Combine(blenderDataPath, $"{version}-{os}");
+        }
         /// <summary>
         /// Returns formatted path to a blender version directory (specific os)
         /// </summary>
         public string GetVersionPath(string version, string os)
         {
-            return Path.Combine(GetBlenderDataPath(), $"{version}-{os}");
+            return GetVersionPath(GetBlenderDataPath(), version, os);
         }
         /// <summary>
         /// Returns formatted path to the render script, if it doesn't exist or is outdated, write it.
@@ -89,15 +94,43 @@ namespace LogicReinc.BlendFarm.Server
             return SystemInfo.GetOSName();
         }
 
+
+        public static string GetVersionExecutablePath(string blenderDataPath, string version)
+        {
+            string os = SystemInfo.GetOSName();
+            string blenderDir = GetVersionPath(blenderDataPath, version, os);
+            string executable = null;
+            switch (os)
+            {
+                case SystemInfo.OS_WINDOWS64:
+                    executable = $"{blenderDir}/blender.exe";
+                    break;
+                case SystemInfo.OS_LINUX64:
+                    executable = $"{blenderDir}/blender";
+                    break;
+                case SystemInfo.OS_MACOS:
+                    executable = $"{blenderDir}/Contents/MacOS/Blender";
+                    break;
+            }
+            return executable;
+        }
+        public static bool IsVersionValid(string blenderDataPath, string version)
+        {
+            string os = SystemInfo.GetOSName();
+            string blenderDir = GetVersionPath(blenderDataPath, version, os);
+            if (!Directory.Exists(blenderDir))
+                return false;
+            return File.Exists(GetVersionExecutablePath(blenderDataPath, version));
+        }
         /// <summary>
         /// Check if a specific version of Blender is present
         /// </summary>
         public bool IsVersionAvailable(string version)
         {
-            if (!SystemInfo.IsOS(SystemInfo.OS_MACOS))
-                return Directory.Exists(GetVersionPath(version, SystemInfo.GetOSName()));
-            else
-                return File.Exists(GetVersionPath(version, SystemInfo.GetOSName()) + ".dmg");
+            //if (!SystemInfo.IsOS(SystemInfo.OS_MACOS))
+            return Directory.Exists(GetVersionPath(version, SystemInfo.GetOSName()));
+            //else
+            //    return File.Exists(GetVersionPath(version, SystemInfo.GetOSName()) + ".dmg");
         }
         /// <summary>
         /// Attempt to provide a version of Blender
@@ -121,7 +154,7 @@ namespace LogicReinc.BlendFarm.Server
         /// <param name="version"></param>
         public void Prepare(string version)
         {
-            BlenderVersion v = BlenderVersion.FindVersion(version, SystemInfo.RelativeToApplicationDirectory("VersionCache"));
+            BlenderVersion v = BlenderVersion.FindVersion(version, SystemInfo.RelativeToApplicationDirectory("VersionCache"), SystemInfo.RelativeToApplicationDirectory("VersionCustom"));
 
             if (v == null)
                 throw new ArgumentException("Version not found");
@@ -130,6 +163,8 @@ namespace LogicReinc.BlendFarm.Server
 
             if (Directory.Exists(targetDir))
                 Console.WriteLine($"{version} already present");
+            else if (v.IsCustom)
+                throw new ArgumentException("Custom version missing");
             else
                 Download(SystemInfo.GetOSName(), v);
         }

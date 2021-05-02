@@ -23,6 +23,7 @@ namespace LogicReinc.BlendFarm.Shared
 
         private static int CACHE_DAYS = 3;
 
+        public bool IsCustom { get; set; } = false;
         public string Name { get; set; }
 
         public DateTime Date { get; set; }
@@ -35,22 +36,42 @@ namespace LogicReinc.BlendFarm.Shared
         public bool HasAll => !string.IsNullOrEmpty(UrlLinux64) && !string.IsNullOrEmpty(UrlWindows64);
 
 
-        public static BlenderVersion FindVersion(string version, string cacheFile = null)
+        public static BlenderVersion FindVersion(string version, string cacheFile = null, string customFile = null)
         {
-            return GetBlenderVersions(cacheFile).FirstOrDefault(x => x.Name == version);
+            return GetBlenderVersions(cacheFile, customFile).FirstOrDefault(x => x.Name == version);
         }
 
+        public static List<BlenderVersion> GetCustomBlenderVersions(string customFile = null)
+        {
+            List<BlenderVersion> custom = new List<BlenderVersion>();
+            if (customFile != null && File.Exists(customFile))
+            {
+                string[] customLines = File.ReadAllLines(customFile);
+                foreach (string line in customLines)
+                {
+                    if (!string.IsNullOrEmpty(line))
+                        custom.Add(new BlenderVersion()
+                        {
+                            IsCustom = true,
+                            Name = line.Trim()
+                        });
+                }
+            }
+            return custom;
+        }
         /// <summary>
         /// Retrieve available versions of Blender (from cache if available/recent)
         /// </summary>
-        public static List<BlenderVersion> GetBlenderVersions(string cacheFile = null)
+        public static List<BlenderVersion> GetBlenderVersions(string cacheFile = null, string customFile = null)
         {
+            List<BlenderVersion> custom = GetCustomBlenderVersions(customFile);
+
             //IMPORTANT: always use cache if able, or get a chance to get your IP blacklisted.
             Cache cache = Cache.GetCache(cacheFile);
-            if(cache != null)
+            if (cache != null)
                 //Refresh every >= CACHE_DAYS days
                 if (Math.Abs(cache.Date.DayOfYear - DateTime.Now.DayOfYear) < CACHE_DAYS)
-                    return cache.Versions;
+                    return custom.Concat(cache.Versions).ToList();
             try
             {
                 List<BlenderVersion> versions = new List<BlenderVersion>();
@@ -97,13 +118,13 @@ namespace LogicReinc.BlendFarm.Shared
                 Thread.Sleep(500);
 
                 Cache.UpdateCache(vs, cacheFile);
-                return vs;
+                return custom.Concat(vs).ToList();
             }
             catch(Exception ex)
             {
                 Console.WriteLine("Failed to load versions due to " + ex.Message);
                 if (cache != null)
-                    return cache.Versions;
+                    return custom.Concat(cache.Versions).ToList();
                 else
                     throw;
             }
