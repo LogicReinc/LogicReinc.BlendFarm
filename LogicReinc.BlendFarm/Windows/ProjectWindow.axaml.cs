@@ -104,23 +104,9 @@ This may have to do with the port being in use. Note that to discover other pcs 
 
             fileSelection = this.FindControl<TextBox>("fileSelect");
 
-            try
-            {
-                versions = BlenderVersion.GetBlenderVersions(SystemInfo.RelativeToApplicationDirectory("VersionCache"), SystemInfo.RelativeToApplicationDirectory("VersionCustom"));
-            }
-            catch(Exception ex)
-            {
-                /*/
-                MessageWindow.Show(this, "Exception retrieving versions", 
-                    $"Failed to retrieve versions due to {ex.Message}, this may be due to no internet connection.An internet connection is required to retrieve version info and download Blender installations. Restart application with internet connection for Blender versions..",
-                    600, 250);
-
-                /*/
-            }
 
             comboVersions = this.FindControl<ComboBox>("versionSelect");
-            comboVersions.Items = versions;
-            comboVersions.SelectedIndex = 0;
+            ReloadVersions();
 
             history = this.FindControl<ListBox>("history");
             history.Items = BlendFarmSettings.Instance.History.ToList();
@@ -139,9 +125,25 @@ This may have to do with the port being in use. Note that to discover other pcs 
                 MessageWindow.Show(this, "OSX Rendering", "Rendering using Blender is disabled for OSX due to it not being implemented fully yet. You can however render using other machines in your network. (Local render node will not be available)");
         }
 
+        public void ReloadVersions()
+        {
+            try
+            {
+                versions = BlenderVersion.GetBlenderVersions(SystemInfo.RelativeToApplicationDirectory("VersionCache"), SystemInfo.RelativeToApplicationDirectory("VersionCustom"));
+            }
+            catch (Exception ex)
+            {
+                MessageWindow.Show(this, "Exception retrieving versions", 
+                    $"Failed to retrieve versions due to {ex.Message}, this may be due to no internet connection.An internet connection is required to retrieve version info and download Blender installations. Restart application with internet connection for Blender versions..",
+                    600, 250);
+            }
+            comboVersions.Items = versions;
+            comboVersions.SelectedIndex = 0;
+        }
         public async void ShowCustomWizard()
         {
             await CustomBlenderBuildWizard.Show(this);
+            ReloadVersions();
         }
         public async void ShowFileDialog()
         {

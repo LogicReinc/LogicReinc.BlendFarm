@@ -32,7 +32,7 @@ namespace LogicReinc.BlendFarm.Shared
 
         public static List<WebIndex> GetIndexes(string url)
         {
-            using(WebClient client = new WebClient())
+            using(WebClient client = new IndexWebClient())
             {
                 string html = client.DownloadString(url);
 
@@ -58,6 +58,20 @@ namespace LogicReinc.BlendFarm.Shared
                     }
                 }
                 return Indexes;
+            }
+        }
+
+
+        private class IndexWebClient : WebClient
+        {
+
+            protected override WebRequest GetWebRequest(Uri address)
+            {
+                WebRequest req = base.GetWebRequest(address);
+
+                req.Timeout = 5000;
+
+                return req;
             }
         }
     }
