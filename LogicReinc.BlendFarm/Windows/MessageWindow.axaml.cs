@@ -1,6 +1,7 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using System.Threading.Tasks;
 
 namespace LogicReinc.BlendFarm.Windows
@@ -50,6 +51,10 @@ namespace LogicReinc.BlendFarm.Windows
         public static async Task Show(Window owner, string title, string desc)
         {
             await Show(owner, title, desc, 500, 200);
+        }
+        public static async Task ShowOnUIThread(Window owner, string title, string desc)
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => Show(owner, title, desc));
         }
 
         public static async Task Show(Window owner, string title, string desc, int width, int height)

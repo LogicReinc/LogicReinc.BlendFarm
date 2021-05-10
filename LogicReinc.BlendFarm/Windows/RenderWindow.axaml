@@ -172,24 +172,21 @@
               <StackPanel Background="#1F1F1F">
                 <StackPanel Margin="10,20,10,10">
                   <StackPanel Orientation="Horizontal">
-                    <TextBlock Width="90" TextAlignment="Right" Margin="10" ToolTip.Tip="The strategy to render the image. Splitted is fastest, but less real-time preview. SplitChunked has real-time tiles updating but has some overhead. Chunked is slow, but allows rendernodes to consume work as available.">
-                      Render Strategy
-                    </TextBlock>
-                    <ComboBox SelectedIndex="0" Width="95" x:Name="selectStrategy" />
-                    <TextBlock Width="60" TextAlignment="Right" Margin="10" ToolTip.Tip="Order to render tiles, only relevant for Chunked and SplitChunked">Order</TextBlock>
-                    <ComboBox SelectedIndex="0" Width="80" x:Name="selectOrder" />
+                    <TextBlock Width="60" TextAlignment="Right" Margin="10">Width:</TextBlock>
+                    <NumericUpDown Width="80" Value="{Binding RenderWidth}" />
+                    <TextBlock Width="60" TextAlignment="Right" Margin="10">Height:</TextBlock>
+                    <NumericUpDown Width="80" Value="{Binding RenderHeight}" />
                   </StackPanel>
                   <StackPanel Orientation="Horizontal">
-                    <TextBlock Width="90" TextAlignment="Right" Margin="10">Render Width:</TextBlock>
-                    <NumericUpDown Width="95" Value="{Binding RenderWidth}" />
-                    <TextBlock Width="60" TextAlignment="Right" Margin="10" ToolTip.Tip="Chunksize for Chunked and SplitChunked, may be modified in certain scenarios">ChunkSize</TextBlock>
-                    <NumericUpDown Width="80" Value="{Binding ChunkSize}" />
-                  </StackPanel>
-                  <StackPanel Orientation="Horizontal">
-                    <TextBlock Width="90" TextAlignment="Right" Margin="10">Render Height:</TextBlock>
-                    <NumericUpDown Width="95" Value="{Binding RenderHeight}" />
                     <TextBlock Width="60" TextAlignment="Right" Margin="10">Samples</TextBlock>
                     <NumericUpDown Width="80" Value="{Binding Samples}" />
+                    <TextBlock Width="60" TextAlignment="Right" Margin="10" ToolTip.Tip="Denoiser to use, Inherit means the one selected in Blendfile.">
+                      Denoiser
+                    </TextBlock>
+                    <ComboBox SelectedIndex="0" Width="80" Items="{Binding DenoiserOptions}" SelectedItem="{Binding Denoiser}">
+                    </ComboBox>
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal">
                   </StackPanel>
 
                   <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
@@ -211,16 +208,20 @@
             </TabItem>
             <TabItem Header="Animation">
               <StackPanel Margin="10,20,10,10" Background="#1F1F1F">
-              <TextBlock TextWrapping="Wrap">Render an animation to a directory</TextBlock>
+              <TextBlock TextWrapping="Wrap" Margin="10">Render an animation to a directory</TextBlock>
                 <StackPanel Orientation="Horizontal">
                   <TextBlock Width="90" TextAlignment="Right" Margin="10">File Format</TextBlock>
                   <TextBox Width="235" Text="{Binding AnimationFileFormat}" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal">
                   <TextBlock Width="90" TextAlignment="Right" Margin="10" ToolTip.Tip="Frame to start at">Frame Start</TextBlock>
-                  <NumericUpDown Width="95" Value="{Binding FrameStart}" />
-                  <TextBlock Width="60" TextAlignment="Right" Margin="10" ToolTip.Tip="Frame to end at">Frame End</TextBlock>
+                  <NumericUpDown Width="80" Value="{Binding FrameStart}" />
+                  <TextBlock Width="55" TextAlignment="Right" Margin="10" ToolTip.Tip="Frame to end at">Frame End</TextBlock>
                   <NumericUpDown Width="80" Value="{Binding FrameEnd}" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <CheckBox Width="90" Margin="10" HorizontalContentAlignment="Right" IsChecked="{Binding UseFPS}">FPS</CheckBox>
+                  <NumericUpDown Width="80" Value="{Binding FPS}" IsEnabled="{Binding UseFPS}" />
                 </StackPanel>
                 <Button Margin="10,10,10,5" IsVisible="{Binding !IsRendering}" Command="{Binding RenderAnimation}" Background="#400083" BorderBrush="#200041">
                   Render Animation
@@ -232,13 +233,29 @@
             </TabItem>
             <TabItem Header="Live Render">
               <StackPanel Margin="10,20,10,10" Background="#1F1F1F">
-                <TextBlock TextWrapping="Wrap">Live render will re-render the file whenever it changes (with settings from Image tab)</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="10">Live render will re-render the file whenever it changes (with settings from Image tab)</TextBlock>
                 <Button Margin="10,10,10,5" IsVisible="{Binding !IsLiveChanging}" Command="{Binding StartLiveRender}" Background="#400083" BorderBrush="#200041">
                   Start Live Render
                 </Button>
                 <Button Margin="10,0,10,5" IsVisible="{Binding IsLiveChanging}" Command="{Binding StopLiveRender}" Background="#AA0000" BorderBrush="#200041">
                   Stop Live Render
                 </Button>
+              </StackPanel>
+            </TabItem>
+            <TabItem Header="System">
+              <StackPanel Orientation="Vertical">
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Width="90" TextAlignment="Right" Margin="10" ToolTip.Tip="The strategy to render the image. Splitted is fastest, but less real-time preview. SplitChunked has real-time tiles updating but has some overhead. Chunked is slow, but allows rendernodes to consume work as available.">
+                    Render Strategy
+                  </TextBlock>
+                  <ComboBox SelectedIndex="0" Width="105" x:Name="selectStrategy" />
+                  <TextBlock Width="30" TextAlignment="Right" Margin="10" ToolTip.Tip="Order to render tiles, only relevant for Chunked and SplitChunked">Order</TextBlock>
+                  <ComboBox SelectedIndex="0" Width="80" x:Name="selectOrder" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Width="90" TextAlignment="Right" Margin="10" ToolTip.Tip="Chunksize for Chunked and SplitChunked, may be modified in certain scenarios">ChunkSize</TextBlock>
+                  <NumericUpDown Width="80" Value="{Binding ChunkSize}" />
+                </StackPanel>
               </StackPanel>
             </TabItem>
           </TabControl>

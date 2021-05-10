@@ -25,6 +25,17 @@ namespace LogicReinc.BlendFarm.Client
         /// </summary>
         public int Frame { get; set; } = 1;
 
+
+        /// <summary>
+        /// FPS, 0 = inherit
+        /// </summary>
+        public int FPS { get; set; } = 0;
+
+        /// <summary>
+        /// Denoiser to use for render, "" = inherit
+        /// </summary>
+        public string Denoiser { get; set; } = "";
+
         /// <summary>
         /// Chunk Height (0..1), used when render is divided into chunks (Chunked, SplitChunked)
         /// </summary>

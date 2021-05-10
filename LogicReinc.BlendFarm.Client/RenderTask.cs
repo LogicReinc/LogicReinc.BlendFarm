@@ -222,7 +222,7 @@ namespace LogicReinc.BlendFarm.Shared
 
 
                 ConcurrentQueue<RenderSubTask> queue = new ConcurrentQueue<RenderSubTask>();
-                for(int i = start; i < end; i++)
+                for(int i = start; i <= end; i++)
                     queue.Enqueue(new RenderSubTask(this, 0, 1, 0, 1, i));
 
 
@@ -244,9 +244,14 @@ namespace LogicReinc.BlendFarm.Shared
                             {
                                 taskPart = ExecuteSubTask(node, task);
 
+                                if (taskPart.Image == null)
+                                    throw new Exception(taskPart.Exception?.Message ?? "Unknown Remote Exception");
+
                                 ProcessTile(task, (Bitmap)taskPart.Image, ref g, ref result, ref drawLock);
 
                                 onSubTaskFinished?.Invoke(task);
+
+                                finished++;
                             }
                             catch (TaskCanceledException ex)
                             {
@@ -268,15 +273,11 @@ namespace LogicReinc.BlendFarm.Shared
                                 Thread.Sleep(1000);
                                 continue;
                             }
-
-                            Image part = taskPart.Image;
-
-                            ProcessTile(task, (Bitmap)part, ref g, ref result, ref drawLock);
                         }
                     });
 
-                    if (finished != validNodes.Count)
-                        throw new AggregateException("Not all frames rendered", exceptions.Select(x => new Exception(x)));
+                    if (finished != (end-start) + 1)
+                        throw new AggregateException($"Not all frames rendered ({finished}/{(end-start) + 1})", exceptions.Select(x => new Exception(x)));
 
                     return true;
                 });

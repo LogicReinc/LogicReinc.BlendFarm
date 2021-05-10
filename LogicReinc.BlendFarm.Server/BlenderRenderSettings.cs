@@ -33,6 +33,16 @@ namespace LogicReinc.BlendFarm.Server
         public RenderType ComputeUnit { get; set; } = RenderType.CPU;
 
         /// <summary>
+        /// Denoiser for Blender (None/NLM/OptiX/OpenImageDenoise) Empty or null is seen as inherit
+        /// </summary>
+        public string Denoiser { get; set; }
+
+        /// <summary>
+        /// FPS, 0 = inherit
+        /// </summary>
+        public int FPS { get; set; }
+
+        /// <summary>
         /// Render Rectangle Start X (0..1)
         /// </summary>
         public decimal X { get; set; } = 0;
@@ -107,6 +117,8 @@ namespace LogicReinc.BlendFarm.Server
                 Samples = settings.Samples,
                 ComputeUnit = settings.RenderType,
                 Crop = settings.Crop,
+                Denoiser = settings.Denoiser,
+                FPS = settings.FPS,
                 Workaround = settings.Workaround,
             };
 

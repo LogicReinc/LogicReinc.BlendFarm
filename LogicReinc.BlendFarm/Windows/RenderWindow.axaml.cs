@@ -30,6 +30,8 @@ namespace LogicReinc.BlendFarm.Windows
             AvaloniaProperty.RegisterDirect<RenderWindow, bool>(nameof(IsRendering), (x) => x.IsRendering);
         private static DirectProperty<RenderWindow, bool> IsLiveChangingProperty =
             AvaloniaProperty.RegisterDirect<RenderWindow, bool>(nameof(IsLiveChanging), (x) => x.IsLiveChanging);
+        private static DirectProperty<RenderWindow, bool> UseFPSProperty =
+            AvaloniaProperty.RegisterDirect<RenderWindow, bool>(nameof(UseFPS), (x) => x.UseFPS, (w, v) => w.UseFPS = v);
 
         public string File { get; set; }
         public BlenderVersion Version { get; set; }
@@ -42,6 +44,8 @@ namespace LogicReinc.BlendFarm.Windows
         public int RenderHeight { get; set; } = 720;
         public int ChunkSize { get; set; } = 256;
         public int Samples { get; set; } = 32;
+        public string Denoiser { get; set; } = "Inherit";
+
         public bool UseWorkaround { get; set; } = true;
         public bool UseAutomaticPerformance { get; set; } = true;
         public bool UseSyncCompression { get; set; } = false;
@@ -49,6 +53,18 @@ namespace LogicReinc.BlendFarm.Windows
         public string AnimationFileFormat { get; set; } = "#.png";
         public int FrameStart { get; set; } = 0;
         public int FrameEnd { get; set; } = 60;
+        public int FPS { get; set; } = 0;
+        private bool _useFPS = false;
+        public bool UseFPS
+        {
+            get => _useFPS;
+            set
+            {
+                bool old = _useFPS;
+                _useFPS = value;
+                RaisePropertyChanged(UseFPSProperty, old, value);
+            }
+        }
 
         public bool IsLiveChanging { get; set; } = false;
 
@@ -57,6 +73,9 @@ namespace LogicReinc.BlendFarm.Windows
 
         public bool IsRendering => CurrentTask != null;
         public RenderTask CurrentTask = null;
+
+        //Options
+        protected string[] DenoiserOptions { get; } = new string[] { "Inherit", "None", "NLM", "OPTIX", "OPENIMAGEDENOISE" };
 
         //Views
         private ListBox _nodeList = null;
@@ -131,7 +150,7 @@ namespace LogicReinc.BlendFarm.Windows
                 LocalServer.Stop();
                 Manager.StopFileWatch();
             };
-            Manager.StartFileWatch();
+            Manager?.StartFileWatch();
 
             this.InitializeComponent();
 #if DEBUG
@@ -261,19 +280,7 @@ namespace LogicReinc.BlendFarm.Windows
 
 
                     //Create Task
-                    CurrentTask = Manager.GetRenderTask(new RenderManagerSettings()
-                    {
-                        Frame = FrameStart,
-                        Strategy = (RenderStrategy)_selectStrategy.SelectedItem,
-                        Order = (TaskOrder)_selectOrder?.SelectedItem,
-                        OutputHeight = RenderHeight,
-                        OutputWidth = RenderWidth,
-                        ChunkHeight = ((decimal)ChunkSize / RenderHeight),
-                        ChunkWidth = ((decimal)ChunkSize / RenderWidth),
-                        Samples = Samples,
-                        BlenderUpdateBugWorkaround = UseWorkaround,
-                        UseAutoPerformance = UseAutomaticPerformance
-                    }, async (task, updated) =>
+                    CurrentTask = Manager.GetRenderTask(GetSettingsFromUI(), async (task, updated) =>
                     {
                         //Apply image to canvas
                         await Dispatcher.UIThread.InvokeAsync(() =>
@@ -390,21 +397,19 @@ namespace LogicReinc.BlendFarm.Windows
 
 
                     //Create Task
-                    CurrentTask = Manager.GetRenderTask(new RenderManagerSettings()
-                    {
-                        Frame = FrameStart,
-                        Strategy = (RenderStrategy)_selectStrategy.SelectedItem,
-                        Order = (TaskOrder)_selectOrder?.SelectedItem,
-                        OutputHeight = RenderHeight,
-                        OutputWidth = RenderWidth,
-                        ChunkHeight = ((decimal)ChunkSize / RenderHeight),
-                        ChunkWidth = ((decimal)ChunkSize / RenderWidth),
-                        Samples = Samples,
-                        BlenderUpdateBugWorkaround = UseWorkaround
-                    }, null, async (task, frame)=>
+                    CurrentTask = Manager.GetRenderTask(GetSettingsFromUI(), null, async (task, frame)=>
                     {
                         string filePath = Path.Combine(outputDir, animationFileFormat.Replace("#", task.Frame.ToString()));
-                        frame.Save(filePath);
+
+                        try
+                        {
+                            frame.Save(filePath);
+                        }
+                        catch(Exception ex)
+                        {
+                            await MessageWindow.ShowOnUIThread(this, "Frame Save Error", $"Animation frame {task.Frame} failed to save due to:" + ex.Message);
+                            return;
+                        }
 
                         //Apply image to canvas
                         await Dispatcher.UIThread.InvokeAsync(() =>
@@ -416,7 +421,7 @@ namespace LogicReinc.BlendFarm.Windows
                             }
                             catch(Exception ex)
                             {
-                                MessageWindow.Show(this, "GUI Exception", "An error occured trying to load animation Bitmap in GUI.\n(Animation frame should still be saved)");
+                                _ = MessageWindow.Show(this, "GUI Exception", "An error occured trying to load animation Bitmap in GUI.\n(Animation frame should still be saved)");
                             }
                             _lastRenderTime.Text = watch.Elapsed.ToString();
                         });
@@ -436,26 +441,21 @@ namespace LogicReinc.BlendFarm.Windows
 
                     //Render
                     var success = await CurrentTask.RenderAnimation(FrameStart, FrameEnd);
-                    if(success)
-                    {
-
-                    }
+                    if (success)
+                        _ = MessageWindow.ShowOnUIThread(this, "Animation Rendered", $"Frames {FrameStart} to {FrameEnd} rendered.\nLocated at {outputDir}.");
 
                     watch.Stop();
 
                 }
                 catch (Exception ex)
                 {
-                    await Dispatcher.UIThread.InvokeAsync(async () =>
-                    {
-                        MessageWindow.Show(this, "Failed Render", "Failed render due to:" + ex.Message);
-                    });
+                    await MessageWindow.ShowOnUIThread(this, "Failed Render", "Failed render due to:" + ex.Message);
                 }
                 finally
                 {
                     Manager.ClearLastTask();
                     CurrentTask = null;
-                    Dispatcher.UIThread.InvokeAsync(() => RaisePropertyChanged(IsRenderingProperty, true, false));
+                    await Dispatcher.UIThread.InvokeAsync(() => RaisePropertyChanged(IsRenderingProperty, true, false));
                 }
             });
         }
@@ -507,6 +507,25 @@ namespace LogicReinc.BlendFarm.Windows
             Manager.OnFileChanged -= RenderOnFileChange;
             IsLiveChanging = false;
             RaisePropertyChanged(IsLiveChangingProperty, true, false);
+        }
+
+        private RenderManagerSettings GetSettingsFromUI()
+        {
+            return new RenderManagerSettings()
+            {
+                Frame = FrameStart,
+                Strategy = (RenderStrategy)_selectStrategy.SelectedItem,
+                Order = (TaskOrder)_selectOrder?.SelectedItem,
+                OutputHeight = RenderHeight,
+                OutputWidth = RenderWidth,
+                ChunkHeight = ((decimal)ChunkSize / RenderHeight),
+                ChunkWidth = ((decimal)ChunkSize / RenderWidth),
+                Samples = Samples,
+                FPS = (UseFPS) ? FPS : 0,
+                Denoiser = (Denoiser == "Inherit") ? "" : Denoiser ?? "",
+                BlenderUpdateBugWorkaround = UseWorkaround,
+                UseAutoPerformance = UseAutomaticPerformance
+            };
         }
 
         private void RenderOnFileChange(BlendFarmManager manager)

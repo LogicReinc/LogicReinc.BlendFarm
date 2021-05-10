@@ -18,6 +18,12 @@ namespace LogicReinc.BlendFarm.Client
     /// </summary>
     public class RenderNode : INotifyPropertyChanged
     {
+        //Used to specify the minimum server required version
+        //Modified when protocol changes
+        public const int MinumumVersionMajor = 1;
+        public const int MinimumVersionMinor = 0;
+        public const int MinimumVersionPatch = 5;
+
         //Info
         /// <summary>
         /// Name of node
