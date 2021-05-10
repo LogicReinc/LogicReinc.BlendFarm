@@ -38,6 +38,16 @@ namespace LogicReinc.BlendFarm.Shared
         /// </summary>
         public RenderType RenderType { get; set; }
 
+        /// <summary>
+        /// Denoiser for Blender (None/NLM/OptiX/OpenImageDenoise) Empty or null is seen as inherit
+        /// </summary>
+        public string Denoiser { get; set; } = "";
+
+        /// <summary>
+        /// FPS for file, 0 means inherit
+        /// </summary>
+        public int FPS { get; set; } = 0;
+
         //Render Info
         /// <summary>
         /// Render resolution Width

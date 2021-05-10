@@ -22,7 +22,7 @@ from multiprocessing import cpu_count
 argv = sys.argv
 argv = argv[argv.index("--") + 1:]
 
-scn = bpy.data.scenes["Scene"]
+scn = bpy.context.scene
 
 
 jsonPath = argv[0];
@@ -107,6 +107,20 @@ def renderWithSettings(renderSettings, id, path):
             bpy.context.scene.cycles.device = "GPU";
             print("Use OpenCL (GPU)");
         
+
+        #Denoiser
+        denoise = renderSettings["Denoiser"];
+        if denoise is not None:
+            if denoise == "None":
+                scn.cycles.use_denoising = False;
+            elif len(denoise) > 0:
+                scn.cycles.use_denoising = True;
+                scn.cycles.denoiser = denoise;
+
+        fps = renderSettings["FPS"];
+        if fps is not None and fps > 0:
+            scn.render.fps = fps;
+
         # Set frame
         scn.frame_set(frame)
         

@@ -107,6 +107,8 @@ namespace LogicReinc.BlendFarm.Client
                 Height = Parent.Settings.OutputHeight,
                 Width = Parent.Settings.OutputWidth,
                 Samples = Parent.Settings.Samples,
+                FPS = Parent.Settings.FPS,
+                Denoiser = Parent.Settings.Denoiser,
                 TaskID = ID,
                 Workaround = Parent.Settings.BlenderUpdateBugWorkaround,
                 Crop = Crop || Parent.Settings.BlenderUpdateBugWorkaround

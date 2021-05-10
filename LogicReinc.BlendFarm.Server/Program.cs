@@ -11,6 +11,10 @@ namespace LogicReinc.BlendFarm.Server
     //Contains lots of test code
     public class Program
     {
+        public const int VersionMajor = 1;
+        public const int VersionMinor = 0;
+        public const int VersionPatch = 5;
+
         public static RenderServer Server { get; private set; }
 
         static void Main(string[] args)

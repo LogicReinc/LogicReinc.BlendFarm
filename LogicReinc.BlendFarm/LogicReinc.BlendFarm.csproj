@@ -5,6 +5,9 @@
     <ApplicationIcon>render.ico</ApplicationIcon>
 	<RuntimeIdentifiers>win-x64;linux-x64;osx-x64</RuntimeIdentifiers>
   </PropertyGroup>
+  <PropertyGroup>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
   <ItemGroup>
     <None Remove="Icons\become_a_patron_button3x.png" />
     <None Remove="Icons\delete.png" />
