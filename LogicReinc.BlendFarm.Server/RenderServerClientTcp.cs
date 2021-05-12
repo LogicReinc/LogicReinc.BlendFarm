@@ -47,6 +47,18 @@ namespace LogicReinc.BlendFarm.Server
 
         #region Handlers
 
+        [BlendFarmHeader("checkProtocol")]
+        public CheckProtocolResponse Packet_CheckProtocol(CheckProtocolRequest req)
+        {
+            return new CheckProtocolResponse()
+            {
+                ClientVersionMajor = Program.VersionMajor,
+                ClientVersionMinor = Program.VersionMinor,
+                ClientVersionPatch = Program.VersionPatch,
+                ProtocolVersion = Protocol.Version
+            };
+        }
+
         /// <summary>
         /// Handler computerInfo, returns computer info
         /// </summary>

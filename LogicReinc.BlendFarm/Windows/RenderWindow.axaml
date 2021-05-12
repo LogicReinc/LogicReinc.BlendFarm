@@ -84,7 +84,7 @@
                       <!--RenderNode Status -->
                       <StackPanel Orientation="Vertical" Width="140" Margin="5,0,0,0" VerticalAlignment="Center">
                         <TextBlock Width="130" Margin="10,0,0,0" Text="{Binding Activity}" ToolTip.Tip="{Binding Activity}" HorizontalAlignment="Left" FontWeight="Thin" FontSize="10"></TextBlock>
-                        <TextBlock Width="130" Margin="10,0,0,0" Foreground="#FF0000" Text="{Binding Exception}" ToolTip.Tip="{Binding Exception}" IsVisible="{Binding Exception, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" HorizontalAlignment="Left" FontWeight="Thin" FontSize="10"></TextBlock>
+                        <TextBlock Width="130" Margin="10,0,0,0" Foreground="#FF3333" Text="{Binding Exception}" ToolTip.Tip="{Binding Exception}" IsVisible="{Binding Exception, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" HorizontalAlignment="Left" FontWeight="Thin" FontSize="12"></TextBlock>
                       </StackPanel>
                       
                       <!--RenderNode Buttons -->
