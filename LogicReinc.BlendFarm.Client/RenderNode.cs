@@ -201,6 +201,18 @@ namespace LogicReinc.BlendFarm.Client
                     Client.OnDisconnected += (a) => OnDisconnected?.Invoke(this);
                     Client.OnPacket += HandlePacket;
 
+                    CheckProtocolResponse protocolResp = null;
+                    try
+                    {
+                        protocolResp = await CheckProtocol(MinumumVersionMajor, MinimumVersionMinor, MinimumVersionPatch, Protocol.Version);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new InvalidOperationException("Outdated protocol, exception during check (" + ex.Message + ")");
+                    }
+                    if (protocolResp == null || Protocol.Version != protocolResp.ProtocolVersion)
+                        throw new InvalidOperationException($"Outdated protocol, update node before connecting (Protocol: {Protocol.Version}, Found: {protocolResp?.ProtocolVersion})");
+
                     ComputerInfoResponse compData = await GetComputerInfo();
                     OS = compData.OS;
                     Cores = compData.Cores;
@@ -256,6 +268,17 @@ namespace LogicReinc.BlendFarm.Client
         }
 
         //Remote Tasks
+
+        public async Task<CheckProtocolResponse> CheckProtocol(int major, int minor, int patch, int version)
+        {
+            return await Client.Send<CheckProtocolResponse>(new CheckProtocolRequest()
+            {
+                ClientVersionMajor = major,
+                ClientVersionMinor = minor,
+                ClientVersionPatch = patch,
+                ProtocolVersion = version
+            }, CancellationToken.None);
+        }
 
 
         /// <summary>
