@@ -40,6 +40,7 @@ namespace LogicReinc.BlendFarm.Windows
         public string InputClientName { get; set; }
         public string InputClientAddress { get; set; }
 
+        //Render Properties
         public int RenderWidth { get; set; } = 1280;
         public int RenderHeight { get; set; } = 720;
         public int ChunkSize { get; set; } = 256;
@@ -66,6 +67,7 @@ namespace LogicReinc.BlendFarm.Windows
             }
         }
 
+        //State
         public bool IsLiveChanging { get; set; } = false;
 
         public ObservableCollection<RenderNode> Nodes { get; private set; } = new ObservableCollection<RenderNode>();
@@ -76,6 +78,10 @@ namespace LogicReinc.BlendFarm.Windows
 
         //Options
         protected string[] DenoiserOptions { get; } = new string[] { "Inherit", "None", "NLM", "OPTIX", "OPENIMAGEDENOISE" };
+
+        //Dialogs
+        private string _lastAnimationDirectory = null;
+
 
         //Views
         private ListBox _nodeList = null;
@@ -162,7 +168,8 @@ namespace LogicReinc.BlendFarm.Windows
         {
             AvaloniaXamlLoader.Load(this);
 
-            MinHeight = 950;
+            MinHeight = 600;
+            MinWidth = 500;
             Width = 1400;
             Height = 950;
 
@@ -371,6 +378,9 @@ namespace LogicReinc.BlendFarm.Windows
                     Title = "Select folder to save animation frames to"
                 };
 
+                if (!string.IsNullOrEmpty(_lastAnimationDirectory))
+                    dialog.Directory = _lastAnimationDirectory;
+
                 outputDir = await dialog.ShowAsync(this);
 
                 this._imageProgress.IsVisible = true;
@@ -381,6 +391,8 @@ namespace LogicReinc.BlendFarm.Windows
                 return;
             else
                 outputDir = Path.GetFullPath(outputDir);
+
+            _lastAnimationDirectory = outputDir;
 
             if (Manager.Nodes.Any(x => x.Connected && !x.IsSynced))
             {
