@@ -360,3 +360,9 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+Deploy/
+
+build.sh
+
+packages-microsoft-prod.deb
