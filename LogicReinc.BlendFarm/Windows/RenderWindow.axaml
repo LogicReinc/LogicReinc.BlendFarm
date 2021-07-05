@@ -21,247 +21,251 @@
             Grid.Column="0"
             Grid.Row="1"></ProgressBar>
     </Grid>
-    <StackPanel 
+    <ScrollViewer VerticalScrollBarVisibility="Auto" VerticalAlignment="Top"
             Grid.Row="0" Grid.Column="1"
-            Orientation="Vertical" 
             Background="#222222">
+      <StackPanel Orientation="Vertical">
 
-      <DockPanel>
-        <StackPanel Margin="20,0,20,20" DockPanel.Dock="Top">
-          <StackPanel Margin="20,20,20,10" Orientation="Horizontal">
-            <Button Padding="0" BorderThickness="0" Background="#111111" Command="{Binding Github}">
-              <Image Source="/Icons/github.png" Width="150" Height="25"></Image>
-            </Button>
-            <Button Padding="0" BorderThickness="0" Command="{Binding Patreon}">
-              <Image Source="/Icons/patreon.png" Width="150"></Image>
-            </Button>
-          </StackPanel>
-          <StackPanel Margin="20,0,40,10" Orientation="Vertical">
-            <Button Padding="0,10,0,10" BorderThickness="0" Background="#111111" Command="{Binding Help}">
-              Help!
-            </Button>
-          </StackPanel>
+        <DockPanel>
+          <StackPanel Margin="20,0,20,20" DockPanel.Dock="Top">
+            <StackPanel Margin="20,20,20,10" Orientation="Horizontal">
+              <Button Padding="0" BorderThickness="0" Background="#111111" Command="{Binding Github}">
+                <Image Source="/Icons/github.png" Width="150" Height="25"></Image>
+              </Button>
+              <Button Padding="0" BorderThickness="0" Command="{Binding Patreon}">
+                <Image Source="/Icons/patreon.png" Width="150"></Image>
+              </Button>
+            </StackPanel>
+            <StackPanel Margin="20,0,40,10" Orientation="Vertical">
+              <Button Padding="0,10,0,10" BorderThickness="0" Background="#111111" Command="{Binding Help}">
+                Help!
+              </Button>
+            </StackPanel>
 
-          <StackPanel Orientation="Horizontal">
-            <TextBlock Width="60" Margin="0,0,15,0" TextAlignment="Right">Version:</TextBlock>
-            <TextBlock Width="240"  Text="{Binding Version.Name}"></TextBlock>
-          </StackPanel>
-          <StackPanel Orientation="Horizontal">
-            <TextBlock Width="60" Margin="0,0,15,0" TextAlignment="Right">File:</TextBlock>
-            <TextBlock Width="240"  Text="{Binding File}"></TextBlock>
-          </StackPanel>
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Width="60" Margin="0,0,15,0" TextAlignment="Right">Version:</TextBlock>
+              <TextBlock Width="240"  Text="{Binding Version.Name}"></TextBlock>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Width="60" Margin="0,0,15,0" TextAlignment="Right">File:</TextBlock>
+              <TextBlock Width="240"  Text="{Binding File}"></TextBlock>
+            </StackPanel>
 
-          <StackPanel Margin="0,10,0,0">
-            <TextBlock>Render Nodes</TextBlock>
-            <!--RenderNodes -->
-            <ListBox Margin="0,10,10,10" x:Name="listNodes" Items="{Binding Nodes}" Height="300">
-              <ListBox.ItemTemplate>
-                <DataTemplate>
-                  <StackPanel Height="60">
-                    <StackPanel Orientation="Horizontal" Height="50">
-                      <StackPanel Orientation="Vertical" Width="100" Margin="5,0,0,0" VerticalAlignment="Center">
-                      <!--RenderNode Name -->
-                        <TextBlock Width="100" HorizontalAlignment="Left" Foreground="#AAAAAA" FontWeight="Bold" Text="{Binding Name}" IsVisible="{Binding !Connected}"/>
-                        <TextBlock Width="100" HorizontalAlignment="Left" Foreground="#AAAA00" FontWeight="Bold" Text="{Binding Name}">
-                          <TextBlock.IsVisible>
-                            <MultiBinding Converter="{x:Static BoolConverters.And}">
-                              <Binding Path="!IsSynced"></Binding>
-                              <Binding Path="Connected"></Binding>
-                            </MultiBinding>
-                          </TextBlock.IsVisible>
-                        </TextBlock>
-                        <TextBlock Width="100" HorizontalAlignment="Left" Foreground="#00AA00" FontWeight="Bold" Text="{Binding Name}">
+            <StackPanel Margin="0,10,0,0">
+              <TextBlock>Render Nodes</TextBlock>
+              <!--RenderNodes -->
+              <ListBox Margin="0,10,10,10" x:Name="listNodes" Items="{Binding Nodes}" Height="300">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel Height="60">
+                      <StackPanel Orientation="Horizontal" Height="50">
+                        <StackPanel Orientation="Vertical" Width="100" Margin="5,0,0,0" VerticalAlignment="Center">
+                          <!--RenderNode Name -->
+                          <TextBlock Width="100" HorizontalAlignment="Left" Foreground="#AAAAAA" FontWeight="Bold" Text="{Binding Name}" IsVisible="{Binding !Connected}"/>
+                          <TextBlock Width="100" HorizontalAlignment="Left" Foreground="#AAAA00" FontWeight="Bold" Text="{Binding Name}">
                             <TextBlock.IsVisible>
-                            <MultiBinding Converter="{x:Static BoolConverters.And}">
-                              <Binding Path="IsSynced"></Binding>
-                              <Binding Path="Connected"></Binding>
-                            </MultiBinding>
-                          </TextBlock.IsVisible>
-                        </TextBlock>
-                        <!--RenderNode Address -->
-                        <TextBlock Width="100" Text="{Binding Address}" HorizontalAlignment="Left" FontWeight="Thin"></TextBlock>
-                      </StackPanel>
-                      <!--RenderNode Status -->
-                      <StackPanel Orientation="Vertical" Width="140" Margin="5,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Width="130" Margin="10,0,0,0" Text="{Binding Activity}" ToolTip.Tip="{Binding Activity}" HorizontalAlignment="Left" FontWeight="Thin" FontSize="10"></TextBlock>
-                        <TextBlock Width="130" Margin="10,0,0,0" Foreground="#FF3333" Text="{Binding Exception}" ToolTip.Tip="{Binding Exception}" IsVisible="{Binding Exception, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" HorizontalAlignment="Left" FontWeight="Thin" FontSize="12"></TextBlock>
-                      </StackPanel>
-                      
-                      <!--RenderNode Buttons -->
-                      <StackPanel Orientation="Horizontal">
-                        <Grid>
-                          <Button Width="50" Height="30" Grid.Column="0"
-                              Background="#00000000" 
-                              BorderThickness="0"
-                              IsEnabled="{Binding Activity, Converter={x:Static StringConverters.IsNullOrEmpty}}" 
-                              IsVisible="{Binding Connected}}"
-                              Command="{Binding Disconnect}">
-                            <Image Source="/Icons/radioOn.png" Height="30" Width="30" />
-                          </Button>
-                          <Button Grid.Column="0"
+                              <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                <Binding Path="!IsSynced"></Binding>
+                                <Binding Path="Connected"></Binding>
+                              </MultiBinding>
+                            </TextBlock.IsVisible>
+                          </TextBlock>
+                          <TextBlock Width="100" HorizontalAlignment="Left" Foreground="#00AA00" FontWeight="Bold" Text="{Binding Name}">
+                            <TextBlock.IsVisible>
+                              <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                <Binding Path="IsSynced"></Binding>
+                                <Binding Path="Connected"></Binding>
+                              </MultiBinding>
+                            </TextBlock.IsVisible>
+                          </TextBlock>
+                          <!--RenderNode Address -->
+                          <TextBlock Width="100" Text="{Binding Address}" HorizontalAlignment="Left" FontWeight="Thin"></TextBlock>
+                        </StackPanel>
+                        <!--RenderNode Status -->
+                        <StackPanel Orientation="Vertical" Width="140" Margin="5,0,0,0" VerticalAlignment="Center">
+                          <TextBlock Width="130" Margin="10,0,0,0" Text="{Binding Activity}" ToolTip.Tip="{Binding Activity}" HorizontalAlignment="Left" FontWeight="Thin" FontSize="10"></TextBlock>
+                          <TextBlock Width="130" Margin="10,0,0,0" Foreground="#FF3333" Text="{Binding Exception}" ToolTip.Tip="{Binding Exception}" IsVisible="{Binding Exception, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" HorizontalAlignment="Left" FontWeight="Thin" FontSize="12"></TextBlock>
+                        </StackPanel>
+
+                        <!--RenderNode Buttons -->
+                        <StackPanel Orientation="Horizontal">
+                          <Grid>
+                            <Button Width="50" Height="30" Grid.Column="0"
+                                Background="#00000000"
+                                BorderThickness="0"
+                                IsEnabled="{Binding Activity, Converter={x:Static StringConverters.IsNullOrEmpty}}"
+                                IsVisible="{Binding Connected}}"
+                                Command="{Binding Disconnect}">
+                              <Image Source="/Icons/radioOn.png" Height="30" Width="30" />
+                            </Button>
+                            <Button Grid.Column="0"
+                              Margin="5,0,0,0"
+                              Background="#00000000"
+                                BorderThickness="0"
+                                IsEnabled="{Binding Activity, Converter={x:Static StringConverters.IsNullOrEmpty}}"
+                                IsVisible="{Binding !Connected}"
+                                Command="{Binding ConnectAndPrepare}"
+                                CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=DataContext.Version.Name}">
+                              <Image Source="/Icons/radioOff.png" Height="30" Width="30" />
+                            </Button>
+                          </Grid>
+                          <Button
                             Margin="5,0,0,0"
-                            Background="#00000000" 
+                            Background="#00000000"
                               BorderThickness="0"
-                              IsEnabled="{Binding Activity, Converter={x:Static StringConverters.IsNullOrEmpty}}" 
                               IsVisible="{Binding !Connected}"
-                              Command="{Binding ConnectAndPrepare}"
-                              CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=DataContext.Version.Name}">
-                            <Image Source="/Icons/radioOff.png" Height="30" Width="30" />
+                              Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=DeleteNode}"
+                              CommandParameter="{Binding .}">
+                            <Image Source="/Icons/delete.png" Height="30" Width="30" />
                           </Button>
-                        </Grid>
-                        <Button
-                          Margin="5,0,0,0"
-                          Background="#00000000"
-                            BorderThickness="0"
-                            IsVisible="{Binding !Connected}"
-                            Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=DeleteNode}"
-                            CommandParameter="{Binding .}">
-                          <Image Source="/Icons/delete.png" Height="30" Width="30" />
-                        </Button>
-                        <Button
-                          Margin="5,0,0,0"
-                          Background="#00000000"
-                            BorderThickness="0"
-                            IsVisible="{Binding Connected}"
-                            Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ConfigureNode}"
-                            CommandParameter="{Binding .}">
-                          <Image Source="/Icons/gear.png" Height="30" Width="30" />
-                        </Button>
+                          <Button
+                            Margin="5,0,0,0"
+                            Background="#00000000"
+                              BorderThickness="0"
+                              IsVisible="{Binding Connected}"
+                              Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ConfigureNode}"
+                              CommandParameter="{Binding .}">
+                            <Image Source="/Icons/gear.png" Height="30" Width="30" />
+                          </Button>
+                        </StackPanel>
                       </StackPanel>
+                      <ProgressBar IsIndeterminate="{Binding !HasActivityProgress}" Value="{Binding ActivityProgress}" Height="1" Margin="0,2,0,0" IsVisible="{Binding !IsIdle}"></ProgressBar>
+
                     </StackPanel>
-                    <ProgressBar IsIndeterminate="{Binding !HasActivityProgress}" Value="{Binding ActivityProgress}" Height="1" Margin="0,2,0,0" IsVisible="{Binding !IsIdle}"></ProgressBar>
-                    
-                  </StackPanel>
-                </DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
 
 
-            <StackPanel Orientation="Horizontal">
-              <Button Width="175" Command="{Binding ConnectAll}">Connect All</Button>
-              <Button Width="175" Command="{Binding SyncAll}">Sync All</Button>
-            </StackPanel>
-
-
-            <StackPanel Margin="0,15,0,10">
-              <TextBlock TextAlignment="Center">New Node</TextBlock>
-              
               <StackPanel Orientation="Horizontal">
-                <TextBox Width="130" Watermark="Name" x:Name="inputClientName" Text="{Binding InputClientName}"></TextBox>
-                <TextBox Width="230" Watermark="Address (eg. 192.168.1.53:1234)" x:Name="inputClientAddress" Text="{Binding InputClientAddress}"></TextBox>
+                <Button Width="175" Command="{Binding ConnectAll}">Connect All</Button>
+                <Button Width="175" Command="{Binding SyncAll}">Sync All</Button>
               </StackPanel>
-              
-              <Button Margin="0,10,0,0" 
-                  Command="{Binding AddNewNode}" 
-                  IsEnabled="{Binding ElementName=inputClientAddress, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">Connect New</Button>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal">
-              <CheckBox IsChecked="{Binding UseAutomaticPerformance}">
-                Use Automatic Performance
-              </CheckBox>
-              <CheckBox IsChecked="{Binding UseSyncCompression}" Margin="10,0,0,0">
-                Use Sync Compression
-              </CheckBox>
+
+
+              <StackPanel Margin="0,15,0,10">
+                <TextBlock TextAlignment="Center">New Node</TextBlock>
+
+                <StackPanel Orientation="Horizontal">
+                  <TextBox Width="130" Watermark="Name" x:Name="inputClientName" Text="{Binding InputClientName}"></TextBox>
+                  <TextBox Width="230" Watermark="Address (eg. 192.168.1.53:1234)" x:Name="inputClientAddress" Text="{Binding InputClientAddress}"></TextBox>
+                </StackPanel>
+
+                <Button Margin="0,10,0,0"
+                    Command="{Binding AddNewNode}"
+                    IsEnabled="{Binding ElementName=inputClientAddress, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">Connect New</Button>
+              </StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <CheckBox IsChecked="{Binding UseAutomaticPerformance}">
+                  Use Automatic Performance
+                </CheckBox>
+                <CheckBox IsChecked="{Binding UseSyncCompression}" Margin="10,0,0,0">
+                  Use Sync Compression
+                </CheckBox>
+              </StackPanel>
             </StackPanel>
           </StackPanel>
-        </StackPanel>
 
-        <StackPanel DockPanel.Dock="Bottom">
-          <TabControl SelectedIndex="0">
-            <TabItem Header="Image" Margin="10,0,0,0">
-              <StackPanel Background="#1F1F1F">
-                <StackPanel Margin="10,20,10,10">
-                  <StackPanel Orientation="Horizontal">
-                    <TextBlock Width="60" TextAlignment="Right" Margin="10">Width:</TextBlock>
-                    <NumericUpDown Width="80" Value="{Binding RenderWidth}" />
-                    <TextBlock Width="60" TextAlignment="Right" Margin="10">Height:</TextBlock>
-                    <NumericUpDown Width="80" Value="{Binding RenderHeight}" />
-                  </StackPanel>
-                  <StackPanel Orientation="Horizontal">
-                    <TextBlock Width="60" TextAlignment="Right" Margin="10">Samples</TextBlock>
-                    <NumericUpDown Width="80" Value="{Binding Samples}" />
-                    <TextBlock Width="60" TextAlignment="Right" Margin="10" ToolTip.Tip="Denoiser to use, Inherit means the one selected in Blendfile.">
-                      Denoiser
-                    </TextBlock>
-                    <ComboBox SelectedIndex="0" Width="80" Items="{Binding DenoiserOptions}" SelectedItem="{Binding Denoiser}">
-                    </ComboBox>
-                  </StackPanel>
-                  <StackPanel Orientation="Horizontal">
-                  </StackPanel>
+          <StackPanel DockPanel.Dock="Bottom">
+            <TabControl SelectedIndex="0">
+              <TabItem Header="Image" Margin="10,0,0,0">
+                <StackPanel Background="#1F1F1F">
+                  <StackPanel Margin="10,20,10,10">
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Width="60" TextAlignment="Right" Margin="10">Width:</TextBlock>
+                      <NumericUpDown Width="80" Value="{Binding RenderWidth}" />
+                      <TextBlock Width="60" TextAlignment="Right" Margin="10">Height:</TextBlock>
+                      <NumericUpDown Width="80" Value="{Binding RenderHeight}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Width="60" TextAlignment="Right" Margin="10">Samples</TextBlock>
+                      <NumericUpDown Width="80" Value="{Binding Samples}" />
+                      <TextBlock Width="60" TextAlignment="Right" Margin="10" ToolTip.Tip="Denoiser to use, Inherit means the one selected in Blendfile.">
+                        Denoiser
+                      </TextBlock>
+                      <ComboBox SelectedIndex="0" Width="80" Items="{Binding DenoiserOptions}" SelectedItem="{Binding Denoiser}">
+                      </ComboBox>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                    </StackPanel>
 
-                  <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
-                    <TextBlock Width="110" TextAlignment="Right" Margin="10">Last Render Time:</TextBlock>
-                    <TextBlock x:Name="lastRenderTime" Width="90" Margin="10">...</TextBlock>
-                    <CheckBox IsChecked="{Binding UseWorkaround}" ToolTip.Tip="Workaround for a Blender bug, once fixed, it may cause odd tile order, then disable this">Workaround</CheckBox>
+                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                      <TextBlock Width="110" TextAlignment="Right" Margin="10">Last Render Time:</TextBlock>
+                      <TextBlock x:Name="lastRenderTime" Width="90" Margin="10">...</TextBlock>
+                      <CheckBox IsChecked="{Binding UseWorkaround}" ToolTip.Tip="Workaround for a Blender bug, once fixed, it may cause odd tile order, then disable this">Workaround</CheckBox>
+                    </StackPanel>
                   </StackPanel>
+                  <Button Margin="10,3,10,5" IsVisible="{Binding !IsRendering}" Command="{Binding Render}" Background="#400083" BorderBrush="#200041">
+                    Render
+                  </Button>
+                  <Button Margin="10,0,10,5" IsVisible="{Binding IsRendering}" Command="{Binding CancelRender}" Background="#AA0000" BorderBrush="#200041">
+                    Cancel
+                  </Button>
+                  <Button Margin="10,0,10,10" Command="{Binding SaveImage}" Background="#400083" BorderBrush="#200041">
+                    Save Image
+                  </Button>
                 </StackPanel>
-                <Button Margin="10,3,10,5" IsVisible="{Binding !IsRendering}" Command="{Binding Render}" Background="#400083" BorderBrush="#200041">
-                  Render
-                </Button>
-                <Button Margin="10,0,10,5" IsVisible="{Binding IsRendering}" Command="{Binding CancelRender}" Background="#AA0000" BorderBrush="#200041">
-                  Cancel
-                </Button>
-                <Button Margin="10,0,10,10" Command="{Binding SaveImage}" Background="#400083" BorderBrush="#200041">
-                  Save Image
-                </Button>
-              </StackPanel>
-            </TabItem>
-            <TabItem Header="Animation">
-              <StackPanel Margin="10,20,10,10" Background="#1F1F1F">
-              <TextBlock TextWrapping="Wrap" Margin="10">Render an animation to a directory</TextBlock>
-                <StackPanel Orientation="Horizontal">
-                  <TextBlock Width="90" TextAlignment="Right" Margin="10">File Format</TextBlock>
-                  <TextBox Width="235" Text="{Binding AnimationFileFormat}" />
+              </TabItem>
+              <TabItem Header="Animation">
+                <StackPanel Margin="10,20,10,10" Background="#1F1F1F">
+                  <TextBlock TextWrapping="Wrap" Margin="10">Render an animation to a directory</TextBlock>
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Width="90" TextAlignment="Right" Margin="10">File Format</TextBlock>
+                    <TextBox Width="235" Text="{Binding AnimationFileFormat}" />
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Width="90" TextAlignment="Right" Margin="10" ToolTip.Tip="Frame to start at">Frame Start</TextBlock>
+                    <NumericUpDown Width="80" Value="{Binding FrameStart}" />
+                    <TextBlock Width="55" TextAlignment="Right" Margin="10" ToolTip.Tip="Frame to end at">Frame End</TextBlock>
+                    <NumericUpDown Width="80" Value="{Binding FrameEnd}" />
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal">
+                    <CheckBox Width="90" Margin="10" HorizontalContentAlignment="Right" IsChecked="{Binding UseFPS}">FPS</CheckBox>
+                    <NumericUpDown Width="80" Value="{Binding FPS}" IsEnabled="{Binding UseFPS}" />
+                  </StackPanel>
+                  <Button Margin="10,10,10,5" IsVisible="{Binding !IsRendering}" Command="{Binding RenderAnimation}" Background="#400083" BorderBrush="#200041">
+                    Render Animation
+                  </Button>
+                  <Button Margin="10,0,10,5" IsVisible="{Binding IsRendering}" Command="{Binding CancelRender}" Background="#AA0000" BorderBrush="#200041">
+                    Cancel
+                  </Button>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal">
-                  <TextBlock Width="90" TextAlignment="Right" Margin="10" ToolTip.Tip="Frame to start at">Frame Start</TextBlock>
-                  <NumericUpDown Width="80" Value="{Binding FrameStart}" />
-                  <TextBlock Width="55" TextAlignment="Right" Margin="10" ToolTip.Tip="Frame to end at">Frame End</TextBlock>
-                  <NumericUpDown Width="80" Value="{Binding FrameEnd}" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal">
-                  <CheckBox Width="90" Margin="10" HorizontalContentAlignment="Right" IsChecked="{Binding UseFPS}">FPS</CheckBox>
-                  <NumericUpDown Width="80" Value="{Binding FPS}" IsEnabled="{Binding UseFPS}" />
-                </StackPanel>
-                <Button Margin="10,10,10,5" IsVisible="{Binding !IsRendering}" Command="{Binding RenderAnimation}" Background="#400083" BorderBrush="#200041">
-                  Render Animation
-                </Button>
-                <Button Margin="10,0,10,5" IsVisible="{Binding IsRendering}" Command="{Binding CancelRender}" Background="#AA0000" BorderBrush="#200041">
-                  Cancel
-                </Button>
-              </StackPanel>
-            </TabItem>
-            <TabItem Header="Live Render">
-              <StackPanel Margin="10,20,10,10" Background="#1F1F1F">
-                <TextBlock TextWrapping="Wrap" Margin="10">Live render will re-render the file whenever it changes (with settings from Image tab)</TextBlock>
-                <Button Margin="10,10,10,5" IsVisible="{Binding !IsLiveChanging}" Command="{Binding StartLiveRender}" Background="#400083" BorderBrush="#200041">
-                  Start Live Render
-                </Button>
-                <Button Margin="10,0,10,5" IsVisible="{Binding IsLiveChanging}" Command="{Binding StopLiveRender}" Background="#AA0000" BorderBrush="#200041">
-                  Stop Live Render
-                </Button>
-              </StackPanel>
-            </TabItem>
-            <TabItem Header="System">
-              <StackPanel Orientation="Vertical">
-                <StackPanel Orientation="Horizontal">
-                  <TextBlock Width="90" TextAlignment="Right" Margin="10" ToolTip.Tip="The strategy to render the image. Splitted is fastest, but less real-time preview. SplitChunked has real-time tiles updating but has some overhead. Chunked is slow, but allows rendernodes to consume work as available.">
-                    Render Strategy
+              </TabItem>
+              <TabItem Header="Live Render">
+                <StackPanel Margin="10,20,10,10" Background="#1F1F1F">
+                  <TextBlock TextWrapping="Wrap" Margin="10" Width="300">
+                    Live render will re-render the file whenever it changes (with settings from Image tab)
                   </TextBlock>
-                  <ComboBox SelectedIndex="0" Width="105" x:Name="selectStrategy" />
-                  <TextBlock Width="30" TextAlignment="Right" Margin="10" ToolTip.Tip="Order to render tiles, only relevant for Chunked and SplitChunked">Order</TextBlock>
-                  <ComboBox SelectedIndex="0" Width="80" x:Name="selectOrder" />
+                  <Button Margin="10,10,10,5" IsVisible="{Binding !IsLiveChanging}" Command="{Binding StartLiveRender}" Background="#400083" BorderBrush="#200041">
+                    Start Live Render
+                  </Button>
+                  <Button Margin="10,0,10,5" IsVisible="{Binding IsLiveChanging}" Command="{Binding StopLiveRender}" Background="#AA0000" BorderBrush="#200041">
+                    Stop Live Render
+                  </Button>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal">
-                  <TextBlock Width="90" TextAlignment="Right" Margin="10" ToolTip.Tip="Chunksize for Chunked and SplitChunked, may be modified in certain scenarios">ChunkSize</TextBlock>
-                  <NumericUpDown Width="80" Value="{Binding ChunkSize}" />
+              </TabItem>
+              <TabItem Header="System">
+                <StackPanel Orientation="Vertical">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Width="90" TextAlignment="Right" Margin="10" ToolTip.Tip="The strategy to render the image. Splitted is fastest, but less real-time preview. SplitChunked has real-time tiles updating but has some overhead. Chunked is slow, but allows rendernodes to consume work as available.">
+                      Render Strategy
+                    </TextBlock>
+                    <ComboBox SelectedIndex="0" Width="105" x:Name="selectStrategy" />
+                    <TextBlock Width="30" TextAlignment="Right" Margin="10" ToolTip.Tip="Order to render tiles, only relevant for Chunked and SplitChunked">Order</TextBlock>
+                    <ComboBox SelectedIndex="0" Width="80" x:Name="selectOrder" />
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Width="90" TextAlignment="Right" Margin="10" ToolTip.Tip="Chunksize for Chunked and SplitChunked, may be modified in certain scenarios">ChunkSize</TextBlock>
+                    <NumericUpDown Width="80" Value="{Binding ChunkSize}" />
+                  </StackPanel>
                 </StackPanel>
-              </StackPanel>
-            </TabItem>
-          </TabControl>
-        </StackPanel>
-      </DockPanel>
-    </StackPanel>
+              </TabItem>
+            </TabControl>
+          </StackPanel>
+        </DockPanel>
+
+      </StackPanel>
+    </ScrollViewer>
   </Grid>
 
 </Window>
