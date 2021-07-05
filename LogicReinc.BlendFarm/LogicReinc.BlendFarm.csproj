@@ -9,6 +9,12 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
   <ItemGroup>
+    <AvaloniaXaml Remove="Content\**" />
+    <Compile Remove="Content\**" />
+    <EmbeddedResource Remove="Content\**" />
+    <None Remove="Content\**" />
+  </ItemGroup>
+  <ItemGroup>
     <None Remove="Icons\become_a_patron_button3x.png" />
     <None Remove="Icons\delete.png" />
     <None Remove="Icons\gear.png" />
@@ -52,9 +58,6 @@
     <ProjectReference Include="..\LogicReinc.BlendFarm.Client\LogicReinc.BlendFarm.Client.csproj" />
     <ProjectReference Include="..\LogicReinc.BlendFarm.Server\LogicReinc.BlendFarm.Server.csproj" />
     <ProjectReference Include="..\LogicReinc.BlendFarm.Shared\LogicReinc.BlendFarm.Shared.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Content\" />
   </ItemGroup>
   <ItemGroup>
     <Compile Update="Windows\YesNoNeverWindow.axaml.cs">

@@ -27,6 +27,7 @@ namespace LogicReinc.BlendFarm
         // yet and stuff might break.
         public static void Main(string[] args)
         {
+            Console.WriteLine($"LogicReinc.BlendFarm v{typeof(Program).Assembly.GetName().Version.ToString()}");
             Server.Program.CleanupOldSessions();
 
             Console.WriteLine("Saving current setting states");
