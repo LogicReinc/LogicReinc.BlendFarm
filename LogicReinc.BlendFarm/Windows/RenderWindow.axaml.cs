@@ -18,12 +18,77 @@ using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Image = Avalonia.Controls.Image;
 
 namespace LogicReinc.BlendFarm.Windows
 {
+
+    public class OpenBlenderProject 
+    {
+        public string SessionID { get; set; } = Guid.NewGuid().ToString();
+        public string FileID { get; set; } = Guid.NewGuid().ToString();
+        public string BlendFile { get; set; }
+        public string Name => BlendFile != null ? Path.GetFileNameWithoutExtension(BlendFile) : "Unknown?";
+
+        //Render Properties
+        public int RenderWidth { get; set; } = 1280;
+        public int RenderHeight { get; set; } = 720;
+        public int ChunkSize { get; set; } = 256;
+        public int Samples { get; set; } = 32;
+        public string Denoiser { get; set; } = "Inherit";
+
+        public bool UseWorkaround { get; set; } = true;
+        public bool UseAutomaticPerformance { get; set; } = true;
+        public bool UseSyncCompression { get; set; } = false;
+
+        public string AnimationFileFormat { get; set; } = "#.png";
+        public int FrameStart { get; set; } = 0;
+        public int FrameEnd { get; set; } = 60;
+        public int FPS { get; set; } = 0;
+        private bool _useFPS = false;
+        public bool UseFPS
+        {
+            get => _useFPS;
+            set
+            {
+                bool old = _useFPS;
+                _useFPS = value;
+                //RaisePropertyChanged(UseFPSProperty, old, value);
+            }
+        }
+
+        public OpenBlenderProject(string blendfile)
+        {
+            BlendFile = blendfile;
+        }
+    }
+
+
+    public class QueueItem
+    {
+        public string ID { get; set; }
+        public OpenBlenderProject Project { get; set; }
+        public RenderManagerSettings Settings { get; set; }
+        public RenderTask Task { get; set; }
+
+        public string State => Task != null ? $"Rendering {Task.Progress * 100: 0.##}%" : "Queued";
+
+        public string Name => Project?.Name;
+        public bool Active => Task?.Progress > 0;
+        public double Progress => Task?.Progress ?? 0.0;
+        public double ProgressPercentage => Task?.Progress * 100 ?? 0.0;
+        public bool Completed => Task?.Progress >= 1;
+
+        public QueueItem(OpenBlenderProject proj, RenderManagerSettings settings)
+        {
+            Project = proj;
+            Settings = settings;
+        }
+    }
+
     public class RenderWindow : Window
     {
         private static DirectProperty<RenderWindow, bool> IsRenderingProperty =
@@ -35,6 +100,32 @@ namespace LogicReinc.BlendFarm.Windows
 
         public string File { get; set; }
         public BlenderVersion Version { get; set; }
+
+        public ObservableCollection<OpenBlenderProject> Projects { get; set; } = new ObservableCollection<OpenBlenderProject>()
+        {
+            new OpenBlenderProject("C://some/blend/dir/Example Project.blend"),
+            new OpenBlenderProject("C://some/blend/dir/Some other project.blend"),
+            new OpenBlenderProject("C://some/blend/dir/asdf1234.blend"),
+            new OpenBlenderProject("C://some/blend/dir/testing.blend"),
+        };
+
+        public ObservableCollection<QueueItem> Queue { get; set; } = new ObservableCollection<QueueItem>()
+        {
+            new QueueItem(new OpenBlenderProject("C://whatever/testproject.blend"), new RenderManagerSettings()
+            {
+
+            }){
+                    Task = new RenderTask(null, null, null, 0)
+                    {
+                        Progress = 0.43
+                    }
+                },
+            new QueueItem(new OpenBlenderProject("C://whatever/asdfdsag.blend"), new RenderManagerSettings()
+            {
+
+            })
+        };
+
 
         public bool IsClientConnecting { get; set; }
         public string InputClientName { get; set; }
@@ -67,6 +158,7 @@ namespace LogicReinc.BlendFarm.Windows
             }
         }
 
+
         //State
         public bool IsLiveChanging { get; set; } = false;
 
@@ -90,6 +182,7 @@ namespace LogicReinc.BlendFarm.Windows
         private TextBlock _lastRenderTime = null;
         private ComboBox _selectStrategy = null;
         private ComboBox _selectOrder = null;
+
 
         private Bitmap _lastBitmap = null;
 
@@ -171,7 +264,10 @@ namespace LogicReinc.BlendFarm.Windows
             MinHeight = 600;
             MinWidth = 500;
             Width = 1400;
-            Height = 950;
+            Height = 975;
+
+            System.Version version = Assembly.GetExecutingAssembly().GetName().Version;
+            this.Title = $"BlendFarm by LogicReinc [{version.Major}.{version.Minor}.{version.Build}]";
 
             _nodeList = this.Find<ListBox>("listNodes");
             _image = this.Find<Image>("render");
