@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="950"
+        mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="950"
         x:Class="LogicReinc.BlendFarm.Windows.RenderWindow"
         Title="BlendFarm by LogicReinc">
   <Window.Styles>
@@ -14,24 +14,31 @@
 
   <Grid ColumnDefinitions="*, 400" RowDefinitions="*">
     <Grid Grid.Row="0" Grid.Column="0" RowDefinitions="50,*,10" ColumnDefinitions="*">
-      <TabControl Items="{Binding Projects}">
-        <TabControl.ItemTemplate>
-          <DataTemplate>
-            <Button Content="{Binding Name}" Height="45" Padding="0,10,0,10" VerticalAlignment="Center" Command="{Binding SelectProject}"></Button>
-          </DataTemplate>
-        </TabControl.ItemTemplate>
-        <TabControl.ContentTemplate>
-          <DataTemplate>
-            <StackPanel></StackPanel>
-          </DataTemplate>
-        </TabControl.ContentTemplate>
-      </TabControl>
+      <Grid Grid.Row="0" Grid.Column="0" RowDefinitions="*" ColumnDefinitions="*,50">
+        <TabControl Items="{Binding Projects}" SelectionChanged="ProjectTabChanged">
+          <TabControl.ItemTemplate>
+            <DataTemplate>
+              <Button Content="{Binding Name}" Height="45" Padding="10,10,10,10" VerticalAlignment="Center" Command="{Binding SelectProject}" BorderBrush="Transparent" Background="Transparent"></Button>
+            </DataTemplate>
+          </TabControl.ItemTemplate>
+          <TabControl.ContentTemplate>
+            <DataTemplate>
+              <StackPanel></StackPanel>
+            </DataTemplate>
+          </TabControl.ContentTemplate>
+        </TabControl>
+        <Button Grid.Row="0" Grid.Column="1" Background="#332a54" FontSize="20" FontWeight="Bold" BorderBrush="Transparent" Command="{Binding OpenProjectDialog}">
+          +
+        </Button>
+      </Grid>
       <Image x:Name="render"
+            
+            Source="{Binding CurrentProject.LastBitmap}"
             Grid.Row="1"
             Grid.Column="0">
       </Image>
       <ProgressBar
-            IsVisible="{Binding IsRendering}"
+            IsVisible="{Binding CurrentProject.IsRendering}"
             x:Name="renderProgress"
             Grid.Column="0"
             Grid.Row="2"></ProgressBar>
@@ -64,7 +71,7 @@
             </StackPanel>
             <StackPanel Orientation="Horizontal">
               <TextBlock Width="60" Margin="0,0,15,0" TextAlignment="Right">File:</TextBlock>
-              <TextBlock Width="240"  Text="{Binding File}"></TextBlock>
+              <TextBlock Width="240"  Text="{Binding CurrentProject.BlendFile}"></TextBlock>
             </StackPanel>
 
 
@@ -192,17 +199,17 @@
                           <StackPanel Margin="10,20,10,10">
                             <StackPanel Orientation="Horizontal">
                               <TextBlock Width="60" TextAlignment="Right" Margin="10">Width:</TextBlock>
-                              <NumericUpDown Width="80" Value="{Binding RenderWidth}" />
+                              <NumericUpDown Width="80" Value="{Binding CurrentProject.RenderWidth}" />
                               <TextBlock Width="60" TextAlignment="Right" Margin="10">Height:</TextBlock>
-                              <NumericUpDown Width="80" Value="{Binding RenderHeight}" />
+                              <NumericUpDown Width="80" Value="{Binding CurrentProject.RenderHeight}" />
                             </StackPanel>
                             <StackPanel Orientation="Horizontal">
                               <TextBlock Width="60" TextAlignment="Right" Margin="10">Samples</TextBlock>
-                              <NumericUpDown Width="80" Value="{Binding Samples}" />
+                              <NumericUpDown Width="80" Value="{Binding CurrentProject.Samples}" />
                               <TextBlock Width="60" TextAlignment="Right" Margin="10" ToolTip.Tip="Denoiser to use, Inherit means the one selected in Blendfile.">
                                 Denoiser
                               </TextBlock>
-                              <ComboBox SelectedIndex="0" Width="80" Items="{Binding DenoiserOptions}" SelectedItem="{Binding Denoiser}">
+                              <ComboBox SelectedIndex="0" Width="80" Items="{Binding DenoiserOptions}" SelectedItem="{Binding CurrentProject.Denoiser}">
                               </ComboBox>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal">
@@ -211,13 +218,13 @@
                             <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                               <TextBlock Width="110" TextAlignment="Right" Margin="10">Last Render Time:</TextBlock>
                               <TextBlock x:Name="lastRenderTime" Width="90" Margin="10">...</TextBlock>
-                              <CheckBox IsChecked="{Binding UseWorkaround}" ToolTip.Tip="Workaround for a Blender bug, once fixed, it may cause odd tile order, then disable this">Workaround</CheckBox>
+                              <CheckBox IsChecked="{Binding CurrentProject.UseWorkaround}" ToolTip.Tip="Workaround for a Blender bug, once fixed, it may cause odd tile order, then disable this">Workaround</CheckBox>
                             </StackPanel>
                           </StackPanel>
-                          <Button Margin="10,3,10,5" IsVisible="{Binding !IsRendering}" Command="{Binding Render}" Background="#400083" BorderBrush="#200041">
+                          <Button Margin="10,3,10,5" IsVisible="{Binding !CurrentProject.IsRendering}" Command="{Binding Render}" Background="#400083" BorderBrush="#200041">
                             Render
                           </Button>
-                          <Button Margin="10,0,10,5" IsVisible="{Binding IsRendering}" Command="{Binding CancelRender}" Background="#AA0000" BorderBrush="#200041">
+                          <Button Margin="10,0,10,5" IsVisible="{Binding CurrentProject.IsRendering}" Command="{Binding CancelRender}" Background="#AA0000" BorderBrush="#200041">
                             Cancel
                           </Button>
                           <Button Margin="10,0,10,10" Command="{Binding SaveImage}" Background="#400083" BorderBrush="#200041">
@@ -230,22 +237,22 @@
                           <TextBlock TextWrapping="Wrap" Margin="10">Render an animation to a directory</TextBlock>
                           <StackPanel Orientation="Horizontal">
                             <TextBlock Width="90" TextAlignment="Right" Margin="10">File Format</TextBlock>
-                            <TextBox Width="235" Text="{Binding AnimationFileFormat}" />
+                            <TextBox Width="235" Text="{Binding CurrentProject.AnimationFileFormat}" />
                           </StackPanel>
                           <StackPanel Orientation="Horizontal">
                             <TextBlock Width="90" TextAlignment="Right" Margin="10" ToolTip.Tip="Frame to start at">Frame Start</TextBlock>
-                            <NumericUpDown Width="80" Value="{Binding FrameStart}" />
+                            <NumericUpDown Width="80" Value="{Binding CurrentProject.FrameStart}" />
                             <TextBlock Width="55" TextAlignment="Right" Margin="10" ToolTip.Tip="Frame to end at">Frame End</TextBlock>
-                            <NumericUpDown Width="80" Value="{Binding FrameEnd}" />
+                            <NumericUpDown Width="80" Value="{Binding CurrentProject.FrameEnd}" />
                           </StackPanel>
                           <StackPanel Orientation="Horizontal">
-                            <CheckBox Width="90" Margin="10" HorizontalContentAlignment="Right" IsChecked="{Binding UseFPS}">FPS</CheckBox>
-                            <NumericUpDown Width="80" Value="{Binding FPS}" IsEnabled="{Binding UseFPS}" />
+                            <CheckBox Width="90" Margin="10" HorizontalContentAlignment="Right" IsChecked="{Binding CurrentProject.UseFPS}">FPS</CheckBox>
+                            <NumericUpDown Width="80" Value="{Binding CurrentProject.FPS}" IsEnabled="{Binding CurrentProject.UseFPS}" />
                           </StackPanel>
-                          <Button Margin="10,10,10,5" IsVisible="{Binding !IsRendering}" Command="{Binding RenderAnimation}" Background="#400083" BorderBrush="#200041">
+                          <Button Margin="10,10,10,5" IsVisible="{Binding !CurrentProject.IsRendering}" Command="{Binding RenderAnimation}" Background="#400083" BorderBrush="#200041">
                             Render Animation
                           </Button>
-                          <Button Margin="10,0,10,5" IsVisible="{Binding IsRendering}" Command="{Binding CancelRender}" Background="#AA0000" BorderBrush="#200041">
+                          <Button Margin="10,0,10,5" IsVisible="{Binding CurrentProject.IsRendering}" Command="{Binding CancelRender}" Background="#AA0000" BorderBrush="#200041">
                             Cancel
                           </Button>
                         </StackPanel>
@@ -253,7 +260,7 @@
                       <TabItem Header="Live Render">
                         <StackPanel Margin="10,20,10,10" Background="#1F1F1F">
                           <TextBlock TextWrapping="Wrap" Margin="10" Width="300">
-                            Live render will re-render the file whenever it changes (with settings from Image tab)
+                            Live render will re-render the file whenever it changes (with settings from Image tab), it can only be used with a single project open and no queue.
                           </TextBlock>
                           <Button Margin="10,10,10,5" IsVisible="{Binding !IsLiveChanging}" Command="{Binding StartLiveRender}" Background="#400083" BorderBrush="#200041">
                             Start Live Render
@@ -275,7 +282,7 @@
                           </StackPanel>
                           <StackPanel Orientation="Horizontal">
                             <TextBlock Width="90" TextAlignment="Right" Margin="10" ToolTip.Tip="Chunksize for Chunked and SplitChunked, may be modified in certain scenarios">ChunkSize</TextBlock>
-                            <NumericUpDown Width="80" Value="{Binding ChunkSize}" />
+                            <NumericUpDown Width="80" Value="{Binding CurrentProject.ChunkSize}" />
                           </StackPanel>
                         </StackPanel>
                       </TabItem>
