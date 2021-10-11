@@ -13,6 +13,32 @@ using System.Threading.Tasks;
 
 namespace LogicReinc.BlendFarm.Client
 {
+    public class BlendFarmFileSession
+    {
+        /// <summary>
+        /// ID used to identify a session (mostly by render nodes)
+        /// </summary>
+        public string SessionID { get; set; } = Guid.NewGuid().ToString();
+
+        /// <summary>
+        /// Blendfile to render
+        /// </summary>
+        public string BlendFile { get; set; }
+
+        public long FileID { get; set; }
+
+        /// <summary>
+        /// Path to Blendfile copy used for rendering
+        /// </summary>
+        public string LocalBlendFile { get; set; }
+
+        public BlendFarmFileSession(string file, string localDir)
+        {
+            BlendFile = file;
+            LocalBlendFile = Path.GetFullPath(Path.Combine(localDir, SessionID + ".blend"));
+        }
+    }
+
     public class BlendFarmManager
     {
         public const string LocalNodeName = "Local";
@@ -20,7 +46,7 @@ namespace LogicReinc.BlendFarm.Client
         /// <summary>
         /// ID used to identify a session (mostly by render nodes)
         /// </summary>
-        public string SessionID { get; private set; }
+        //public string SessionID { get; private set; }
         /// <summary>
         /// Blender Version to use for renders
         /// </summary>
@@ -28,15 +54,15 @@ namespace LogicReinc.BlendFarm.Client
         /// <summary>
         /// A unique identifier used to detect change in file
         /// </summary>
-        public long FileID { get; private set; }
+        //public long FileID { get; private set; }
         /// <summary>
         /// Blendfile to render
         /// </summary>
-        public string BlendFile { get; private set; }
+        //public string BlendFile { get; private set; }
         /// <summary>
         /// Path to Blendfile copy used for rendering
         /// </summary>
-        public string LocalBlendFile { get; private set; }
+        //public string LocalBlendFile { get; private set; }
 
         /// <summary>
         /// Possible RenderNodes
@@ -87,17 +113,36 @@ namespace LogicReinc.BlendFarm.Client
         /// </summary>
         public event Action<BlendFarmManager, RenderNode> OnNodeRemoved;
 
+        private Dictionary<string, BlendFarmFileSession> _sessions = new Dictionary<string, BlendFarmFileSession>();
+
+        private string _localDir = null;
 
         public BlendFarmManager(string file, string version, string sessionID = null, string localDir = "LocalBlendFiles")
         {
-            BlendFile = file;
+            _localDir = localDir;
             Directory.CreateDirectory(localDir);
-            LocalBlendFile = Path.GetFullPath(Path.Combine(localDir, sessionID + ".blend"));
+            BlendFarmFileSession session = GetOrCreateSession(file);
+            //BlendFile = file;
+            //LocalBlendFile = Path.GetFullPath(Path.Combine(localDir, sessionID + ".blend"));
             Version = version;
-            SessionID = sessionID ?? Guid.NewGuid().ToString();
-            UpdateFileVersion();
+            //SessionID = sessionID ?? Guid.NewGuid().ToString();
+            UpdateFileVersion(session);
         }
 
+        public BlendFarmFileSession GetOrCreateSession(string file)
+        {
+            lock (_sessions)
+            {
+                if (!_sessions.ContainsKey(file))
+                    _sessions.Add(file, new BlendFarmFileSession(file, _localDir));
+                return _sessions[file];
+            }
+        }
+        public List<BlendFarmFileSession> GetSessions()
+        {
+            lock (_sessions)
+                return _sessions.Values.ToList();
+        }
 
         //Nodes
         public RenderNode GetNodeByName(string name)
@@ -168,15 +213,26 @@ namespace LogicReinc.BlendFarm.Client
             {
                 while (IsWatchingFile)
                 {
-                    if (new FileInfo(BlendFile).LastWriteTime.Ticks != FileID)
+                    List<BlendFarmFileSession> sessions = GetSessions();
+
+                    foreach (BlendFarmFileSession session in sessions)
                     {
-                        if (!Syncing && (CurrentTask == null || AlwaysUpdateFile))
+                        try
                         {
-                            UpdateFileVersion();
-                            OnFileChanged?.Invoke(this);
+                            if (new FileInfo(session.BlendFile).LastWriteTime.Ticks != session.FileID)
+                            {
+                                if (!Syncing && (CurrentTask == null || AlwaysUpdateFile))
+                                {
+                                    UpdateFileVersion(session.BlendFile);
+                                    OnFileChanged?.Invoke(this);
+                                }
+                            }
+                        }
+                        catch(Exception ex)
+                        {
+                            //...
                         }
                     }
-
                     Thread.Sleep(WatchInterval);
                 }
             }).Start();
@@ -192,17 +248,21 @@ namespace LogicReinc.BlendFarm.Client
         /// <summary>
         /// Updates the file version and copy it to a local directory
         /// </summary>
-        public long UpdateFileVersion()
+        public long UpdateFileVersion(BlendFarmFileSession session)
         {
-            long oldID = FileID;
-            FileID = new FileInfo(BlendFile).LastWriteTime.Ticks;
-            if (oldID != FileID)
+            long oldID = session.FileID;
+            session.FileID = new FileInfo(session.BlendFile).LastWriteTime.Ticks;
+            if (oldID != session.FileID)
             {
-                File.Copy(BlendFile, LocalBlendFile, true);
+                File.Copy(session.BlendFile, session.LocalBlendFile, true);
                 foreach (RenderNode node in Nodes)
                     node.UpdateSyncedStatus(false);
             }
-            return FileID;
+            return session.FileID;
+        }
+        public long UpdateFileVersion(string file)
+        {
+            return UpdateFileVersion(GetOrCreateSession(file));
         }
 
 
@@ -294,13 +354,15 @@ namespace LogicReinc.BlendFarm.Client
         /// Synchronize a the Blend file with all connected nodes
         /// </summary>
         /// <returns></returns>
-        public async Task Sync(bool compress = false)
+        public async Task Sync(string file, bool compress = false)
         {
             try
             {
+                BlendFarmFileSession session = GetOrCreateSession(file);
+
                 Syncing = true;
                 //Optimize
-                long id = FileID;
+                long id = session.FileID;
 
                 byte[] toSend = null;
                 using (MemoryStream mem = new MemoryStream())
@@ -313,7 +375,7 @@ namespace LogicReinc.BlendFarm.Client
                         {
                             Nodes.ToList().ForEach(x => x.UpdateActivity("Compressing.."));
 
-                            using (FileStream str = new FileStream(BlendFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                            using (FileStream str = new FileStream(session.BlendFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                             using (Stream zip = new GZipStream(mem, CompressionMode.Compress, true))
                             {
                                 int read = 0;
@@ -325,7 +387,7 @@ namespace LogicReinc.BlendFarm.Client
                         }
                         else
                         {
-                            using (FileStream str = new FileStream(BlendFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                            using (FileStream str = new FileStream(session.BlendFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                             {
                                 int read = 0;
                                 while ((read = str.Read(buffer, 0, buffer.Length)) > 0)
@@ -343,7 +405,7 @@ namespace LogicReinc.BlendFarm.Client
                         SyncResponse resp = null;
                         try
                         {
-                            resp = await node.SyncFile(SessionID, id, mem, (compress) ? Compression.GZip : Compression.Raw);
+                            resp = await node.SyncFile(session.SessionID, id, mem, (compress) ? Compression.GZip : Compression.Raw);
                         }
                         catch (Exception ex)
                         {
@@ -366,9 +428,10 @@ namespace LogicReinc.BlendFarm.Client
         /// <summary>
         /// Creates a RenderTask for the currently connected nodes, not yet executed
         /// </summary>
-        public RenderTask GetRenderTask(RenderManagerSettings settings = null, Action<RenderSubTask, Bitmap> onResultUpdated = null, Action<RenderSubTask, Bitmap> onTileReceived = null)
+        public RenderTask GetRenderTask(string file, RenderManagerSettings settings = null, Action<RenderSubTask, Bitmap> onResultUpdated = null, Action<RenderSubTask, Bitmap> onTileReceived = null)
         {
-            CurrentTask = new RenderTask(Nodes.ToList(), SessionID, Version, FileID, settings);
+            BlendFarmFileSession session = GetOrCreateSession(file);
+            CurrentTask = new RenderTask(Nodes.ToList(), session.SessionID, Version, session.FileID, settings);
 
             if (onResultUpdated != null)
                 CurrentTask.OnResultUpdated += onResultUpdated;
@@ -385,13 +448,13 @@ namespace LogicReinc.BlendFarm.Client
         /// <summary>
         /// Render with provided settings on connected prepared nodes
         /// </summary>
-        public async Task<Bitmap> Render(RenderManagerSettings settings = null, Action<RenderSubTask, Bitmap> onResultUpdated = null, Action<RenderSubTask, Bitmap> onTileReceived = null)
+        public async Task<Bitmap> Render(string file, RenderManagerSettings settings = null, Action<RenderSubTask, Bitmap> onResultUpdated = null, Action<RenderSubTask, Bitmap> onTileReceived = null)
         {
             if (CurrentTask != null)
                 throw new InvalidOperationException("Already rendering..");
             try
             {
-                CurrentTask = GetRenderTask(settings, onResultUpdated, onTileReceived);
+                CurrentTask = GetRenderTask(file, settings, onResultUpdated, onTileReceived);
 
                 return await CurrentTask.Render();
             }
