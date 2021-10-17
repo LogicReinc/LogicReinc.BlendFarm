@@ -51,7 +51,7 @@
       <StackPanel Orientation="Vertical">
         <DockPanel>
           <StackPanel Margin="20,0,20,20" DockPanel.Dock="Top">
-            <StackPanel Margin="20,20,20,10" Orientation="Horizontal">
+            <StackPanel Margin="20,20,20,5" Orientation="Horizontal">
               <Button Padding="0" BorderThickness="0" Background="#111111" Command="{Binding Github}">
                 <Image Source="/Icons/github.png" Width="150" Height="25"></Image>
               </Button>
@@ -60,7 +60,7 @@
               </Button>
             </StackPanel>
             <StackPanel Margin="20,0,40,10" Orientation="Vertical">
-              <Button Padding="0,10,0,10" BorderThickness="0" Background="#111111" Command="{Binding Help}">
+              <Button Height="25" Padding="0,5,0,5" BorderThickness="0" Background="#111111" Command="{Binding Help}">
                 Help!
               </Button>
             </StackPanel>
@@ -74,8 +74,16 @@
               <TextBlock Width="240"  Text="{Binding CurrentProject.BlendFile}"></TextBlock>
             </StackPanel>
 
+            <Canvas Height="0" Margin="0,10,0,0">
+              <StackPanel Orientation="Horizontal" Canvas.Right="30" Canvas.Top="4">
+                <TextBlock Margin="0,7,10,0">
+                  Use Queue
+                </TextBlock>
+                <ToggleSwitch Checked="CheckUseQueue" Unchecked="CheckUseQueue"></ToggleSwitch>
+              </StackPanel>
+            </Canvas>
 
-            <TabControl Margin="0,10,0,0" SelectedIndex="0">
+            <TabControl Margin="0,0,0,0" SelectedIndex="0">
               <TabItem Header="Render">
                 <!--BEGIN RENDER-->
                 <StackPanel Orientation="Vertical">
@@ -221,12 +229,22 @@
                               <CheckBox IsChecked="{Binding CurrentProject.UseWorkaround}" ToolTip.Tip="Workaround for a Blender bug, once fixed, it may cause odd tile order, then disable this">Workaround</CheckBox>
                             </StackPanel>
                           </StackPanel>
-                          <Button Margin="10,3,10,5" IsVisible="{Binding !CurrentProject.IsRendering}" Command="{Binding Render}" Background="#400083" BorderBrush="#200041">
-                            Render
-                          </Button>
-                          <Button Margin="10,0,10,5" IsVisible="{Binding CurrentProject.IsRendering}" Command="{Binding CancelRender}" Background="#AA0000" BorderBrush="#200041">
-                            Cancel
-                          </Button>
+                          <StackPanel IsVisible="{Binding !IsQueueing}">
+                            <Button Margin="10,3,10,5" IsVisible="{Binding !CurrentProject.IsRendering}" Command="{Binding Render}" Background="#400083" BorderBrush="#200041">
+                              Render
+                            </Button>
+                            <Button Margin="10,0,10,5" IsVisible="{Binding CurrentProject.IsRendering}" Command="{Binding CancelRender}" Background="#AA0000" BorderBrush="#200041">
+                              Cancel
+                            </Button>
+                          </StackPanel>
+                          <StackPanel IsVisible="{Binding IsQueueing}">
+                            <Button Margin="10,3,10,0" IsVisible="{Binding !CurrentProject.IsRendering}" Command="{Binding AddToQueueReplace}" Background="#400083" BorderBrush="#200041">
+                              Add to Queue (Replace)
+                            </Button>
+                            <Button Margin="10,2,10,5" IsVisible="{Binding !CurrentProject.IsRendering}" Command="{Binding AddToQueueNew}" Background="#400083" BorderBrush="#200041">
+                              Add to Queue (New)
+                            </Button>
+                          </StackPanel>
                           <Button Margin="10,0,10,10" Command="{Binding SaveImage}" Background="#400083" BorderBrush="#200041">
                             Save Image
                           </Button>
@@ -292,7 +310,7 @@
                 </StackPanel>
                 <!--END RENDER-->
               </TabItem>
-              <TabItem Header="Queue">
+              <TabItem Header="Queue" IsEnabled="{Binding IsQueueing}">
                 <!--BEGIN QUEUE-->
                 <ListBox Items="{Binding Queue}">
                   <ListBox.ItemTemplate>
@@ -302,12 +320,12 @@
                           <StackPanel Orientation="Horizontal" Height="50">
                             <StackPanel Orientation="Vertical" Width="100" Margin="5,0,0,0" VerticalAlignment="Center">
                               <!--RenderNode Name -->
-                              <TextBlock Width="100" HorizontalAlignment="Left" Foreground="#AAAAAA" FontWeight="Bold" FontSize="15" Text="{Binding Name}"/>
+                              <TextBlock Width="250" HorizontalAlignment="Left" Foreground="#AAAAAA" FontWeight="Bold" FontSize="15" Text="{Binding Name}"/>
                               <TextBlock Width="100" HorizontalAlignment="Left" Foreground="#AAAAAA" Text="{Binding State}"/>
                             </StackPanel>
 
                           </StackPanel>
-                          <ProgressBar Width="350" IsIndeterminate="{Binding !Active}" IsVisible="{Binding !Completed}" Value="{Binding ProgressPercentage}" Height="1" Margin="0,2,0,0"></ProgressBar>
+                          <ProgressBar Width="350" IsIndeterminate="{Binding IsQueued}" IsVisible="{Binding Active}" Value="{Binding ProgressPercentage}" Height="1" Margin="0,2,0,0"></ProgressBar>
 
                         </StackPanel>
                         <Button Width="50" Height="30" Grid.Column="0" IsVisible="{Binding Completed}"
@@ -320,7 +338,7 @@
                             Command="{Binding OpenQueueItem}">
                           Open
                         </Button>
-                        <Button Width="50" Height="30" Grid.Column="0"  IsVisible="{Binding !Completed}"
+                        <Button Width="50" Height="30" Grid.Column="0"  IsVisible="{Binding IsCancelable}"
                             Canvas.Top="10"
                             Canvas.Right="10"
                             Background="#00000000"
@@ -330,7 +348,7 @@
                             Command="{Binding CancelQueueItem}">
                             Cancel
                         </Button>
-                        <Button Width="50" Height="30" Grid.Column="0"  IsVisible="{Binding Completed}"
+                        <Button Width="50" Height="30" Grid.Column="0"  IsVisible="{Binding IsDeletable}"
                             Canvas.Top="10"
                             Canvas.Right="10"
                             Background="#00000000"
@@ -348,7 +366,6 @@
               </TabItem>
             </TabControl>
           </StackPanel>
-
           
         </DockPanel>
 

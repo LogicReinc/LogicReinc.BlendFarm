@@ -2,6 +2,7 @@
 using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Data.Converters;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -80,31 +81,76 @@ namespace LogicReinc.BlendFarm.Windows
             BlendFile = blendfile;
         }
 
-
         public event Action<OpenBlenderProject, Bitmap> OnBitmapChanged;
-
     }
 
 
-    public class QueueItem
+    public class QueueItem : INotifyPropertyChanged
     {
+        private RenderWindow _owner = null;
+
         public string ID { get; set; }
         public OpenBlenderProject Project { get; set; }
         public RenderManagerSettings Settings { get; set; }
         public RenderTask Task { get; set; }
 
-        public string State => Task != null ? $"Rendering {Task.Progress * 100: 0.##}%" : "Queued";
+        public string State => (!Cancelled ? (Task != null ? $"Rendering {Task.Progress * 100: 0.##}%" : "Queued") : "Cancelled");
+
+        public bool Cancelled { get; set; }
+
+        public bool IsCancelable => !Cancelled && !Completed;
+        public bool IsDeletable => Cancelled || Completed;
+        public bool IsQueued => !Cancelled && !Completed && ((Task?.Progress ?? 0) == 0);
+
 
         public string Name => Project?.Name;
-        public bool Active => Task?.Progress > 0;
+        public bool Active => !Cancelled && !Completed;
         public double Progress => Task?.Progress ?? 0.0;
         public double ProgressPercentage => Task?.Progress * 100 ?? 0.0;
-        public bool Completed => Task?.Progress >= 1;
+        public bool Completed => FinishedAllFrames;
 
-        public QueueItem(OpenBlenderProject proj, RenderManagerSettings settings)
+        public bool FinishedAllFrames { get; set; }
+
+        public QueueItem(RenderWindow owner, OpenBlenderProject proj, RenderManagerSettings settings)
         {
+            _owner = owner;
             Project = proj;
             Settings = settings;
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        public async Task UpdateValues(BlendFarmManager manager, RenderManagerSettings settings)
+        {
+            Settings = settings;
+
+            if (Task.Consumed && !Completed)
+                await Task.Cancel();
+            await Execute(manager);
+        }
+
+        public async Task Execute(BlendFarmManager manager)
+        {
+            await MessageWindow.Show(_owner, "Not Implemented", "Queue execution not implemented at the moment");
+        }
+
+
+        public async Task CancelQueueItem()
+        {
+            Cancelled = true;
+            if (Task != null && Task.Consumed)
+                await Task.Cancel();
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Cancelled)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsDeletable)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsCancelable)));
+        }
+        public async Task OpenQueueItem()
+        {
+            await MessageWindow.Show(_owner, "Not Implemented", "Opening queue item not implemented at the moment");
+        }
+        public async Task DeleteQueueItem()
+        {
+            _owner.RemoveQueueItem(this);
         }
     }
 
@@ -116,6 +162,8 @@ namespace LogicReinc.BlendFarm.Windows
             AvaloniaProperty.RegisterDirect<RenderWindow, bool>(nameof(IsLiveChanging), (x) => x.IsLiveChanging);
         //private static DirectProperty<RenderWindow, bool> UseFPSProperty =
         //    AvaloniaProperty.RegisterDirect<RenderWindow, bool>(nameof(UseFPS), (x) => x.UseFPS, (w, v) => w.UseFPS = v);
+        private static DirectProperty<RenderWindow, bool> IsQueueingProperty =
+            AvaloniaProperty.RegisterDirect<RenderWindow, bool>(nameof(IsQueueing), (x) => x.IsQueueing);
 
         private static DirectProperty<RenderWindow, OpenBlenderProject> CurrentProjectProperty =
             AvaloniaProperty.RegisterDirect<RenderWindow, OpenBlenderProject>(nameof(CurrentProject), (x) => x.CurrentProject, (w, v) => w.CurrentProject = v);
@@ -169,6 +217,8 @@ namespace LogicReinc.BlendFarm.Windows
         //State
         public bool IsLiveChanging { get; set; } = false;
 
+        public bool IsQueueing { get; set; } = false;
+
         public ObservableCollection<RenderNode> Nodes { get; private set; } = new ObservableCollection<RenderNode>();
         public BlendFarmManager Manager { get; set; } = null;
 
@@ -219,7 +269,7 @@ namespace LogicReinc.BlendFarm.Windows
             };
             Queue = new ObservableCollection<QueueItem>()
             {
-                new QueueItem(new OpenBlenderProject("C://whatever/testproject.blend"), new RenderManagerSettings()
+                new QueueItem(this, new OpenBlenderProject("C://whatever/testproject.blend"), new RenderManagerSettings()
                 {
 
                 }){
@@ -228,7 +278,7 @@ namespace LogicReinc.BlendFarm.Windows
                             Progress = 0.43
                         }
                     },
-                new QueueItem(new OpenBlenderProject("C://whatever/asdfdsag.blend"), new RenderManagerSettings()
+                new QueueItem(this, new OpenBlenderProject("C://whatever/asdfdsag.blend"), new RenderManagerSettings()
                 {
 
                 })
@@ -346,14 +396,16 @@ namespace LogicReinc.BlendFarm.Windows
             };
 
             string[] paths = await dialog.ShowAsync(this);
+            paths = paths?.Select(x => Statics.SanitizePath(x)).ToArray();
 
-            foreach(string path in paths)
-            {
-                if (!File.Exists(path))
-                    await MessageWindow.Show(this, "Invalid Path", $"Path {path} does not exist, and is ignored.");
-                else
-                    LoadProject(path);
-            }
+            if (paths != null)
+                foreach (string path in paths)
+                {
+                    if (!File.Exists(path))
+                        await MessageWindow.Show(this, "Invalid Path", $"Path {path} does not exist, and is ignored.");
+                    else
+                        LoadProject(path);
+                }
         }
 
         public OpenBlenderProject LoadProject(string blendFile)
@@ -439,6 +491,8 @@ namespace LogicReinc.BlendFarm.Windows
             DeviceSettingsWindow.Show(this, node);
         }
 
+
+        //Singular
         public async Task Render() => await Render(false, false);
         public async Task Render(bool noSync, bool noExcep = false)
         {
@@ -572,6 +626,7 @@ namespace LogicReinc.BlendFarm.Windows
                     dialog.Directory = _lastAnimationDirectory;
 
                 outputDir = await dialog.ShowAsync(this);
+                outputDir = Statics.SanitizePath(outputDir);
 
                 this._imageProgress.IsVisible = true;
                 this._imageProgress.IsIndeterminate = true;
@@ -671,6 +726,41 @@ namespace LogicReinc.BlendFarm.Windows
             CurrentProject.CurrentTask = null;
         }
 
+        //Queue
+        public async Task AddToQueueReplace()
+        {
+            OpenBlenderProject proj = CurrentProject;
+
+            QueueItem existing = GetProjectQueueItem(proj);
+
+            if(existing != null)
+            {
+                if (existing.Active)
+                    await existing.UpdateValues(Manager, GetSettingsFromUI(proj));
+            }
+            else
+                await AddToQueueNew();
+        }
+        public async Task AddToQueueNew()
+        {
+            OpenBlenderProject proj = CurrentProject;
+
+            RenderManagerSettings settings = GetSettingsFromUI(proj);
+
+            QueueItem item = new QueueItem(this, proj, settings);
+
+            lock(Queue)
+                Queue.Add(item);
+        }
+        public void RemoveQueueItem(QueueItem item)
+        {
+            lock(Queue)
+                Queue.Remove(item);
+            if (item.Task != null && !item.Completed && item.Active)
+                item.CancelQueueItem();
+        }
+
+
         private static Bitmap FromDrawingBitmap(System.Drawing.Bitmap bitmap)
         {
             //TODO: This needs to be better..
@@ -691,6 +781,7 @@ namespace LogicReinc.BlendFarm.Windows
             dialog.InitialFileName = "render.png";
 
             string result = await dialog.ShowAsync(this);
+            result = Statics.SanitizePath(result);
             if (result != null && CurrentProject.LastBitmap != null)
                 CurrentProject.LastBitmap.Save(result);
         }
@@ -714,9 +805,38 @@ namespace LogicReinc.BlendFarm.Windows
             RaisePropertyChanged(IsLiveChangingProperty, true, false);
         }
 
-        private RenderManagerSettings GetSettingsFromUI()
+        //Buttons Top
+        public void Github()
         {
-            OpenBlenderProject proj = CurrentProject;
+            OpenUrl("https://github.com/LogicReinc/LogicReinc.BlendFarm");
+        }
+        public void Patreon()
+        {
+            OpenUrl("https://www.patreon.com/LogicReinc");
+        }
+        public void Help()
+        {
+            OpenUrl("https://www.youtube.com/watch?v=EXdwD5t53wc");
+        }
+        private static void OpenUrl(string url)
+        {
+            Process.Start(new ProcessStartInfo(url)
+            {
+                UseShellExecute = true
+            });
+        }
+
+        //Util
+        private QueueItem GetProjectQueueItem(OpenBlenderProject proj)
+        {
+            lock (Queue)
+            {
+                return Queue.FirstOrDefault(x => x.Project == proj);
+            }
+        }
+        private RenderManagerSettings GetSettingsFromUI(OpenBlenderProject proj = null)
+        {
+            proj = proj ?? CurrentProject;
             return new RenderManagerSettings()
             {
                 Frame = proj.FrameStart,
@@ -753,28 +873,34 @@ namespace LogicReinc.BlendFarm.Windows
         }
 
 
-        public void Github()
-        {
-            OpenUrl("https://github.com/LogicReinc/LogicReinc.BlendFarm");
-        }
-        public void Patreon()
-        {
-            OpenUrl("https://www.patreon.com/LogicReinc");
-        }
-        public void Help()
-        {
-            OpenUrl("https://www.youtube.com/watch?v=EXdwD5t53wc");
-        }
-        private static void OpenUrl(string url)
-        {
-            Process.Start(new ProcessStartInfo(url)
-            {
-                UseShellExecute = true
-            });
-        }
 
 
         //Events
+        public async void CheckUseQueue(object sender, RoutedEventArgs args)
+        {
+            ToggleSwitch sw = sender as ToggleSwitch;
+
+            if(sw.IsChecked ?? false)
+            {
+                IsQueueing = true;
+                await Dispatcher.UIThread.InvokeAsync(() => RaisePropertyChanged(IsQueueingProperty, false, true));
+            }
+            else
+            {
+                if(Queue.Count > 0)
+                {
+                    sw.IsChecked = true;
+                    IsQueueing = true;
+                    await MessageWindow.Show(this, "Cannot disable Queue", "Your queue is not empty, and thus cannot be disabled");
+                }
+                else
+                {
+                    IsQueueing = false;
+                    await Dispatcher.UIThread.InvokeAsync(() => RaisePropertyChanged(IsQueueingProperty, true, false));
+                }
+            }
+        }
+
         public void ProjectTabChanged(object sender, SelectionChangedEventArgs args)
         {
             if(args.AddedItems.Count == 1 && Projects.Contains(args.AddedItems[0]))

@@ -170,6 +170,7 @@ This may have to do with the port being in use. Note that to discover other pcs 
             //else
                 results = await dialog.ShowAsync(this);
 
+            results = results?.Select(x => Statics.SanitizePath(x)).ToArray();
             
 
             if (results == null)
