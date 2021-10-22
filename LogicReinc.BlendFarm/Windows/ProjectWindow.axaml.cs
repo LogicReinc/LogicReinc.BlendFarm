@@ -227,6 +227,7 @@ This may have to do with the port being in use. Note that to discover other pcs 
                 _manager.AddNode(pair.Key, pair.Value.Address, pair.Value.RenderType);
 
             //Start render window
+            //new RenderWindow();
             new RenderWindow(_manager, version, path).Show();
 
             this.Close();

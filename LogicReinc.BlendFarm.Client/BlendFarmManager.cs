@@ -32,9 +32,11 @@ namespace LogicReinc.BlendFarm.Client
         /// </summary>
         public string LocalBlendFile { get; set; }
 
-        public BlendFarmFileSession(string file, string localDir)
+        public BlendFarmFileSession(string file, string localDir, string sessionID = null)
         {
             BlendFile = file;
+            if (sessionID != null)
+                SessionID = sessionID;
             LocalBlendFile = Path.GetFullPath(Path.Combine(localDir, SessionID + ".blend"));
         }
     }
@@ -63,6 +65,9 @@ namespace LogicReinc.BlendFarm.Client
         /// Path to Blendfile copy used for rendering
         /// </summary>
         //public string LocalBlendFile { get; private set; }
+
+        public string SelectedSessionID { get; set; } = null;
+
 
         /// <summary>
         /// Possible RenderNodes
@@ -126,15 +131,20 @@ namespace LogicReinc.BlendFarm.Client
             //LocalBlendFile = Path.GetFullPath(Path.Combine(localDir, sessionID + ".blend"));
             Version = version;
             //SessionID = sessionID ?? Guid.NewGuid().ToString();
+            SelectedSessionID = session.SessionID;
             UpdateFileVersion(session);
         }
 
-        public BlendFarmFileSession GetOrCreateSession(string file)
+        public string GetFileSessionID(string file)
+        {
+            return GetOrCreateSession(file).SessionID;
+        }
+        public BlendFarmFileSession GetOrCreateSession(string file, string sessionID = null)
         {
             lock (_sessions)
             {
                 if (!_sessions.ContainsKey(file))
-                    _sessions.Add(file, new BlendFarmFileSession(file, _localDir));
+                    _sessions.Add(file, new BlendFarmFileSession(file, _localDir, sessionID));
                 return _sessions[file];
             }
         }
@@ -166,6 +176,8 @@ namespace LogicReinc.BlendFarm.Client
                 throw new ArgumentException("Node needs an address");
             if (existing != null)
                 throw new ArgumentException($"Already have a node with name {node.Name}");
+
+            node.SelectSessionID(SelectedSessionID);
 
             if (node.Name == LocalNodeName)
                 Nodes.Insert(0, node);
@@ -256,7 +268,7 @@ namespace LogicReinc.BlendFarm.Client
             {
                 File.Copy(session.BlendFile, session.LocalBlendFile, true);
                 foreach (RenderNode node in Nodes)
-                    node.UpdateSyncedStatus(false);
+                    node.UpdateSyncedStatus(session.SessionID, false);
             }
             return session.FileID;
         }
@@ -439,6 +451,14 @@ namespace LogicReinc.BlendFarm.Client
                 CurrentTask.OnTileProcessed += onTileReceived;
 
             return CurrentTask;
+        }
+
+        public void SetSelectedSessionID(string sessionID)
+        {
+            SelectedSessionID = sessionID;
+            lock (Nodes)
+                foreach (RenderNode node in Nodes)
+                    node.SelectSessionID(sessionID);
         }
 
         public void ClearLastTask()
