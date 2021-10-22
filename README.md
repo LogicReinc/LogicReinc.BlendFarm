@@ -29,6 +29,7 @@ Watch the video below for an overview:
  * **Live Update** - Re-Render automatically when you save your project
  * **Auto Discovery** - Application will attempt to automatically detect nodes in your network
  * **Automatic Performance** - Measures performance after each render to improve distribution (todo improve)
+ * **Queueed Rendering** - Queue up multiple renders with specific configurations
 
 ## Why Stand-alone
 ----
@@ -64,7 +65,6 @@ Ethereum: 0xd2C3BCCc981d359e037457f0CdB9d48fdc289Feb
 
 ---
 ## Planned
- - OPTIX
  - Batch Animation Frames (Reduce "Render Loading.. between frames)
  - Auto-merge animations into video/gifs
  - Render Focus (target a specific area to render first)
@@ -206,7 +206,7 @@ Yes, both the renderer and gui should work on Windows64.
 Yes, both the renderer and gui should work on Linux64. 
 
 #### Can I run this on Mac?
-At the moment OSX can run the GUI to use RenderNodes, but cannot render itself, thus "Local" will not be visible.
+Yes, both the renderer and gui should work on OSX-64, however may not run on ARM CPUs. (At the moment only 64bit blender versions are used) 
 
 #### Can I run this in Docker?
 I haven't made a docker file yet, but I plan on it since its not that much effort. So expect it in the future Iguess.
