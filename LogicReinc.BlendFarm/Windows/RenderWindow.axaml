@@ -4,18 +4,50 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="950"
         x:Class="LogicReinc.BlendFarm.Windows.RenderWindow"
+        xmlns:convs="clr-namespace:LogicReinc.BlendFarm.Converters;assembly=LogicReinc.BlendFarm"
         Title="BlendFarm by LogicReinc">
   <Window.Styles>
     <StyleInclude Source="avares://Avalonia.Themes.Default/Accents/BaseDark.xaml" />
     <Style Selector="TabItem:selected">
       <Setter Property="Background" Value="#332a54"/>
     </Style>
+    <Style Selector="ListBoxItem:selected">
+      <Setter Property="Background" Value="#332a54"/>
+    </Style>
   </Window.Styles>
 
   <Grid ColumnDefinitions="*, 400" RowDefinitions="*">
     <Grid Grid.Row="0" Grid.Column="0" RowDefinitions="50,*,10" ColumnDefinitions="*">
-      <Grid Grid.Row="0" Grid.Column="0" RowDefinitions="*" ColumnDefinitions="*,50">
-        <TabControl Items="{Binding Projects}" SelectionChanged="ProjectTabChanged">
+      <Grid Grid.Row="0" Grid.Column="0" RowDefinitions="*" ColumnDefinitions="*,35,50">
+
+        
+        <ListBox Items="{Binding Projects}" BorderBrush="Transparent" Padding="0,0,0,0" SelectionChanged="ProjectTabChanged" SelectedIndex="{Binding TabScrollIndex}" ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Hidden">
+          <ListBox.Styles>
+            <Style Selector="ListBoxItem:selected /template/ContentPresenter">
+              <Setter Property="Background" Value="#332a54" />
+            </Style>
+          </ListBox.Styles>
+          <ListBox.ItemsPanel>
+            <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" />
+            </ItemsPanelTemplate>
+          </ListBox.ItemsPanel>
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Button Content="{Binding Name}" Height="45" Padding="10,10,10,10" VerticalAlignment="Center" Command="{Binding SelectProject}" BorderBrush="Transparent" Background="Transparent"></Button>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!--
+        <TabControl Items="{Binding Projects}" SelectionChanged="ProjectTabChanged" SelectedIndex="{Binding TabScrollIndex}">
+          <TabControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel>
+                <ScrollViewer HorizontalScrollBarVisibility="Visible" VerticalScrollBarVisibility="Disabled" />
+              </StackPanel>
+            </ItemsPanelTemplate>
+          </TabControl.ItemsPanel>
           <TabControl.ItemTemplate>
             <DataTemplate>
               <Button Content="{Binding Name}" Height="45" Padding="10,10,10,10" VerticalAlignment="Center" Command="{Binding SelectProject}" BorderBrush="Transparent" Background="Transparent"></Button>
@@ -26,8 +58,19 @@
               <StackPanel></StackPanel>
             </DataTemplate>
           </TabControl.ContentTemplate>
-        </TabControl>
-        <Button Grid.Row="0" Grid.Column="1" Background="#332a54" FontSize="20" FontWeight="Bold" BorderBrush="Transparent" Command="{Binding OpenProjectDialog}">
+        </TabControl>-->
+        
+
+
+        <Grid Grid.Row="0" Grid.Column="1" RowDefinitions="1*,1*">
+          <Button Grid.Row="0" Background="Transparent" BorderBrush="Transparent" Command="{Binding ScrollLeft}" IsVisible="{Binding CanTabScrollLeft}">
+            <Image Source="/Icons/menu-left-outline.png" />
+          </Button>
+          <Button Grid.Row="1" Background="Transparent" BorderBrush="Transparent" Command="{Binding ScrollRight}" IsVisible="{Binding CanTabScrollRight}">
+            <Image Source="/Icons/menu-right-outline.png" />
+          </Button>
+        </Grid>
+        <Button Grid.Row="0" Grid.Column="2" Background="#332a54" FontSize="20" FontWeight="Bold" BorderBrush="Transparent" Command="{Binding OpenProjectDialog}">
           +
         </Button>
       </Grid>
@@ -238,10 +281,10 @@
                             </Button>
                           </StackPanel>
                           <StackPanel IsVisible="{Binding IsQueueing}">
-                            <Button Margin="10,3,10,0" IsVisible="{Binding !CurrentProject.IsRendering}" Command="{Binding AddToQueueReplace}" Background="#400083" BorderBrush="#200041">
+                            <Button Margin="10,3,10,0" Command="{Binding AddToQueueReplace}" Background="#400083" BorderBrush="#200041">
                               Add to Queue (Replace)
                             </Button>
-                            <Button Margin="10,2,10,5" IsVisible="{Binding !CurrentProject.IsRendering}" Command="{Binding AddToQueueNew}" Background="#400083" BorderBrush="#200041">
+                            <Button Margin="10,2,10,5" Command="{Binding AddToQueueNew}" Background="#400083" BorderBrush="#200041">
                               Add to Queue (New)
                             </Button>
                           </StackPanel>
@@ -267,15 +310,22 @@
                             <CheckBox Width="90" Margin="10" HorizontalContentAlignment="Right" IsChecked="{Binding CurrentProject.UseFPS}">FPS</CheckBox>
                             <NumericUpDown Width="80" Value="{Binding CurrentProject.FPS}" IsEnabled="{Binding CurrentProject.UseFPS}" />
                           </StackPanel>
-                          <Button Margin="10,10,10,5" IsVisible="{Binding !CurrentProject.IsRendering}" Command="{Binding RenderAnimation}" Background="#400083" BorderBrush="#200041">
-                            Render Animation
-                          </Button>
+                          <StackPanel IsVisible="{Binding !IsQueueing}">
+                            <Button Margin="10,10,10,5" IsVisible="{Binding !CurrentProject.IsRendering}" Command="{Binding RenderAnimation}" Background="#400083" BorderBrush="#200041">
+                              Render Animation
+                            </Button>
+                          </StackPanel>
+                          <StackPanel IsVisible="{Binding IsQueueing}">
+                            <Button Margin="10,10,10,5" IsVisible="{Binding !CurrentProject.IsRendering}" Command="{Binding AddAnimationToQueueNew}" Background="#400083" BorderBrush="#200041">
+                              Queue Animation Render (New)
+                            </Button>
+                          </StackPanel>
                           <Button Margin="10,0,10,5" IsVisible="{Binding CurrentProject.IsRendering}" Command="{Binding CancelRender}" Background="#AA0000" BorderBrush="#200041">
                             Cancel
                           </Button>
                         </StackPanel>
                       </TabItem>
-                      <TabItem Header="Live Render">
+                      <TabItem Header="Live Render" IsEnabled="{Binding !IsQueueing}">
                         <StackPanel Margin="10,20,10,10" Background="#1F1F1F">
                           <TextBlock TextWrapping="Wrap" Margin="10" Width="300">
                             Live render will re-render the file whenever it changes (with settings from Image tab), it can only be used with a single project open and no queue.
@@ -321,7 +371,7 @@
                             <StackPanel Orientation="Vertical" Width="100" Margin="5,0,0,0" VerticalAlignment="Center">
                               <!--RenderNode Name -->
                               <TextBlock Width="250" HorizontalAlignment="Left" Foreground="#AAAAAA" FontWeight="Bold" FontSize="15" Text="{Binding Name}"/>
-                              <TextBlock Width="100" HorizontalAlignment="Left" Foreground="#AAAAAA" Text="{Binding State}"/>
+                              <TextBlock Width="250" HorizontalAlignment="Left" Foreground="#AAAAAA" Text="{Binding State}"/>
                             </StackPanel>
 
                           </StackPanel>

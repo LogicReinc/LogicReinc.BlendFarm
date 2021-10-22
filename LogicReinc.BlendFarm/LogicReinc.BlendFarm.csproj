@@ -19,6 +19,8 @@
     <None Remove="Icons\delete.png" />
     <None Remove="Icons\gear.png" />
     <None Remove="Icons\github.png" />
+    <None Remove="Icons\menu-left-outline.png" />
+    <None Remove="Icons\menu-right-outline.png" />
     <None Remove="Icons\patreon.png" />
     <None Remove="Icons\radioOff.png" />
     <None Remove="Icons\radioOff.zip" />
@@ -31,6 +33,8 @@
     <AvaloniaResource Include="Icons\delete.png" />
     <AvaloniaResource Include="Icons\gear.png" />
     <AvaloniaResource Include="Icons\github.png" />
+    <AvaloniaResource Include="Icons\menu-left-outline.png" />
+    <AvaloniaResource Include="Icons\menu-right-outline.png" />
     <AvaloniaResource Include="Icons\radioOff.png" />
     <AvaloniaResource Include="Icons\radioOn.png" />
   </ItemGroup>
@@ -60,6 +64,9 @@
     <ProjectReference Include="..\LogicReinc.BlendFarm.Shared\LogicReinc.BlendFarm.Shared.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Update="Windows\BitmapViewer.axaml.cs">
+      <DependentUpon>BitmapViewer.axaml</DependentUpon>
+    </Compile>
     <Compile Update="Windows\YesNoNeverWindow.axaml.cs">
       <DependentUpon>YesNoNeverWindow.axaml</DependentUpon>
     </Compile>

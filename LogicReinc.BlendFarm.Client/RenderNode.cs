@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -81,6 +82,8 @@ namespace LogicReinc.BlendFarm.Client
         /// </summary>
         public bool Connected => Client != null && Client.Connected;
 
+        public string SelectedSessionID { get; private set; }
+
         /// <summary>
         /// FileID of the version of the file this node has synced
         /// </summary>
@@ -114,7 +117,9 @@ namespace LogicReinc.BlendFarm.Client
         /// <summary>
         /// If the node has synced up with the latest file
         /// </summary>
-        public bool IsSynced { get; set; }
+        public bool IsSynced => IsSessionSynced(SelectedSessionID);
+
+        public Dictionary<string, bool> SyncedMap { get; set; } = new Dictionary<string, bool>();
 
         /// <summary>
         /// Current Task ID
@@ -163,7 +168,8 @@ namespace LogicReinc.BlendFarm.Client
                 TriggerPropChange(nameof(Connected));
             OnDisconnected += (n) =>
             {
-                UpdateSyncedStatus(false);
+                foreach (string k in SyncedMap.Keys.ToList())
+                    UpdateSyncedStatus(k, false);
                 TriggerPropChange(nameof(Connected));
             };
         }
@@ -337,7 +343,10 @@ namespace LogicReinc.BlendFarm.Client
                 if (!resp.Success)
                     throw new Exception(resp.Message);
                 if (resp.SameFile)
+                {
+                    UpdateSyncedStatus(sess, true);
                     return resp;
+                }
 
                 //Transfer file
                 byte[] chunk = new byte[1024 * 1024 * 10];
@@ -374,9 +383,9 @@ namespace LogicReinc.BlendFarm.Client
                 //End Sync
 
                 if (await CheckSyncFile(sess, fileid))
-                    UpdateSyncedStatus(true);
+                    UpdateSyncedStatus(sess, true);
                 else
-                    UpdateSyncedStatus(false);
+                    UpdateSyncedStatus(sess, false);
             }
             finally
             {
@@ -457,6 +466,7 @@ namespace LogicReinc.BlendFarm.Client
                     {
                         Session = sessionID
                     });
+                    UpdateActivity(Activity, -1);
                 });
             }
         }
@@ -483,6 +493,7 @@ namespace LogicReinc.BlendFarm.Client
 
             return resp;
         }
+
 
         public async Task<bool> IsBusy()
         {
@@ -536,7 +547,7 @@ namespace LogicReinc.BlendFarm.Client
             if (resp?.Success ?? false)
             {
                 UpdateFileID(id);
-                UpdateSyncedStatus(true);
+                UpdateSyncedStatus(sess, true);
                 return true;
             }
             else
@@ -560,6 +571,18 @@ namespace LogicReinc.BlendFarm.Client
                 TriggerPropChange(nameof(ActivityProgress), nameof(HasActivityProgress));
             }
         }
+
+        public bool IsSessionSynced(string sessionID)
+        {
+            if (sessionID == null)
+                return false;
+
+            bool sessionSynced = false;
+            lock (SyncedMap)
+                sessionSynced = SyncedMap.ContainsKey(sessionID) ? SyncedMap[sessionID] : false;
+            return sessionSynced;
+        }
+
         public void UpdateFileID(long id)
         {
             if (LastFileID != id)
@@ -582,14 +605,28 @@ namespace LogicReinc.BlendFarm.Client
             LastStatus = status;
             TriggerPropChange(nameof(LastStatus));
         }
-        public void UpdateSyncedStatus(bool val)
+        public void UpdateSyncedStatus(string sessionId, bool val)
         {
-            IsSynced = val;
+            lock(SyncedMap)
+            {
+                if (SyncedMap.ContainsKey(sessionId))
+                    SyncedMap[sessionId] = val;
+                else
+                    SyncedMap.Add(sessionId, val);
+            }
+            TriggerPropChange(nameof(SyncedMap));
             TriggerPropChange(nameof(IsSynced));
         }
         public void UpdatePreparedStatus(bool val)
         {
             IsPrepared = val;
+            TriggerPropChange(nameof(IsPrepared));
+            //TriggerPropChange(nameof(IsSynced));
+        }
+        internal void SelectSessionID(string sessionID)
+        {
+            SelectedSessionID = sessionID;
+            TriggerPropChange(nameof(SelectedSessionID));
             TriggerPropChange(nameof(IsSynced));
         }
 
