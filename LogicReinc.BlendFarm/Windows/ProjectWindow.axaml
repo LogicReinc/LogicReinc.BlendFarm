@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="570"
+        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="625"
         x:Class="LogicReinc.BlendFarm.Windows.ProjectWindow"
         Title="BlendFarm by LogicReinc" Background="#222222">
   <Window.Styles>
@@ -51,8 +51,16 @@
       </ListBox.ItemTemplate>
     </ListBox>
 
-    <StackPanel>
+    <StackPanel Margin="0,-20,0,0">
       <Button Margin="10,30,10,30" BorderThickness="0" FontSize="20" Height="50" Background="#400083" Command="{Binding LoadProject}">Load Project</Button>
     </StackPanel>
+
+    <TextBlock Margin="10,-20,10,0" TextAlignment="Center">Last Announcement</TextBlock>
+    <Button Background="#111" Margin="10,0,10,0" BorderBrush="Transparent" Height="45" Command="{Binding OpenLastAnnouncement}">
+      <StackPanel Orientation="Horizontal">
+        <TextBlock Text="{Binding LastAnnouncement.DateText}" Margin="10,10,5,10" />
+        <TextBlock Text="{Binding LastAnnouncement.Name}" Margin="5,10,10,10" />
+      </StackPanel>
+    </Button>
   </StackPanel>
 </Window>

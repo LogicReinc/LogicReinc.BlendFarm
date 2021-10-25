@@ -185,13 +185,17 @@ namespace LogicReinc.BlendFarm.Windows
                     System.Drawing.Bitmap final = await Task.Render();
                     LastBitmap = final;
 
-                    //Apply final to canvas
-                    Project.LastBitmap = final.ToAvaloniaBitmap();
                     if (!string.IsNullOrEmpty(SaveTo))
                         final.Save(SaveTo);
 
-                    Project.SetRenderTask(null);
-                    RefreshInfo();
+                    //Apply final to canvas
+                    Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        Project.LastBitmap = final.ToAvaloniaBitmap();
+
+                        Project.SetRenderTask(null);
+                        RefreshInfo();
+                    });
                     window.RefreshCurrentProject();
                 }
                 else
@@ -217,6 +221,7 @@ namespace LogicReinc.BlendFarm.Windows
                         }
 
                         Project.LastBitmap = frame.ToAvaloniaBitmap();
+
                         LastBitmap = frame;
                         RefreshInfo();
                         window.RefreshCurrentProject();
@@ -271,6 +276,8 @@ namespace LogicReinc.BlendFarm.Windows
             Cancelled = true;
             if (Task != null && Task.Consumed)
                 await Task.Cancel();
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(State)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Active)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Cancelled)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsDeletable)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsCancelable)));
@@ -317,6 +324,8 @@ namespace LogicReinc.BlendFarm.Windows
             AvaloniaProperty.RegisterDirect<RenderWindow, bool>(nameof(CanTabScrollRight), (x) => x.CanTabScrollRight, (w, v) => { });
         private static DirectProperty<RenderWindow, bool> CanTabScrollLeftProperty =
             AvaloniaProperty.RegisterDirect<RenderWindow, bool>(nameof(CanTabScrollLeft), (x) => x.CanTabScrollLeft, (w, v) => { });
+        private static DirectProperty<RenderWindow, string> QueueNameProperty =
+            AvaloniaProperty.RegisterDirect<RenderWindow, string>(nameof(QueueName), (x) => x.QueueName, (w, v) => { });
 
         //public string File { get; set; }
         public BlenderVersion Version { get; set; }
@@ -371,6 +380,9 @@ namespace LogicReinc.BlendFarm.Windows
         public bool IsLiveChanging { get; set; } = false;
 
         public bool IsQueueing { get; set; } = false;
+
+        private int _queueCount = 0;
+        public string QueueName => $"Queue ({_queueCount})";
 
         public ObservableCollection<RenderNode> Nodes { get; private set; } = new ObservableCollection<RenderNode>();
         public BlendFarmManager Manager { get; set; } = null;
@@ -895,6 +907,15 @@ namespace LogicReinc.BlendFarm.Windows
                         {
                             if (!currentItem.Active)
                                 currentItem = null;
+                        }
+
+                        int queueCount = 0;
+                        lock (Queue)
+                            queueCount = Queue.Count(x => x.Active);
+                        if(queueCount != _queueCount)
+                        {
+                            _queueCount = queueCount;
+                            Dispatcher.UIThread.InvokeAsync(() => RaisePropertyChanged(QueueNameProperty, null, QueueName));
                         }
                     }
                     catch (Exception ex)

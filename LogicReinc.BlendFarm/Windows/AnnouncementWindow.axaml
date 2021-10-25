@@ -1,0 +1,56 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="500"
+        x:Class="LogicReinc.BlendFarm.Windows.AnnouncementWindow"
+        xmlns:convs="clr-namespace:LogicReinc.BlendFarm.Converters;assembly=LogicReinc.BlendFarm"
+        Title="AnnouncementWindow" Background="#333">
+  <Window.Resources>
+    <convs:ImageUrlConverter x:Key="ImageUrl" />
+  </Window.Resources>
+
+  <Grid ColumnDefinitions="*" RowDefinitions="30,70,*">
+    <ComboBox Background="#222" x:Name="announcementSelection" BorderBrush="#222" Foreground="Gray" Grid.Row="0" SelectedItem="{Binding Announcement}" Items="{Binding Announcements}" >
+      <ComboBox.ItemTemplate>
+        <DataTemplate>
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Text="{Binding DateText}" />
+            <TextBlock Text=":" Margin="0,0,10,0" />
+            <TextBlock Text="{Binding Name}" />
+          </StackPanel>
+        </DataTemplate>
+      </ComboBox.ItemTemplate>
+    </ComboBox>
+      <TextBlock Grid.Row="1" Text="{Binding Announcement.Name}" Foreground="White" FontSize="30" Margin="10,25,10,10" HorizontalAlignment="Center" />
+      <ListBox Grid.Row="2" Margin="0,0,0,0" Padding="0" Background="Transparent" BorderBrush="Transparent" Items="{Binding Announcement.Segments}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+        <ListBox.Styles>
+          <Style Selector="ListBoxItem:selected /template/ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+          </Style>
+          <Style Selector="ListBoxItem">
+
+          </Style>
+        </ListBox.Styles>
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <StackPanel Grid.Column="0">
+              <StackPanel IsVisible="{Binding IsText}" Margin="20">
+                <TextBlock Text="{Binding TextPart1}" Foreground="White" TextWrapping="Wrap" TextAlignment="Center" />
+              </StackPanel>
+
+              <Image Source="{Binding BitmapFromText}" IsVisible="{Binding IsImage}" />
+
+
+              <StackPanel IsVisible="{Binding IsButton}" Margin="10">
+                <Button FontSize="17" Content="{Binding TextPart1}" IsVisible="{Binding !IsTextPart1Url}" Background="#222" Foreground="#EEE" BorderBrush="Transparent" Command="{Binding Execute}" />
+                <Button MaxHeight="70" IsVisible="{Binding IsTextPart1Url}" Background="Transparent" Foreground="#EEE" BorderBrush="Transparent" Command="{Binding Execute}" >
+                  <Image Source="{Binding BitmapFromText}" />
+                </Button>
+              </StackPanel>
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+  </Grid>
+</Window>

@@ -1,0 +1,36 @@
+[
+	{
+		"Date": "2021-10-25"
+		"Segments": [
+			{
+				"Type": "Text",
+				"Text": ""
+			},
+			{
+				"Type": "Image",
+				"Text": "https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/dev-1.0.7/.data/demo1.png"
+			},
+			{
+				"Type": "Button",
+				"Text": "Open Version"
+			}
+		]
+	}
+	{
+		"Date": "2021-10-23"
+		"Segments": [
+			{
+				"Type": "Text",
+				"Text": "Old announcement whatever"
+			},
+			{
+				"Type": "Image",
+				"Text": "https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/dev-1.0.7/.data/demo1.png"
+			},
+			{
+				"Type": "Buttons",
+				"Text": "Open Version|https://github.com/LogicReinc/LogicReinc.BlendFarm/releases"
+			}
+		]
+	}
+]

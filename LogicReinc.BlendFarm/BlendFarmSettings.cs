@@ -34,6 +34,7 @@ namespace LogicReinc.BlendFarm
         /// </summary>
         public Dictionary<string, HistoryClient> PastClients { get; set; } = new Dictionary<string, HistoryClient>();
 
+        public DateTime LastAnnouncementDate { get; set; } = DateTime.MinValue;
 
         #region Boilerplate
 
