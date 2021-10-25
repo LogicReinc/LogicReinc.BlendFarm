@@ -360,7 +360,7 @@
                 </StackPanel>
                 <!--END RENDER-->
               </TabItem>
-              <TabItem Header="Queue" IsEnabled="{Binding IsQueueing}">
+              <TabItem Header="{Binding QueueName}" IsEnabled="{Binding IsQueueing}">
                 <!--BEGIN QUEUE-->
                 <ListBox Items="{Binding Queue}">
                   <ListBox.ItemTemplate>
@@ -370,7 +370,9 @@
                           <StackPanel Orientation="Horizontal" Height="50">
                             <StackPanel Orientation="Vertical" Width="100" Margin="5,0,0,0" VerticalAlignment="Center">
                               <!--RenderNode Name -->
-                              <TextBlock Width="250" HorizontalAlignment="Left" Foreground="#AAAAAA" FontWeight="Bold" FontSize="15" Text="{Binding Name}"/>
+                              <TextBlock Text="{Binding Name}" IsVisible="{Binding Active}" Width="250" HorizontalAlignment="Left" Foreground="#AAAAAA" FontWeight="Bold" FontSize="15"/>
+                              <TextBlock Text="{Binding Name}" IsVisible="{Binding Completed}" Width="250" HorizontalAlignment="Left" Foreground="#00AA00" FontWeight="Bold" FontSize="15"/>
+                              <TextBlock Text="{Binding Name}" IsVisible="{Binding Cancelled}" Width="250" HorizontalAlignment="Left" Foreground="#AA0000" FontWeight="Bold" FontSize="15"/>
                               <TextBlock Width="250" HorizontalAlignment="Left" Foreground="#AAAAAA" Text="{Binding State}"/>
                             </StackPanel>
 
