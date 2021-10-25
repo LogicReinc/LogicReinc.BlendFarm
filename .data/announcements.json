@@ -1,10 +1,11 @@
 [
 	{
-		"Date": "2021-10-25"
+		"Date": "2021-10-25",
+		"Name": "Version 1.0.7 is out!",
 		"Segments": [
 			{
 				"Type": "Text",
-				"Text": ""
+				"Text": "A new version of BlendFarm is available. This version includes queueing and multi-project tabs. It will now have an announcement system to inform you of new versions. And of course some bug fixes."
 			},
 			{
 				"Type": "Image",
@@ -12,24 +13,19 @@
 			},
 			{
 				"Type": "Button",
-				"Text": "Open Version"
-			}
-		]
-	}
-	{
-		"Date": "2021-10-23"
-		"Segments": [
+				"Text": "Open Releases|https://github.com/LogicReinc/LogicReinc.BlendFarm/releases"
+			},
 			{
 				"Type": "Text",
-				"Text": "Old announcement whatever"
+				"Text": "If you find any bugs please create an issue in the Github Repository. And if you are enjoying BlendFarm, please consider a donation on Patreon"
 			},
 			{
-				"Type": "Image",
-				"Text": "https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/dev-1.0.7/.data/demo1.png"
+				"Type": "Button",
+				"Text": "https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/dev-1.0.7/.data/patreon.png|https://www.patreon.com/LogicReinc"
 			},
 			{
-				"Type": "Buttons",
-				"Text": "Open Version|https://github.com/LogicReinc/LogicReinc.BlendFarm/releases"
+				"Type": "Empty",
+				"Text": ""
 			}
 		]
 	}
