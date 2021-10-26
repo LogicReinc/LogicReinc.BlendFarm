@@ -13,9 +13,14 @@ namespace LogicReinc.BlendFarm.Shared
     /// </summary>
     public class BlenderVersion
     {
+        private static string[] REQUIRED_OS = new string[] { OS_LINUX, OS_WINDOWS, OS_MACOS };
+
         private const string OS_LINUX = "linux64";
+        private const string OS_LINUX_x64 = "linux-x64";
         private const string OS_WINDOWS = "windows64";
+        private const string OS_WINDOWS_x64 = "windows-x64";
         private const string OS_MACOS = "macOS";
+        private const string OS_MACOS_x64 = "macos-x64";
 
         private const string VERSIONS_URL = "https://download.blender.org/release/";
         private static Regex REGEX_BLENDERVERSION = new Regex("Blender[0-9]\\.[0-9]*\\/");
@@ -92,6 +97,9 @@ namespace LogicReinc.BlendFarm.Shared
                 {
                     List<WebIndex> subVersions = v.GetIndexes();
 
+                    if (v.Name == "Blender2.93/")
+                        v.Name = v.Name;
+
                     List<(WebIndex, Match)> matches = subVersions.Select(x => (x, REGEX_BLENDERSUBVERSION.Match(x.Name)))
                         .Where(x => x.Item2.Groups.Count == 4)
                         .ToList();
@@ -166,14 +174,17 @@ namespace LogicReinc.BlendFarm.Shared
             switch (os)
             {
                 case OS_WINDOWS:
+                case OS_WINDOWS_x64:
                     if (ext == "zip")
                         valid = true;
                     break;
                 case OS_LINUX:
+                case OS_LINUX_x64:
                     if (ext == "tar.xz")
                         valid = true;
                     break;
                 case OS_MACOS:
+                case OS_MACOS_x64:
                     if (ext == "dmg")
                         valid = true;
                     break;
@@ -186,16 +197,54 @@ namespace LogicReinc.BlendFarm.Shared
             switch (os)
             {
                 case OS_LINUX:
+                case OS_LINUX_x64:
                     UrlLinux64 = url;
                     break;
                 case OS_WINDOWS:
+                case OS_WINDOWS_x64:
                     UrlWindows64 = url;
                     break;
                 case OS_MACOS:
+                case OS_MACOS_x64:
                     UrlMacOS = url;
                     break;
                 default:
                     throw new ArgumentException("Invalid operating system");
+            }
+        }
+
+        public static string GetOldOSName(string os)
+        {
+            switch (os)
+            {
+                case OS_LINUX:
+                case OS_LINUX_x64:
+                    return OS_LINUX;
+                case OS_WINDOWS:
+                case OS_WINDOWS_x64:
+                    return OS_WINDOWS;
+                case OS_MACOS:
+                case OS_MACOS_x64:
+                    return OS_MACOS;
+                default:
+                    return os;
+            }
+        }
+        public static string GetNewOSName(string os)
+        {
+            switch (os)
+            {
+                case OS_LINUX:
+                case OS_LINUX_x64:
+                    return OS_LINUX_x64;
+                case OS_WINDOWS:
+                case OS_WINDOWS_x64:
+                    return OS_WINDOWS_x64;
+                case OS_MACOS:
+                case OS_MACOS_x64:
+                    return OS_MACOS_x64;
+                default:
+                    return os;
             }
         }
 

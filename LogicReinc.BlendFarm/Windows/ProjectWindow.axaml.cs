@@ -3,14 +3,17 @@ using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using LogicReinc.BlendFarm.Client;
+using LogicReinc.BlendFarm.Meta;
 using LogicReinc.BlendFarm.Server;
 using LogicReinc.BlendFarm.Shared;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using static LogicReinc.BlendFarm.BlendFarmSettings;
 
@@ -19,7 +22,7 @@ namespace LogicReinc.BlendFarm.Windows
     /// <summary>
     /// Assumes only one on startup
     /// </summary>
-    public class ProjectWindow : Window
+    public class ProjectWindow : Window, INotifyPropertyChanged
     {
         static List<BlenderVersion> versions = new List<BlenderVersion>();
 
@@ -35,6 +38,11 @@ namespace LogicReinc.BlendFarm.Windows
         private Dictionary<string, (string,string,int)> _previouslyFoundNodes = new Dictionary<string, (string, string, int)>();
 
         private bool _noServer = false;
+
+        public List<Announcement> Announcements { get; set; } = new List<Announcement>();
+        public Announcement LastAnnouncement { get; set; } = null;
+
+        public event PropertyChangedEventHandler PropertyChanged;
 
         public ProjectWindow()
         {
@@ -91,16 +99,49 @@ This may have to do with the port being in use. Note that to discover other pcs 
             }
 
             this.InitializeComponent();
-#if DEBUG
-            //this.AttachDevTools();
-#endif
+
+            new Thread(() =>
+            {
+                try
+                {
+                    Console.WriteLine("Fetching announcements from repo");
+                    List<Announcement> announcements = Announcement.GetAnnouncements(Constants.AnnouncementUrl);
+                    if (announcements == null)
+                        throw new InvalidDataException("No valid data found");
+                    Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        Announcements = announcements?.OrderByDescending(x => x.Date).ToList() ?? new List<Announcement>();
+                        Announcement lastAnn = Announcements?.OrderByDescending(x => x.Date)?.FirstOrDefault();
+                        LastAnnouncement = lastAnn;
+                        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LastAnnouncement)));
+
+                        if (lastAnn != null && lastAnn.Date > BlendFarmSettings.Instance.LastAnnouncementDate)
+                        {
+                            new AnnouncementWindow(announcements).Show();
+                            BlendFarmSettings.Instance.LastAnnouncementDate = lastAnn.Date;
+                            BlendFarmSettings.Instance.Save();
+                        }
+                    });
+                }
+                catch(Exception ex)
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkRed;
+                    Console.WriteLine($"Failed to fetch announcements due to \"{ex.Message}\" (Attempted to fetch from {Constants.AnnouncementUrl})");
+                    Console.ResetColor();
+                }
+
+            }).Start();
         }
 
         private void InitializeComponent()
         {
             AvaloniaXamlLoader.Load(this);
             Width = 600;
-            Height = 570;
+            Height = 625;
+            MinHeight = 625;
+            MinWidth = 600;
+            MaxHeight = 625;
+            MaxWidth = 600;
 
             fileSelection = this.FindControl<TextBox>("fileSelect");
 
@@ -129,7 +170,19 @@ This may have to do with the port being in use. Note that to discover other pcs 
         {
             try
             {
-                versions = BlenderVersion.GetBlenderVersions(SystemInfo.RelativeToApplicationDirectory("VersionCache"), SystemInfo.RelativeToApplicationDirectory("VersionCustom"));
+                Console.WriteLine("Fetching versions from cache or remote");
+
+                string versionCache = SystemInfo.RelativeToApplicationDirectory("VersionCache");
+                if (!new FileInfo(versionCache).FullName.ToLower().StartsWith("c:\\windows\\system32"))
+                    versions = BlenderVersion.GetBlenderVersions(versionCache, SystemInfo.RelativeToApplicationDirectory("VersionCustom"));
+                else
+                    versions = new List<BlenderVersion>()
+                    {
+                        new BlenderVersion()
+                        {
+                            Name = "Fake Version"
+                        }
+                    };
             }
             catch (Exception ex)
             {
@@ -170,6 +223,7 @@ This may have to do with the port being in use. Note that to discover other pcs 
             //else
                 results = await dialog.ShowAsync(this);
 
+            results = results?.Select(x => Statics.SanitizePath(x)).ToArray();
             
 
             if (results == null)
@@ -226,9 +280,16 @@ This may have to do with the port being in use. Note that to discover other pcs 
                 _manager.AddNode(pair.Key, pair.Value.Address, pair.Value.RenderType);
 
             //Start render window
+            //new RenderWindow();
             new RenderWindow(_manager, version, path).Show();
 
             this.Close();
+        }
+
+        public void OpenLastAnnouncement()
+        {
+            if(Announcements != null)
+            new AnnouncementWindow(Announcements).Show();
         }
     }
 }
