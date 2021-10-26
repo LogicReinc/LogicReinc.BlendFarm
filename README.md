@@ -7,7 +7,7 @@ Originally I only planned on using it for myself, but decided to make it more pr
 It consumed more time than I had planned. But as we're in a time where any modern GPU is effectively unobtainium, there is not a better time for it to exist.
 
 ![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/example.gif)
-A render using SplitChunked render strategy on BMW benchmark at low samples/res for showcase.
+A render using SplitChunked render strategy on BlendFarms test blendfile at low samples/res for showcase.
 
 ## Why a Network Renderer
 ----
