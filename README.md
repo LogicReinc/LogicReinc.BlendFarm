@@ -6,7 +6,7 @@ When I was trying to build a render server I was suprised most network renderers
 Originally I only planned on using it for myself, but decided to make it more production ready and release it to the public, and hopefully solve this for others. 
 It consumed more time than I had planned. But as we're in a time where any modern GPU is effectively unobtainium, there is not a better time for it to exist.
 
-![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/simplerender.gif)
+![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/example.gif)
 A render using SplitChunked render strategy on BMW benchmark at low samples/res for showcase.
 
 Computers: Local=Ryzen 1700X (16 threads, 3.4Ghz), WORK-PC=Ryzen 3700X (16 threads, 3.6Ghz), AUDIO-PC=Ryzen 5600X (12 threads, 3.7Ghz), render=Xeon e5 2578 v3 (24 threads, 2.5Ghz), render2=Xeon e5 2573 v3 *2 (48 threads, 2.4Ghz)
