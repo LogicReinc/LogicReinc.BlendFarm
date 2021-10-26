@@ -9,8 +9,6 @@ It consumed more time than I had planned. But as we're in a time where any moder
 ![SimpleRender](https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/master/.resources/example.gif)
 A render using SplitChunked render strategy on BMW benchmark at low samples/res for showcase.
 
-Computers: Local=Ryzen 1700X (16 threads, 3.4Ghz), WORK-PC=Ryzen 3700X (16 threads, 3.6Ghz), AUDIO-PC=Ryzen 5600X (12 threads, 3.7Ghz), render=Xeon e5 2578 v3 (24 threads, 2.5Ghz), render2=Xeon e5 2573 v3 *2 (48 threads, 2.4Ghz)
-
 ## Why a Network Renderer
 ----
 Not everyone has RTX 3090's stacked up, and even if you do, you can only run maybe 2 in the same system. A network renderer allows you to use multiple pcs in your network to work on a single image or animation. Old hardware that is still relatively fast can be used to accelerate your rendering or live preview. 
