@@ -95,6 +95,7 @@ namespace LogicReinc.BlendFarm.Shared
             if (Consumed)
                 throw new InvalidOperationException("Already started render..");
             Consumed = true;
+
             try
             {
                 List<RenderNode> pool = Nodes.Where(x => x.Connected).ToList();
@@ -161,7 +162,7 @@ namespace LogicReinc.BlendFarm.Shared
             }
             finally
             {
-                //Consumed = false;
+
             }
         }
 
@@ -203,7 +204,7 @@ namespace LogicReinc.BlendFarm.Shared
                     useNode.UpdateException("");
 
                 int framesFinished = 0;
-                int framesTotal = end - start;
+                int framesTotal = end - start + 1;
 
                 Action<RenderSubTask> onSubTaskFinished = (task) =>
                 {
@@ -543,10 +544,11 @@ namespace LogicReinc.BlendFarm.Shared
         public async Task Cancel()
         {
             Cancelled = true;
-            await Task.WhenAll(_usedNodes.Select(async x =>
-            {
-                await x.CancelRender(SessionID);
-            }));
+            if(Consumed)
+                await Task.WhenAll(_usedNodes.Select(async x =>
+                {
+                    await x.CancelRender(SessionID);
+                }));
         }
 
 

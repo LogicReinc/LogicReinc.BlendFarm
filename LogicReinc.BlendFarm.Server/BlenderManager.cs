@@ -212,6 +212,8 @@ namespace LogicReinc.BlendFarm.Server
 
                 ZipFile.ExtractToDirectory(archivePath, GetBlenderDataPath());
 
+                EnsureOldDirectoryFormat(version.Name, os);
+
                 Console.WriteLine($"{version.Name} ready");
             }
             catch(Exception ex)
@@ -258,6 +260,7 @@ namespace LogicReinc.BlendFarm.Server
                         }
                     }
                 }
+                EnsureOldDirectoryFormat(version.Name, os);
 
                 Console.WriteLine($"{version.Name} ready");
                 Console.WriteLine("Calling chmod for required permissions");
@@ -354,6 +357,18 @@ namespace LogicReinc.BlendFarm.Server
                     File.Delete(archivePath);
             }
         }
+
+
+        private void EnsureOldDirectoryFormat(string version, string os)
+        {
+            string expectedOld = GetVersionPath(version, BlenderVersion.GetOldOSName(os));
+            string expectedNew = GetVersionPath(version, BlenderVersion.GetNewOSName(os));
+
+            //For newer builds, return to old format
+            if (Directory.Exists(expectedNew) && !Directory.Exists(expectedOld))
+                Directory.Move(expectedNew, expectedOld);
+        }
+
 
         /// <summary>
         /// Renders a batch of render settings in a single Blender instance.
