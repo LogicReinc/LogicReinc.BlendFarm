@@ -314,15 +314,15 @@
                             <Button Margin="10,10,10,5" IsVisible="{Binding !CurrentProject.IsRendering}" Command="{Binding RenderAnimation}" Background="#400083" BorderBrush="#200041">
                               Render Animation
                             </Button>
+                            <Button Margin="10,0,10,5" IsVisible="{Binding CurrentProject.IsRendering}" Command="{Binding CancelRender}" Background="#AA0000" BorderBrush="#200041">
+                              Cancel
+                            </Button>
                           </StackPanel>
                           <StackPanel IsVisible="{Binding IsQueueing}">
-                            <Button Margin="10,10,10,5" IsVisible="{Binding !CurrentProject.IsRendering}" Command="{Binding AddAnimationToQueueNew}" Background="#400083" BorderBrush="#200041">
+                            <Button Margin="10,10,10,5" Command="{Binding AddAnimationToQueueNew}" Background="#400083" BorderBrush="#200041">
                               Queue Animation Render (New)
                             </Button>
                           </StackPanel>
-                          <Button Margin="10,0,10,5" IsVisible="{Binding CurrentProject.IsRendering}" Command="{Binding CancelRender}" Background="#AA0000" BorderBrush="#200041">
-                            Cancel
-                          </Button>
                         </StackPanel>
                       </TabItem>
                       <TabItem Header="Live Render" IsEnabled="{Binding !IsQueueing}">
