@@ -177,14 +177,16 @@ ___
 ## Tested Blender Versions (Server)
  - blender-2.83.9-windows64
  - blender-2.83.9-linux64
+ - blender-2-92.0-windows64
+ - blender-2.92.0-linux64
+ - blender-2-92.0-macOS
  - blender-2.91.0-windows64
  - blender-2.91.0-linux64
  - blender-2.91.2-windows64
  - blender-2.91.2-linux64
- - blender-2.92.0-linux64
- - blender-2-92.0-windows64
  - blender-2.91.2-macOS
- - blender-2-92.0-macOS
+ - blender-2.92.5-windows64
+ - blender-2.93.5-linux64
  
 ___
 
