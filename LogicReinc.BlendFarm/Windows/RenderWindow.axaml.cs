@@ -180,7 +180,10 @@ namespace LogicReinc.BlendFarm.Windows
                     RefreshInfo();
                     window.RefreshCurrentProject();
 
+                    Task.FileID = manager.UpdateFileVersion(Project.BlendFile);
+
                     await manager.Sync(Project.BlendFile, window.UseSyncCompression);
+                    Thread.Sleep(500);
 
                     System.Drawing.Bitmap final = await Task.Render();
                     LastBitmap = final;
@@ -235,7 +238,11 @@ namespace LogicReinc.BlendFarm.Windows
                     Project.SetRenderTask(Task);
                     RefreshInfo();
 
+                    Task.FileID = manager.UpdateFileVersion(Project.BlendFile);
+
                     await manager.Sync(Project.BlendFile, window.UseSyncCompression);
+
+                    Thread.Sleep(500);
 
                     await Task.RenderAnimation(Settings.Frame, Settings.Frame + Frames);
 
@@ -267,6 +274,9 @@ namespace LogicReinc.BlendFarm.Windows
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ProgressPercentage)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Completed)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsQueued)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Cancelled)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsDeletable)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsCancelable)));
             });
         }
 
@@ -276,11 +286,8 @@ namespace LogicReinc.BlendFarm.Windows
             Cancelled = true;
             if (Task != null && Task.Consumed)
                 await Task.Cancel();
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(State)));
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Active)));
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Cancelled)));
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsDeletable)));
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsCancelable)));
+
+            RefreshInfo();
         }
         public async Task OpenQueueItem()
         {
@@ -906,7 +913,10 @@ namespace LogicReinc.BlendFarm.Windows
                         else
                         {
                             if (!currentItem.Active)
+                            {
                                 currentItem = null;
+                                Thread.Sleep(1500);
+                            }
                         }
 
                         int queueCount = 0;
@@ -962,6 +972,8 @@ namespace LogicReinc.BlendFarm.Windows
 
             lock(Queue)
                 Queue.Add(item);
+
+
         }
         public async Task AddAnimationToQueueNew()
         {

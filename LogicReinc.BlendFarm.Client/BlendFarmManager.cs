@@ -38,6 +38,7 @@ namespace LogicReinc.BlendFarm.Client
             if (sessionID != null)
                 SessionID = sessionID;
             LocalBlendFile = Path.GetFullPath(Path.Combine(localDir, SessionID + ".blend"));
+            FileID = new FileInfo(LocalBlendFile).LastWriteTime.Ticks;
         }
     }
 
@@ -371,6 +372,8 @@ namespace LogicReinc.BlendFarm.Client
             try
             {
                 BlendFarmFileSession session = GetOrCreateSession(file);
+
+                UpdateFileVersion(session);
 
                 Syncing = true;
                 //Optimize
