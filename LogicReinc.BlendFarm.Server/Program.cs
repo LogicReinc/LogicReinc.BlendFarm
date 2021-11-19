@@ -62,9 +62,12 @@ namespace LogicReinc.BlendFarm.Server
         /// </summary>
         public static void CleanupOldSessions()
         {
+            if (!ServerSettings.Instance.DeleteBlenderFilesOnExit) return;
+
             try
             {
-                string path = SystemInfo.RelativeToApplicationDirectory(ServerSettings.Instance.BlenderFiles);
+                //string path = SystemInfo.RelativeToApplicationDirectory(ServerSettings.Instance.BlenderFiles);
+                string path = ServerSettings.Instance.GetBlenderFilesPath();
                 if (Directory.Exists(path))
                     Directory.Delete(path, true);
             }

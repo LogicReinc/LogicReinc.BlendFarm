@@ -254,6 +254,7 @@
                               <TextBlock Width="60" TextAlignment="Right" Margin="10">Height:</TextBlock>
                               <NumericUpDown Width="80" Value="{Binding CurrentProject.RenderHeight}" />
                             </StackPanel>
+														
                             <StackPanel Orientation="Horizontal">
                               <TextBlock Width="60" TextAlignment="Right" Margin="10">Samples</TextBlock>
                               <NumericUpDown Width="80" Value="{Binding CurrentProject.Samples}" />
@@ -265,12 +266,18 @@
                             </StackPanel>
                             <StackPanel Orientation="Horizontal">
                             </StackPanel>
-
+														
+														<StackPanel Orientation="Horizontal">
+															<TextBlock Width="60" TextAlignment="Right" Margin="10">Frame:</TextBlock>
+															<NumericUpDown Width="80" Value="{Binding CurrentProject.FrameStart}" />
+														</StackPanel>
+														
                             <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                               <TextBlock Width="110" TextAlignment="Right" Margin="10">Last Render Time:</TextBlock>
                               <TextBlock x:Name="lastRenderTime" Width="90" Margin="10">...</TextBlock>
                               <CheckBox IsChecked="{Binding CurrentProject.UseWorkaround}" ToolTip.Tip="Workaround for a Blender bug, once fixed, it may cause odd tile order, then disable this">Workaround</CheckBox>
                             </StackPanel>
+														
                           </StackPanel>
                           <StackPanel IsVisible="{Binding !IsQueueing}">
                             <Button Margin="10,3,10,5" IsVisible="{Binding !CurrentProject.IsRendering}" Command="{Binding Render}" Background="#400083" BorderBrush="#200041">

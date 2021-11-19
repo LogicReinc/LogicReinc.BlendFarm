@@ -8,7 +8,7 @@ namespace LogicReinc.BlendFarm.Server
 {
     public class ServerSettings
     {
-        private const string SETTINGS_PATH = "ServerSettings";
+        private const string SETTINGS_PATH = "ServerSettings.json";
 
         /// <summary>
         /// Port to use for communication (May be blocked by firewall)
@@ -23,15 +23,37 @@ namespace LogicReinc.BlendFarm.Server
         /// <summary>
         /// Used for storing different versions of Blender
         /// </summary>
-        public string BlenderData = "BlenderData";
+        public string BlenderData { get; set; } = "BlenderData";
+
+        /// <summary>
+        /// False if a non-relative path for the blender installs should be used
+        /// </summary>
+        public bool BlenderDataRelative { get; set; } = true;
+
         /// <summary>
         /// Used for storing temporary render data
         /// </summary>
-        public string RenderData = "RenderData";
+        public string RenderData { get; set; } = "RenderData";
+
+        /// <summary>
+        /// False if a non-relative path for the render data should be used
+        /// </summary>
+        public bool RenderDataRelative { get; set; } = true;
+
         /// <summary>
         /// Used for storing temporary .blend files (sessions)
         /// </summary>
-        public string BlenderFiles = "BlenderFiles";
+        public string BlenderFiles { get; set; } = "BlenderFiles";
+
+        /// <summary>
+        /// False if a non-relative path for the blender files should be used
+        /// </summary>
+        public bool BlenderFilesRelative { get; set; } = true;
+
+        /// <summary>
+        /// Determines if blender files should be deleted when the server exits
+        /// </summary>
+        public bool DeleteBlenderFilesOnExit { get; set; } = true;
 
         /// <summary>
         /// Prevents software from replacing the .py if it changed
@@ -54,7 +76,7 @@ namespace LogicReinc.BlendFarm.Server
 
         public void Save()
         {
-            File.WriteAllText(SystemInfo.RelativeToApplicationDirectory(SETTINGS_PATH), JsonSerializer.Serialize(this));
+            File.WriteAllText(SystemInfo.RelativeToApplicationDirectory(SETTINGS_PATH), JsonSerializer.Serialize(this, new JsonSerializerOptions() { WriteIndented = true }));
         }
         public static ServerSettings Load()
         {
@@ -62,8 +84,28 @@ namespace LogicReinc.BlendFarm.Server
             if (File.Exists(path))
                 return JsonSerializer.Deserialize<ServerSettings>(File.ReadAllText(path));
             else
-                return new ServerSettings();
+            {
+                ServerSettings settings = new ServerSettings();
+                settings.Save();
+                return settings;
+               // return new ServerSettings();
+            }
         }
         #endregion
+
+        public string GetBlenderDataPath()
+		{
+            return BlenderDataRelative ? SystemInfo.RelativeToApplicationDirectory(BlenderData) : BlenderData;
+        }
+
+        public string GetRenderDataPath()
+        {
+            return RenderDataRelative ? SystemInfo.RelativeToApplicationDirectory(RenderData) : RenderData;
+        }
+
+        public string GetBlenderFilesPath()
+        {
+            return BlenderFilesRelative ? SystemInfo.RelativeToApplicationDirectory(BlenderFiles) : BlenderFiles;
+        }
     }
 }

@@ -96,7 +96,8 @@ namespace LogicReinc.BlendFarm.Server
         /// <returns></returns>
         public string GetBlendFilePath()
         {
-            return Path.Combine(SystemInfo.RelativeToApplicationDirectory(ServerSettings.Instance.BlenderFiles), SessionID) + ".blend";
+            //return Path.Combine(SystemInfo.RelativeToApplicationDirectory(ServerSettings.Instance.BlenderFiles), SessionID) + ".blend
+            return Path.Combine(ServerSettings.Instance.GetBlenderFilesPath(), SessionID) + ".blend";
         }
 
         /// <summary>

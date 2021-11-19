@@ -39,16 +39,18 @@ namespace LogicReinc.BlendFarm.Server
         /// </summary>
         public BlenderManager()
         {
-            BlenderData = SystemInfo.RelativeToApplicationDirectory(ServerSettings.Instance.BlenderData);
-            RenderData = SystemInfo.RelativeToApplicationDirectory(ServerSettings.Instance.RenderData);
+            //BlenderData = SystemInfo.RelativeToApplicationDirectory(ServerSettings.Instance.BlenderData);
+            //RenderData = SystemInfo.RelativeToApplicationDirectory(ServerSettings.Instance.RenderData);
+            BlenderData = ServerSettings.Instance.GetBlenderDataPath();
+            RenderData = ServerSettings.Instance.GetRenderDataPath();
         }
         /// <summary>
         /// Use specific BlenderData and RenderData directories
         /// </summary>
-        public BlenderManager(string blenderData, string renderData)
+        public BlenderManager(string blenderData, bool blenderDataRelative, string renderData, bool renderDataRelative)
         {
-            BlenderData = SystemInfo.RelativeToApplicationDirectory(blenderData);
-            RenderData = SystemInfo.RelativeToApplicationDirectory(renderData);
+            BlenderData = blenderDataRelative ? SystemInfo.RelativeToApplicationDirectory(blenderData) : blenderData;
+            RenderData = renderDataRelative ? SystemInfo.RelativeToApplicationDirectory(renderData) : renderData;
         }
 
         /// <summary>

@@ -366,3 +366,5 @@ Deploy/
 build.sh
 
 packages-microsoft-prod.deb
+/ClientSettings
+/VersionCache

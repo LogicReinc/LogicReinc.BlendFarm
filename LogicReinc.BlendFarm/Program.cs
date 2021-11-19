@@ -34,7 +34,8 @@ namespace LogicReinc.BlendFarm
             BlendFarmSettings.Instance.Save();
             ServerSettings.Instance.Save();
 
-            string localPath = SystemInfo.RelativeToApplicationDirectory(BlendFarmSettings.Instance.LocalBlendFiles);
+            //string localPath = SystemInfo.RelativeToApplicationDirectory(BlendFarmSettings.Instance.LocalBlendFiles);
+            string localPath = BlendFarmSettings.Instance.GetLocalBlendFiles();
             try
             {
                 if (Directory.Exists(localPath))

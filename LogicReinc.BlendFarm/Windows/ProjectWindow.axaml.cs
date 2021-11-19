@@ -269,7 +269,8 @@ This may have to do with the port being in use. Note that to discover other pcs 
 
             _startedNew = true;
 
-            string localPath = SystemInfo.RelativeToApplicationDirectory(BlendFarmSettings.Instance.LocalBlendFiles);
+            //string localPath = SystemInfo.RelativeToApplicationDirectory(BlendFarmSettings.Instance.LocalBlendFiles);
+            string localPath = BlendFarmSettings.Instance.GetLocalBlendFiles();
             //Setup manager
             _manager = new BlendFarmManager(path, version.Name, null, localPath);
 

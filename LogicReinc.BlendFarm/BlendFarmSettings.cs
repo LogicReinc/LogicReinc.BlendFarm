@@ -10,13 +10,18 @@ namespace LogicReinc.BlendFarm
 {
     public class BlendFarmSettings
     {
-        private static string FILE_NAME = "ClientSettings";
+        private static string FILE_NAME = "ClientSettings.json";
 
 
         /// <summary>
         /// Used to store copies of used blend files
         /// </summary>
         public string LocalBlendFiles { get; set; } = "LocalBlendFiles";
+
+        /// <summary>
+        /// False if LocalBlendFilesRelative points to an absolute path
+        /// </summary>
+        public bool LocalBlendFilesRelative { get; set; } = true;
 
 
         /// <summary>
@@ -51,7 +56,7 @@ namespace LogicReinc.BlendFarm
 
         public void Save()
         {
-            File.WriteAllText(SystemInfo.RelativeToApplicationDirectory(FILE_NAME), JsonSerializer.Serialize(this));
+            File.WriteAllText(SystemInfo.RelativeToApplicationDirectory(FILE_NAME), JsonSerializer.Serialize(this, new JsonSerializerOptions() { WriteIndented = true }));
         }
         public static BlendFarmSettings Load()
         {
@@ -63,6 +68,10 @@ namespace LogicReinc.BlendFarm
         }
         #endregion
 
+        public string GetLocalBlendFiles()
+		{
+            return LocalBlendFilesRelative ? SystemInfo.RelativeToApplicationDirectory(LocalBlendFiles) : LocalBlendFiles;
+        }
 
         public class HistoryClient
         {
