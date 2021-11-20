@@ -33,6 +33,7 @@ namespace LogicReinc.BlendFarm.Windows
         public string SessionID { get; set; } = Guid.NewGuid().ToString();
         public string FileID { get; set; } = Guid.NewGuid().ToString();
         public string BlendFile { get; set; }
+        public string BlendFileDependencyPath { get; set; }
         public string Name => BlendFile != null ? Path.GetFileNameWithoutExtension(BlendFile) : "Unknown?";
 
         //Render Properties
@@ -93,6 +94,12 @@ namespace LogicReinc.BlendFarm.Windows
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentTask)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsRendering)));
         }
+
+        public void UpdateDependencyDir(string dependencyDir)
+		{
+            BlendFileDependencyPath = dependencyDir;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BlendFileDependencyPath)));
+		}
     }
 
 
@@ -159,7 +166,7 @@ namespace LogicReinc.BlendFarm.Windows
                 if (Frames <= 1)
                 {
                     //Normal Render
-                    Task = manager.GetRenderTask(Project.BlendFile, Settings, (st, bitmap) =>
+                    Task = manager.GetRenderTask(Project.BlendFile, Project.BlendFileDependencyPath, Settings, (st, bitmap) =>
                     {
                         //Apply image to canvas
                         Dispatcher.UIThread.InvokeAsync(() =>
@@ -182,7 +189,7 @@ namespace LogicReinc.BlendFarm.Windows
 
                     Task.FileID = manager.UpdateFileVersion(Project.BlendFile);
 
-                    await manager.Sync(Project.BlendFile, window.UseSyncCompression);
+                    await manager.Sync(Project.BlendFile, window.UseSyncCompression, Project.BlendFileDependencyPath);
                     Thread.Sleep(500);
 
                     System.Drawing.Bitmap final = await Task.Render();
@@ -208,7 +215,7 @@ namespace LogicReinc.BlendFarm.Windows
                         throw new ArgumentException("Missing frameformat for animation");
 
                     //Normal Render
-                    Task = manager.GetRenderTask(Project.BlendFile, Settings, null, async (task, frame) =>
+                    Task = manager.GetRenderTask(Project.BlendFile, Project.BlendFileDependencyPath, Settings, null, async (task, frame) =>
                     {
 
                         string filePath = Path.Combine(SaveTo, FrameFormat.Replace("#", task.Frame.ToString()));
@@ -240,7 +247,7 @@ namespace LogicReinc.BlendFarm.Windows
 
                     Task.FileID = manager.UpdateFileVersion(Project.BlendFile);
 
-                    await manager.Sync(Project.BlendFile, window.UseSyncCompression);
+                    await manager.Sync(Project.BlendFile, window.UseSyncCompression, Project.BlendFileDependencyPath);
 
                     Thread.Sleep(500);
 
@@ -628,7 +635,7 @@ namespace LogicReinc.BlendFarm.Windows
         }
         public async Task SyncAll()
         {
-            await Manager?.Sync(CurrentProject.BlendFile, UseSyncCompression);
+            await Manager?.Sync(CurrentProject.BlendFile, UseSyncCompression, CurrentProject.BlendFileDependencyPath);
         }
 
         public void AddNewNode()
@@ -697,7 +704,7 @@ namespace LogicReinc.BlendFarm.Windows
             if(!noSync && Manager.Nodes.Any(x=> x.Connected && !x.IsSessionSynced(currentProject.SessionID)))//!x.IsSynced))
             {
                 if(await YesNoNeverWindow.Show(this, "Unsynced nodes", "You have nodes that are not yet synced, would you like to sync them to use for rendering?", "syncBeforeRendering"))
-                    await Manager.Sync(CurrentProject.BlendFile, UseSyncCompression);
+                    await Manager.Sync(CurrentProject.BlendFile, UseSyncCompression, CurrentProject.BlendFileDependencyPath);
             }
 
             //Start rendering thread
@@ -710,7 +717,7 @@ namespace LogicReinc.BlendFarm.Windows
 
 
                     //Create Task
-                    currentProject.SetRenderTask(Manager.GetRenderTask(CurrentProject.BlendFile, GetSettingsFromUI(), async (task, updated) =>
+                    currentProject.SetRenderTask(Manager.GetRenderTask(CurrentProject.BlendFile, CurrentProject.BlendFileDependencyPath, GetSettingsFromUI(), async (task, updated) =>
                     {
                         //Apply image to canvas
                         await Dispatcher.UIThread.InvokeAsync(() =>
@@ -816,7 +823,7 @@ namespace LogicReinc.BlendFarm.Windows
 
 
                     //Create Task
-                    currentProject.SetRenderTask(Manager.GetRenderTask(currentProject.BlendFile, GetSettingsFromUI(), null, async (task, frame) =>
+                    currentProject.SetRenderTask(Manager.GetRenderTask(currentProject.BlendFile, currentProject.BlendFileDependencyPath, GetSettingsFromUI(), null, async (task, frame) =>
                     {
                         string filePath = Path.Combine(outputDir, animationFileFormat.Replace("#", task.Frame.ToString()));
 
@@ -1207,5 +1214,37 @@ namespace LogicReinc.BlendFarm.Windows
             }
         }
 
+        public async void ShowDependencyFileDialog()
+        {
+            OpenFolderDialog dialog = new OpenFolderDialog();
+            dialog.Title = "Select a dependency directory";
+
+            Console.Write("Showing DependencyFileDialog");
+
+            //Workaround for Linux?
+
+            string result = null;
+
+            //if (_os == SystemInfo.OS_LINUX64)
+            //    results = await Avalonia.Dialogs.ManagedFileDialogExtensions.ShowManagedAsync(dialog, this, new Avalonia.Dialogs.ManagedFileDialogOptions()
+            //    {
+            //        AllowDirectorySelection = false
+            //    });
+            //else
+            result = await dialog.ShowAsync(this);
+
+            result = Statics.SanitizePath(result);
+
+
+            if (string.IsNullOrEmpty(result))
+                Console.WriteLine("DependencyFileDialog Result: null");
+            else
+            {
+                Console.Write($"DependencyFileDialog Result: {result}");
+            }
+
+            string old = CurrentProject.BlendFileDependencyPath;
+            CurrentProject.UpdateDependencyDir(result);
+        }
     }
 }

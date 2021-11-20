@@ -27,10 +27,26 @@ namespace LogicReinc.BlendFarm.Server
         /// FileID of session (Blendfile version)
         /// </summary>
         public long FileID { get; set; }
+
         /// <summary>
         /// Last Sync datetime
         /// </summary>
         public DateTime Updated { get; set; }
+
+        /// <summary>
+        /// DependencyFileID of session
+        /// </summary>
+        public long DependencyFileID { get; set; }
+
+        /// <summary>
+        /// Directory of dependency files for this session
+        /// </summary>
+        public string DependencyFileName { get; set; }
+
+        /// <summary>
+        /// Last Dependency Sync datetime
+        /// </summary>
+        public DateTime DependencyUpdated { get; set; }
 
         /// <summary>
         /// Delete a session and associated blend file
@@ -39,9 +55,13 @@ namespace LogicReinc.BlendFarm.Server
         {
             if (Sessions.ContainsKey(SessionID))
                 Sessions.Remove(SessionID);
-            string blendFile = GetBlendFilePath();
-            if (File.Exists(blendFile))
-                File.Delete(blendFile);
+            //string blendFile = GetBlendFilePath();
+            //if (File.Exists(blendFile))
+            //    File.Delete(blendFile);
+            //
+            //CleanupDependency();
+            if (Directory.Exists(GetSessionPath()))
+                Directory.Delete(GetSessionPath(), true);
         }
 
         /// <summary>
@@ -94,10 +114,73 @@ namespace LogicReinc.BlendFarm.Server
         /// Get formatted path to blend file for this session
         /// </summary>
         /// <returns></returns>
+        public string GetSessionPath()
+        {
+            //return Path.Combine(SystemInfo.RelativeToApplicationDirectory(ServerSettings.Instance.BlenderFiles), SessionID) + ".blend
+            return Path.Combine(ServerSettings.Instance.GetBlenderFilesPath(), SessionID);
+        }
+
+        /// <summary>
+        /// Get formatted path to blend file for this session
+        /// </summary>
+        /// <returns></returns>
         public string GetBlendFilePath()
         {
             //return Path.Combine(SystemInfo.RelativeToApplicationDirectory(ServerSettings.Instance.BlenderFiles), SessionID) + ".blend
-            return Path.Combine(ServerSettings.Instance.GetBlenderFilesPath(), SessionID) + ".blend";
+            return Path.Combine(GetSessionPath(), SessionID) + ".blend";
+        }
+
+        /// <summary>
+        /// Called when updating file
+        /// </summary>
+        public void UpdatingDependency(string dependencyFileName)
+        {
+            DependencyFileID = -1;
+            CleanupDependency();
+            DependencyFileName = dependencyFileName;
+        }
+
+        void CleanupDependency()
+		{
+            if (!string.IsNullOrEmpty(DependencyFileName))
+            {
+                if (File.Exists(GetDependencyZipPath()))
+                {
+                    File.Delete(GetDependencyZipPath());
+                }
+
+                if (Directory.Exists(GetDependencyPath()))
+                {
+                    Directory.Delete(GetDependencyPath(), true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sets a new FileID (indicating updated blend file)
+        /// </summary>
+        public void UpdatedDependency(long dependencyFileId)
+        {
+            DependencyFileID = dependencyFileId;     
+            DependencyUpdated = DateTime.Now;
+        }
+
+        /// <summary>
+        /// Get formatted path to dependency directory for this session
+        /// </summary>
+        /// <returns></returns>
+        public string GetDependencyPath()
+        {
+            return Path.Combine(GetSessionPath(), Path.GetFileNameWithoutExtension(DependencyFileName));
+        }
+
+        /// <summary>
+        /// Get formatted path to dependency file for this session
+        /// </summary>
+        /// <returns></returns>
+        public string GetDependencyZipPath()
+        {
+            return GetDependencyPath() + ".zip";
         }
 
         /// <summary>

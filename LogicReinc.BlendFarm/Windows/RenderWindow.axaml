@@ -16,6 +16,10 @@
     </Style>
   </Window.Styles>
 
+	<Window.Resources>
+		<convs:NullStringConverter x:Key="NullStringConverter"/>
+	</Window.Resources>
+
   <Grid ColumnDefinitions="*, 400" RowDefinitions="*">
     <Grid Grid.Row="0" Grid.Column="0" RowDefinitions="50,*,10" ColumnDefinitions="*">
       <Grid Grid.Row="0" Grid.Column="0" RowDefinitions="*" ColumnDefinitions="*,35,50">
@@ -116,6 +120,21 @@
               <TextBlock Width="60" Margin="0,0,15,0" TextAlignment="Right">File:</TextBlock>
               <TextBlock Width="240"  Text="{Binding CurrentProject.BlendFile}"></TextBlock>
             </StackPanel>
+						<StackPanel HorizontalAlignment="Stretch" Orientation="Horizontal">
+							<TextBlock VerticalAlignment="Center"
+												 Text="Dependencies:"
+												 Margin="0,0,5,0"/>
+							<Button Command="{Binding ShowDependencyFileDialog}"
+											Width="270"
+											HorizontalContentAlignment="Left"
+											VerticalContentAlignment="Center">
+								<TextBlock TextWrapping="NoWrap"
+													 TextTrimming="CharacterEllipsis"
+													 FontSize="10"
+													 Text="{Binding CurrentProject.BlendFileDependencyPath,
+													 Converter={StaticResource NullStringConverter}}"></TextBlock>
+							</Button>
+						</StackPanel>
 
             <Canvas Height="0" Margin="0,10,0,0">
               <StackPanel Orientation="Horizontal" Canvas.Right="30" Canvas.Top="4">

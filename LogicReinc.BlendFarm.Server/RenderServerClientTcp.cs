@@ -4,6 +4,7 @@ using LogicReinc.BlendFarm.Shared.Communication.RenderNode;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net.Sockets;
 using System.Net.WebSockets;
@@ -114,7 +115,7 @@ namespace LogicReinc.BlendFarm.Server
                 if (req.FileID != session.FileID)
                 {
                     //Directory.CreateDirectory(SystemInfo.RelativeToApplicationDirectory(ServerSettings.Instance.BlenderFiles));
-                    Directory.CreateDirectory(ServerSettings.Instance.GetBlenderFilesPath());
+                    Directory.CreateDirectory(session.GetSessionPath());
                     _uploads.Add(uploadID, new FileUpload(session.GetBlendFilePath(), req, req.Compression));
                     session.UpdatingFile();
                 }
@@ -221,6 +222,132 @@ namespace LogicReinc.BlendFarm.Server
             catch (Exception ex)
             {
                 return new SyncCompleteResponse()
+                {
+                    Success = false,
+                    Message = "Failed due to exception:" + ex.Message
+                };
+            }
+        }
+
+        /// <summary>
+        /// Handler sync, Starts a Sync process, registering a file upload
+        /// </summary>
+        [BlendFarmHeader("depSync")]
+        public DependencySyncResponse Packet_DependencySync(DependencySyncRequest req)
+        {
+            try
+            {
+                if (!sessions.Contains(req.SessionID))
+                    return new DependencySyncResponse()
+                    {
+                        Success = false,
+                        Message = "Session is invalid"
+                    };
+
+                SessionData session = SessionData.GetOrCreate(req.SessionID);
+
+                string uploadID = Guid.NewGuid().ToString();
+                if (req.DependencyFileID != session.DependencyFileID)
+                {
+                    session.UpdatingDependency(req.FileName);
+                    if(!string.IsNullOrEmpty(req.FileName))
+                        _uploads.Add(uploadID, new FileUpload(session.GetDependencyZipPath(), req));
+                }
+
+                return new DependencySyncResponse()
+                {
+                    Success = true,
+                    SameFile = req.DependencyFileID == session.DependencyFileID,
+                    UploadID = uploadID
+                };
+            }
+            catch (Exception ex)
+            {
+                return new DependencySyncResponse()
+                {
+                    Success = true,
+                    Message = "Failed due to exception:" + ex.Message
+                };
+            }
+        }
+        /// <summary>
+        /// Handler syncUpload, Process chunk of Blendfile
+        /// </summary>
+        [BlendFarmHeader("depSyncUpload")]
+        public DependencySyncUploadResponse Packet_DependencySyncUpload(DependencySyncUploadRequest req)
+        {
+            try
+            {
+                FileUpload upload = _uploads.ContainsKey(req.UploadID) ? _uploads[req.UploadID] : null;
+                if (upload == null)
+                    return new DependencySyncUploadResponse()
+                    {
+                        Success = false,
+                        Message = "Upload does not exist"
+                    };
+
+                lock (upload)
+                {
+                    upload.Write(req.Data, 0, req.DataSize);
+
+                    return new DependencySyncUploadResponse()
+                    {
+                        Success = true
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new DependencySyncUploadResponse()
+                {
+                    Success = false,
+                    Message = "Failed due to exception:" + ex.Message
+                };
+            }
+        }
+
+        /// <summary>
+        /// Handler syncComplete, Finalize Sync process
+        /// </summary>
+        [BlendFarmHeader("depSyncComplete")]
+        public DependencySyncCompleteResponse Packet_DependencyComplete(DependencySyncCompleteRequest complete)
+        {
+            try
+            {
+                FileUpload upload = _uploads.ContainsKey(complete.UploadID) ? _uploads[complete.UploadID] : null;
+                if (upload == null)
+                    return new DependencySyncCompleteResponse()
+                    {
+                        Success = false
+                    };
+                _uploads.Remove(complete.UploadID);
+                SessionData session;
+                lock (upload)
+                {
+                    upload.FinalWrite();
+
+                    DependencySyncRequest obj = upload.GetContext<DependencySyncRequest>();
+                    string fileName = upload.TargetPath;
+                    upload.Dispose();
+
+                    session = SessionData.GetOrCreate(obj.SessionID);
+
+                    session.UpdatedDependency(obj.DependencyFileID);
+                }
+
+                if(!string.IsNullOrEmpty(session.DependencyFileName))
+				{
+                    ZipFile.ExtractToDirectory(session.GetDependencyZipPath(), session.GetDependencyPath());
+				}
+
+                return new DependencySyncCompleteResponse()
+                {
+                    Success = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return new DependencySyncCompleteResponse()
                 {
                     Success = false,
                     Message = "Failed due to exception:" + ex.Message

@@ -217,7 +217,7 @@ namespace LogicReinc.BlendFarm.Tests
             watch.Restart();
 
             int render = 0;
-            Bitmap final = await manager.Render(BLEND_FILE, new RenderManagerSettings()
+            Bitmap final = await manager.Render(BLEND_FILE, null, new RenderManagerSettings()
             {
                 OutputWidth = 640,
                 OutputHeight = 360,
@@ -252,7 +252,7 @@ namespace LogicReinc.BlendFarm.Tests
             int render = 0;
 
             bool gotBitmap = false;
-            Bitmap final = await manager.Render(BLEND_FILE, new RenderManagerSettings()
+            Bitmap final = await manager.Render(BLEND_FILE, null, new RenderManagerSettings()
             {
                 Strategy = RenderStrategy.Chunked,
                 ChunkHeight = 1,
@@ -294,7 +294,7 @@ namespace LogicReinc.BlendFarm.Tests
             int render = 0;
 
             bool gotBitmap = false;
-            Bitmap final = await manager.Render(BLEND_FILE, new RenderManagerSettings()
+            Bitmap final = await manager.Render(BLEND_FILE, null, new RenderManagerSettings()
             {
                 Strategy = RenderStrategy.SplitChunked,
                 ChunkHeight = 1,

@@ -394,6 +394,95 @@ namespace LogicReinc.BlendFarm.Client
 
             return resp;
         }
+
+        /// <summary>
+        /// Transfer blender file to node
+        /// </summary>
+        /// <param name="sess">An identifier for the session</param>
+        /// <param name="fileid">An identifier used to differentiate versions</param>
+        /// <returns></returns>
+        public async Task<DependencySyncResponse> SyncDependencyFile(string sess, long dependencyFileid, string dependencyFilePath)
+        {
+            if (Client == null)
+                throw new InvalidOperationException("Client not connected");
+            DependencySyncResponse resp = null;
+            try
+            {
+                UpdateActivity($"Syncing Dependencies...");
+
+                //Start Sync
+
+                //Initialize Sync
+                resp = await Client.Send<DependencySyncResponse>(new DependencySyncRequest()
+                {
+                    SessionID = sess,
+                    DependencyFileID = dependencyFileid,
+                    FileName = !string.IsNullOrEmpty(dependencyFilePath) ? Path.GetFileName(dependencyFilePath) : null
+                }, CancellationToken.None);
+
+                if (!resp.Success)
+                    throw new Exception(resp.Message);
+                if (resp.SameFile || string.IsNullOrEmpty(dependencyFilePath))
+                {
+                    UpdateSyncedStatus(sess, true);
+                    return resp;
+                }
+
+                //Transfer file
+                
+                using (var depFile = File.OpenRead(dependencyFilePath))
+                {
+                    byte[] buffer = new byte[1024*1024*10];
+                    long bytesLeft = depFile.Length;
+                    int offset = 0;
+
+                    while(bytesLeft > 0)
+					{
+                        var bytesToSend = depFile.Read(buffer, 0, buffer.Length);
+                        bytesLeft -= bytesToSend;
+
+                        //Send chunk
+                        var uploadResp = await Client.Send<DependencySyncUploadResponse>(new DependencySyncUploadRequest()
+                        {
+                            Data = buffer,
+                            UploadID = resp.UploadID,
+                            DataSize = bytesToSend,
+                            TotalSize = depFile.Length
+                        }, CancellationToken.None);
+
+                        offset += bytesToSend;
+
+                        if (!uploadResp.Success)
+                            throw new Exception(uploadResp.Message);
+
+                        double progress = (double)offset / depFile.Length;
+                        double p = Math.Round(progress * 100, 1);
+                        UpdateActivity($"Syncing Dependencies: ({p}%)", p);
+                    }
+                }
+
+                //Indicate Transfer Complete
+                var complete = await Client.Send<DependencySyncCompleteResponse>(new DependencySyncCompleteRequest()
+                {
+                    UploadID = resp.UploadID
+                }, CancellationToken.None);
+
+                //End Sync
+
+                UpdateSyncedStatus(sess, true);
+                //if (await CheckSyncFile(sess, fileid))
+                //    UpdateSyncedStatus(sess, true);
+                //else
+                //    UpdateSyncedStatus(sess, false);
+            }
+            finally
+            {
+                UpdateActivity("");
+            }
+
+            return resp;
+        }
+
         /// <summary>
         /// Render a batch of RenderSettings
         /// </summary>

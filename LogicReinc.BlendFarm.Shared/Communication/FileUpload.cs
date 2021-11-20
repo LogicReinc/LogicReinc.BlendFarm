@@ -22,6 +22,7 @@ namespace LogicReinc.BlendFarm.Shared.Communication
 
         public FileUpload(string path, object context = null, Compression compression = Compression.Raw)
         {
+            TargetPath = path;
             Context = context;
             Compression = compression;
             Stream = new FileStream(path, FileMode.Create);

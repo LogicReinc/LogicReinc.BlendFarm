@@ -1,0 +1,12 @@
+{
+  "Port": 15000,
+  "BroadcastPort": 16342,
+  "BlenderData": "BlenderData",
+  "BlenderDataRelative": true,
+  "RenderData": "RenderData",
+  "RenderDataRelative": true,
+  "BlenderFiles": "BlenderFiles",
+  "BlenderFilesRelative": true,
+  "DeleteBlenderFilesOnExit": true,
+  "BypassScriptUpdate": false
+}
