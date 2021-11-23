@@ -92,9 +92,10 @@ namespace LogicReinc.BlendFarm.Server
         [BlendFarmHeader("checkSync")]
         public CheckSyncResponse Packet_CheckSync(CheckSyncRequest req)
         {
+            SessionData session = SessionData.GetOrCreate(req.SessionID);
             return new CheckSyncResponse()
             {
-                Success = SessionData.GetOrCreate(req.SessionID).FileID == req.FileID
+                Success = session.FileID == req.FileID && session.DependencyFileID == req.DependencyFileID
             };
         }
 
@@ -338,6 +339,7 @@ namespace LogicReinc.BlendFarm.Server
                 if(!string.IsNullOrEmpty(session.DependencyFileName))
 				{
                     ZipFile.ExtractToDirectory(session.GetDependencyZipPath(), session.GetDependencyPath());
+                    File.Delete(session.GetDependencyZipPath());
 				}
 
                 return new DependencySyncCompleteResponse()
@@ -353,6 +355,28 @@ namespace LogicReinc.BlendFarm.Server
                     Message = "Failed due to exception:" + ex.Message
                 };
             }
+        }
+
+        /// <summary>
+        /// Handler isBusy, Checks if RenderNode is busy
+        /// </summary>
+        [BlendFarmHeader("cancelSync")]
+        public CancelSyncResponse Packet_CancelSync(CancelSyncRequest req)
+        {
+            FileUpload upload = _uploads.ContainsKey(req.UploadID) ? _uploads[req.UploadID] : null;
+            if (upload != null)
+            {
+                _uploads.Remove(req.UploadID);
+                lock (upload)
+                {
+                    upload.Cancel();
+                }
+            }
+
+            return new CancelSyncResponse()
+            {
+                Success = true
+            };
         }
 
         /// <summary>

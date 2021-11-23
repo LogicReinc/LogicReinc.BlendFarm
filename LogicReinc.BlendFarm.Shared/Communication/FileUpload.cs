@@ -67,6 +67,13 @@ namespace LogicReinc.BlendFarm.Shared.Communication
             Stream.Flush();
             Stream.Dispose();
         }
+
+        public void Cancel()
+		{
+            FinalWrite();
+            Dispose();
+            File.Delete(TargetPath);
+		}
     }
 
     public interface ICompressionHandler

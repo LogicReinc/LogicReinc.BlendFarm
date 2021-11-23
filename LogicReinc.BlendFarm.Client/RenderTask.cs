@@ -37,6 +37,11 @@ namespace LogicReinc.BlendFarm.Shared
         public long FileID { get; set; }
 
         /// <summary>
+        /// FileID of the dependency file
+        /// </summary>
+        public long DependencyFileID { get; set; }
+
+        /// <summary>
         /// Settings on what to render
         /// </summary>
         public RenderManagerSettings Settings { get; set; }
@@ -76,7 +81,7 @@ namespace LogicReinc.BlendFarm.Shared
 
         private List<RenderNode> _usedNodes = new List<RenderNode>();
 
-        public RenderTask(List<RenderNode> nodes, string session, string version, long fileId, RenderManagerSettings settings = null)
+        public RenderTask(List<RenderNode> nodes, string session, string version, long fileId, long dependencyFileId, RenderManagerSettings settings = null)
         {
             if (settings == null)
                 settings = new RenderManagerSettings();
@@ -85,6 +90,7 @@ namespace LogicReinc.BlendFarm.Shared
             SessionID = session;
             Version = version;
             FileID = fileId;
+            DependencyFileID = dependencyFileId;
         }
 
         /// <summary>
@@ -107,7 +113,7 @@ namespace LogicReinc.BlendFarm.Shared
                     if (!hasVersion)
                         return;
 
-                    bool hasFile = await x.CheckSyncFile(SessionID, FileID);
+                    bool hasFile = await x.CheckSyncFile(SessionID, FileID, DependencyFileID);
                     if (!hasFile)
                         return;
 
@@ -182,7 +188,7 @@ namespace LogicReinc.BlendFarm.Shared
                     if (!hasVersion)
                         return;
 
-                    bool hasFile = await x.CheckSyncFile(SessionID, FileID);
+                    bool hasFile = await x.CheckSyncFile(SessionID, FileID, DependencyFileID);
                     if (!hasFile)
                         return;
 

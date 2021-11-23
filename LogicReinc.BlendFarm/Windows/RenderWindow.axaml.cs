@@ -459,7 +459,7 @@ namespace LogicReinc.BlendFarm.Windows
                 {
 
                 }){
-                        Task = new RenderTask(null, null, null, 0)
+                        Task = new RenderTask(null, null, null, 0, 0)
                         {
                             Progress = 0.43
                         }
@@ -700,8 +700,11 @@ namespace LogicReinc.BlendFarm.Windows
                 this._imageProgress.IsIndeterminate = true;
             });
 
+            if(Manager.DependencyNeedsResync(CurrentProject.SessionID))
+                await Manager.Sync(CurrentProject.BlendFile, UseSyncCompression, CurrentProject.BlendFileDependencyPath);
+
             //Check if any unsynced nodes
-            if(!noSync && Manager.Nodes.Any(x=> x.Connected && !x.IsSessionSynced(currentProject.SessionID)))//!x.IsSynced))
+            if (!noSync && Manager.Nodes.Any(x=> x.Connected && !x.IsSessionSynced(currentProject.SessionID)))//!x.IsSynced))
             {
                 if(await YesNoNeverWindow.Show(this, "Unsynced nodes", "You have nodes that are not yet synced, would you like to sync them to use for rendering?", "syncBeforeRendering"))
                     await Manager.Sync(CurrentProject.BlendFile, UseSyncCompression, CurrentProject.BlendFileDependencyPath);
@@ -800,13 +803,14 @@ namespace LogicReinc.BlendFarm.Windows
             }
             string animationFileFormat = currentProject.AnimationFileFormat;
 
-
-
             string outputDir = await OpenFolderDialog("Select a directory to save frames to");
             if (string.IsNullOrEmpty(outputDir))
                 return;
 
             _lastAnimationDirectory = outputDir;
+
+            if (Manager.DependencyNeedsResync(CurrentProject.SessionID))
+                await Manager.Sync(CurrentProject.BlendFile, UseSyncCompression, CurrentProject.BlendFileDependencyPath);
 
             if (Manager.Nodes.Any(x => x.Connected && !x.IsSessionSynced(currentProject.SessionID)))
             {
@@ -1176,9 +1180,6 @@ namespace LogicReinc.BlendFarm.Windows
             });
         }
 
-
-
-
         //Events
         public async void CheckUseQueue(object sender, RoutedEventArgs args)
         {
@@ -1214,16 +1215,13 @@ namespace LogicReinc.BlendFarm.Windows
             }
         }
 
+        //Dependency functions
         public async void ShowDependencyFileDialog()
         {
             OpenFolderDialog dialog = new OpenFolderDialog();
             dialog.Title = "Select a dependency directory";
 
-            Console.Write("Showing DependencyFileDialog");
-
             //Workaround for Linux?
-
-            string result = null;
 
             //if (_os == SystemInfo.OS_LINUX64)
             //    results = await Avalonia.Dialogs.ManagedFileDialogExtensions.ShowManagedAsync(dialog, this, new Avalonia.Dialogs.ManagedFileDialogOptions()
@@ -1231,20 +1229,18 @@ namespace LogicReinc.BlendFarm.Windows
             //        AllowDirectorySelection = false
             //    });
             //else
-            result = await dialog.ShowAsync(this);
+            string result = await dialog.ShowAsync(this);
 
-            result = Statics.SanitizePath(result);
+            if(!string.IsNullOrEmpty(result)) result = Statics.SanitizePath(result);
 
-
-            if (string.IsNullOrEmpty(result))
-                Console.WriteLine("DependencyFileDialog Result: null");
-            else
-            {
-                Console.Write($"DependencyFileDialog Result: {result}");
-            }
-
-            string old = CurrentProject.BlendFileDependencyPath;
             CurrentProject.UpdateDependencyDir(result);
+            Manager.DependencyDirChanged(CurrentProject.SessionID);
+        }
+
+        public void ClearDependency()
+		{
+            CurrentProject.UpdateDependencyDir(null);
+            Manager.DependencyDirChanged(CurrentProject.SessionID);
         }
     }
 }

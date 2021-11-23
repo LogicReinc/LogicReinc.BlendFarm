@@ -12,6 +12,7 @@ namespace LogicReinc.BlendFarm.Shared.Communication.RenderNode
         public string SessionID { get; set; }
         public long FileID { get; set; }
 
+        public long DependencyFileID { get; set; }
     }
 
     [BlendFarmHeader("checkSyncResp")]

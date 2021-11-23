@@ -82,12 +82,19 @@ namespace LogicReinc.BlendFarm.Client
         /// </summary>
         public bool Connected => Client != null && Client.Connected;
 
+        public bool IsSyncing { get; set; }
+
         public string SelectedSessionID { get; private set; }
 
         /// <summary>
         /// FileID of the version of the file this node has synced
         /// </summary>
         public long LastFileID { get; set; } = -1;
+
+        public long LastDependencyFileID { get; set; } = -1;
+
+        private string _currentUploadId;
+
         /// <summary>
         /// Descriptive name of current activity
         /// </summary>
@@ -328,7 +335,9 @@ namespace LogicReinc.BlendFarm.Client
             SyncResponse resp = null;
             try
             {
+                UpdateException("");
                 UpdateActivity("Syncing");
+                SetIsSyncing(true);
 
                 //Start Sync
 
@@ -344,9 +353,14 @@ namespace LogicReinc.BlendFarm.Client
                     throw new Exception(resp.Message);
                 if (resp.SameFile)
                 {
-                    UpdateSyncedStatus(sess, true);
+                    //UpdateSyncedStatus(sess, true);
+                    SetIsSyncing(false);
                     return resp;
                 }
+
+                UpdateCurrentUploadID(resp.UploadID);
+
+                _taskCancelToken = new CancellationTokenSource();
 
                 //Transfer file
                 byte[] chunk = new byte[1024 * 1024 * 10];
@@ -361,7 +375,9 @@ namespace LogicReinc.BlendFarm.Client
                         Data = toSend, //Convert.ToBase64String(chunk, 0, read),
                         UploadID = resp.UploadID,
                         //Hash = Hash.ComputeSyncHash(toSend) //Used during debugging
-                    }, CancellationToken.None);
+                    }, _taskCancelToken.Token);
+
+                    _taskCancelToken.Token.ThrowIfCancellationRequested();
 
                     if (!uploadResp.Success)
                         throw new Exception(uploadResp.Message);
@@ -382,14 +398,17 @@ namespace LogicReinc.BlendFarm.Client
 
                 //End Sync
 
-                if (await CheckSyncFile(sess, fileid))
-                    UpdateSyncedStatus(sess, true);
-                else
-                    UpdateSyncedStatus(sess, false);
+                //if (await CheckSyncFile(sess, fileid, LastDependencyFileID))
+                //    UpdateSyncedStatus(sess, true);
+                //else
+                //    UpdateSyncedStatus(sess, false);
             }
             finally
             {
                 UpdateActivity("");
+                SetIsSyncing(false);
+                UpdateCurrentUploadID(null);
+                _taskCancelToken = null;
             }
 
             return resp;
@@ -408,7 +427,9 @@ namespace LogicReinc.BlendFarm.Client
             DependencySyncResponse resp = null;
             try
             {
+                UpdateException("");
                 UpdateActivity($"Syncing Dependencies...");
+                SetIsSyncing(true);
 
                 //Start Sync
 
@@ -424,12 +445,15 @@ namespace LogicReinc.BlendFarm.Client
                     throw new Exception(resp.Message);
                 if (resp.SameFile || string.IsNullOrEmpty(dependencyFilePath))
                 {
-                    UpdateSyncedStatus(sess, true);
+                    //UpdateSyncedStatus(sess, true);
+                    SetIsSyncing(false);
                     return resp;
                 }
 
+                UpdateCurrentUploadID(resp.UploadID);
+
                 //Transfer file
-                
+                _taskCancelToken = new CancellationTokenSource();
                 using (var depFile = File.OpenRead(dependencyFilePath))
                 {
                     byte[] buffer = new byte[1024*1024*10];
@@ -448,7 +472,9 @@ namespace LogicReinc.BlendFarm.Client
                             UploadID = resp.UploadID,
                             DataSize = bytesToSend,
                             TotalSize = depFile.Length
-                        }, CancellationToken.None);
+                        }, _taskCancelToken.Token);
+
+                        _taskCancelToken.Token.ThrowIfCancellationRequested();
 
                         offset += bytesToSend;
 
@@ -469,8 +495,7 @@ namespace LogicReinc.BlendFarm.Client
 
                 //End Sync
 
-                UpdateSyncedStatus(sess, true);
-                //if (await CheckSyncFile(sess, fileid))
+                //if (await CheckSyncFile(sess, LastFileID, dependencyFileid))
                 //    UpdateSyncedStatus(sess, true);
                 //else
                 //    UpdateSyncedStatus(sess, false);
@@ -478,6 +503,9 @@ namespace LogicReinc.BlendFarm.Client
             finally
             {
                 UpdateActivity("");
+                SetIsSyncing(false);
+                UpdateCurrentUploadID(null);
+                _taskCancelToken = null;
             }
 
             return resp;
@@ -499,7 +527,7 @@ namespace LogicReinc.BlendFarm.Client
             {
 
                 CurrentTask = req.TaskID;
-
+                UpdateException("");
                 UpdateActivity("Render Loading..");
 
                 resp = await Client.Send<RenderBatchResponse>(req, _taskCancelToken.Token);
@@ -524,7 +552,7 @@ namespace LogicReinc.BlendFarm.Client
             try
             {
                 CurrentTask = req.TaskID;
-
+                UpdateException("");
                 UpdateActivity("Render Loading..");
 
                 if (Client != null)
@@ -621,7 +649,7 @@ namespace LogicReinc.BlendFarm.Client
         /// <param name="sess">An identifier for the session</param>
         /// <param name="id">An identifier for the file(.blend)</param>
         /// <returns></returns>
-        public async Task<bool> CheckSyncFile(string sess, long id)
+        public async Task<bool> CheckSyncFile(string sess, long id, long depId)
         {
             if (Client == null)
                 throw new InvalidOperationException("Client not connected");
@@ -630,12 +658,14 @@ namespace LogicReinc.BlendFarm.Client
             var resp = await Client.Send<CheckSyncResponse>(new CheckSyncRequest()
             {
                 FileID = id,
+                DependencyFileID = depId,
                 SessionID = sess
             }, CancellationToken.None);
 
             if (resp?.Success ?? false)
             {
                 UpdateFileID(id);
+                UpdateDependencyFileID(depId);
                 UpdateSyncedStatus(sess, true);
                 return true;
             }
@@ -681,6 +711,16 @@ namespace LogicReinc.BlendFarm.Client
                 TriggerPropChange(nameof(LastFileID));
             }
         }
+        public void UpdateDependencyFileID(long id)
+        {
+            if (LastDependencyFileID != id)
+            {
+                LastDependencyFileID = id;
+                //OnFileIDChanged?.Invoke(this, id);
+                TriggerPropChange(nameof(LastDependencyFileID));
+            }
+        }
+
         public void UpdateException(string excp)
         {
             if (Exception != excp)
@@ -727,5 +767,38 @@ namespace LogicReinc.BlendFarm.Client
             foreach (string name in names)
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
+
+        private void SetIsSyncing(bool syncing)
+		{
+            IsSyncing = syncing;
+            TriggerPropChange(nameof(IsSyncing));
+		}
+
+        private async Task CancelSyncAsync(string sess)
+		{
+            if (Client == null)
+                throw new InvalidOperationException("Client not connected");
+
+            UpdateActivity("Sync Cancelled");
+            await Client.Send<CancelSyncResponse>(new CancelSyncRequest()
+            {
+                SessionID = sess,
+                UploadID = _currentUploadId
+            }, CancellationToken.None);
+        }
+
+        public void CancelSync()
+		{
+            if(IsSyncing && _taskCancelToken != null)
+			{
+                _taskCancelToken.Cancel();
+                Task.Run(() => CancelSyncAsync(SelectedSessionID));
+			}
+		}
+
+        private void UpdateCurrentUploadID(string uploadID)
+		{
+            _currentUploadId = uploadID;
+		}
     }
 }
