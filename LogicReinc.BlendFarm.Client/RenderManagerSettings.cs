@@ -11,6 +11,8 @@ namespace LogicReinc.BlendFarm.Client
     /// </summary>
     public class RenderManagerSettings
     {
+        public string FILE_NAME = "RenderDefaultSettings";
+
         /// <summary>
         /// How to render among nodes
         /// </summary>

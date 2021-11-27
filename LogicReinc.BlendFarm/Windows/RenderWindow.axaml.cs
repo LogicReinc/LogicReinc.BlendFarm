@@ -24,6 +24,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Image = Avalonia.Controls.Image;
+using System.Text.Json;
 
 namespace LogicReinc.BlendFarm.Windows
 {
@@ -1009,6 +1010,14 @@ namespace LogicReinc.BlendFarm.Windows
                 CurrentProject.LastBitmap.Save(result);
         }
 
+        public void SaveRenderSettingsAsDefaults()
+        {
+            OpenBlenderProject proj = CurrentProject;
+
+            RenderManagerSettings settings = GetSettingsFromUI(proj);
+            
+            File.WriteAllText(SystemInfo.RelativeToApplicationDirectory(settings.FILE_NAME), JsonSerializer.Serialize(settings));
+        }
 
         public void StartLiveRender()
         {

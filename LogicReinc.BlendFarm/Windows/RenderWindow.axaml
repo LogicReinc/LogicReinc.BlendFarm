@@ -291,6 +291,9 @@
                           <Button Margin="10,0,10,10" Command="{Binding SaveImage}" Background="#400083" BorderBrush="#200041">
                             Save Image
                           </Button>
+                          <Button Margin="10,0,10,10" Command="{Binding SaveRenderSettingsAsDefaults}" Background="#400083" BorderBrush="#200041">
+                            Save render settings as defaults
+                          </Button>
                         </StackPanel>
                       </TabItem>
                       <TabItem Header="Animation">
