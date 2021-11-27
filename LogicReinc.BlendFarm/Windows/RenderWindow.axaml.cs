@@ -86,6 +86,27 @@ namespace LogicReinc.BlendFarm.Windows
             BlendFile = blendfile;
             if (sessionID != null)
                 SessionID = sessionID;
+
+            //restore default settings
+
+            string path = SystemInfo.RelativeToApplicationDirectory(RenderManagerSettings.FILE_NAME);
+            if (File.Exists(path))
+            {
+                RenderManagerSettings renderManagerSettings = JsonSerializer.Deserialize<RenderManagerSettings>(File.ReadAllText(path));
+
+                FrameStart = renderManagerSettings.Frame;
+                //_selectStrategy.  = renderManagerSettings.Strategy;
+                //Order = (TaskOrder)_selectOrder?.SelectedItem;
+                RenderHeight = renderManagerSettings.OutputHeight;
+                RenderWidth = renderManagerSettings.OutputWidth;
+                //ChunkHeight = ((decimal)ChunkSize / RenderHeight);
+                //ChunkWidth = ((decimal)ChunkSize / RenderWidth);
+                Samples = renderManagerSettings.Samples;
+                FPS = (UseFPS) ? renderManagerSettings.FPS : 0;
+                Denoiser = (Denoiser == "") ? "Inherit" : renderManagerSettings.Denoiser ?? "";
+                UseWorkaround = renderManagerSettings.BlenderUpdateBugWorkaround;
+                //UseAutomaticPerformanc = renderManagerSettings.UseAutoPerformance;
+            }
         }
 
         public void SetRenderTask(RenderTask task)
@@ -1016,7 +1037,7 @@ namespace LogicReinc.BlendFarm.Windows
 
             RenderManagerSettings settings = GetSettingsFromUI(proj);
             
-            File.WriteAllText(SystemInfo.RelativeToApplicationDirectory(settings.FILE_NAME), JsonSerializer.Serialize(settings));
+            File.WriteAllText(SystemInfo.RelativeToApplicationDirectory(RenderManagerSettings.FILE_NAME), JsonSerializer.Serialize(settings));
         }
 
         public void StartLiveRender()
