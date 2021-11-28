@@ -56,7 +56,6 @@ namespace LogicReinc.BlendFarm.Windows
         public int FPS { get; set; } = 0;
         [JsonIgnore]
         private bool _useFPS = false;
-        [JsonIgnore]
         public bool UseFPS
         {
             get => _useFPS;
@@ -113,6 +112,7 @@ namespace LogicReinc.BlendFarm.Windows
                 FrameStart = defaultSettings.FrameStart;
                 FrameEnd = defaultSettings.FrameEnd;
                 FPS = defaultSettings.FPS;
+                UseFPS = defaultSettings.UseFPS;
             }
         }
 
