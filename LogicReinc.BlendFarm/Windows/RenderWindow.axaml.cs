@@ -25,15 +25,20 @@ using System.Threading;
 using System.Threading.Tasks;
 using Image = Avalonia.Controls.Image;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace LogicReinc.BlendFarm.Windows
 {
 
     public class OpenBlenderProject : INotifyPropertyChanged
     {
+        [JsonIgnore]
         public string SessionID { get; set; } = Guid.NewGuid().ToString();
+        [JsonIgnore]
         public string FileID { get; set; } = Guid.NewGuid().ToString();
+        [JsonIgnore]
         public string BlendFile { get; set; }
+        [JsonIgnore]
         public string Name => BlendFile != null ? Path.GetFileNameWithoutExtension(BlendFile) : "Unknown?";
 
         //Render Properties
@@ -49,7 +54,9 @@ namespace LogicReinc.BlendFarm.Windows
         public int FrameStart { get; set; } = 0;
         public int FrameEnd { get; set; } = 60;
         public int FPS { get; set; } = 0;
+        [JsonIgnore]
         private bool _useFPS = false;
+        [JsonIgnore]
         public bool UseFPS
         {
             get => _useFPS;
@@ -61,7 +68,9 @@ namespace LogicReinc.BlendFarm.Windows
             }
         }
 
+        [JsonIgnore]
         private Bitmap _lastBitmap = null;
+        [JsonIgnore]
         public Bitmap LastBitmap
         {
             get
@@ -74,8 +83,9 @@ namespace LogicReinc.BlendFarm.Windows
                 OnBitmapChanged?.Invoke(this, value);
             }
         }
-
+        [JsonIgnore]
         public bool IsRendering => CurrentTask != null;
+        [JsonIgnore]
         public RenderTask CurrentTask { get; private set; }
 
 
@@ -88,26 +98,25 @@ namespace LogicReinc.BlendFarm.Windows
                 SessionID = sessionID;
 
             //restore default settings
-
             string path = SystemInfo.RelativeToApplicationDirectory(RenderManagerSettings.FILE_NAME);
             if (File.Exists(path))
             {
-                RenderManagerSettings renderManagerSettings = JsonSerializer.Deserialize<RenderManagerSettings>(File.ReadAllText(path));
+                OpenBlenderProject defaultSettings = JsonSerializer.Deserialize<OpenBlenderProject>(File.ReadAllText(path));
 
-                FrameStart = renderManagerSettings.Frame;
-                //_selectStrategy.  = renderManagerSettings.Strategy;
-                //Order = (TaskOrder)_selectOrder?.SelectedItem;
-                RenderHeight = renderManagerSettings.OutputHeight;
-                RenderWidth = renderManagerSettings.OutputWidth;
-                //ChunkHeight = ((decimal)ChunkSize / RenderHeight);
-                //ChunkWidth = ((decimal)ChunkSize / RenderWidth);
-                Samples = renderManagerSettings.Samples;
-                FPS = (UseFPS) ? renderManagerSettings.FPS : 0;
-                Denoiser = (Denoiser == "") ? "Inherit" : renderManagerSettings.Denoiser ?? "";
-                UseWorkaround = renderManagerSettings.BlenderUpdateBugWorkaround;
-                //UseAutomaticPerformanc = renderManagerSettings.UseAutoPerformance;
+                RenderWidth = defaultSettings.RenderWidth;
+                RenderHeight = defaultSettings.RenderHeight;
+                ChunkSize = defaultSettings.ChunkSize;
+                Samples = defaultSettings.Samples;
+                Denoiser = defaultSettings.Denoiser;
+                UseWorkaround = defaultSettings.UseWorkaround;
+                AnimationFileFormat = defaultSettings.AnimationFileFormat;
+                FrameStart = defaultSettings.FrameStart;
+                FrameEnd = defaultSettings.FrameEnd;
+                FPS = defaultSettings.FPS;
             }
         }
+
+        public OpenBlenderProject() {}            //Kludge for restore settings(prevent Stack Overflow exeption)
 
         public void SetRenderTask(RenderTask task)
         {
@@ -1033,11 +1042,7 @@ namespace LogicReinc.BlendFarm.Windows
 
         public void SaveRenderSettingsAsDefaults()
         {
-            OpenBlenderProject proj = CurrentProject;
-
-            RenderManagerSettings settings = GetSettingsFromUI(proj);
-            
-            File.WriteAllText(SystemInfo.RelativeToApplicationDirectory(RenderManagerSettings.FILE_NAME), JsonSerializer.Serialize(settings));
+            File.WriteAllText(SystemInfo.RelativeToApplicationDirectory(RenderManagerSettings.FILE_NAME), JsonSerializer.Serialize(CurrentProject));
         }
 
         public void StartLiveRender()
