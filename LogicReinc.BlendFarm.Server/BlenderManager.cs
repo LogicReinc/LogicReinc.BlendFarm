@@ -210,7 +210,7 @@ namespace LogicReinc.BlendFarm.Server
                 }
                 Console.WriteLine($"Extracting {version.Name}...");
 
-                ZipFile.ExtractToDirectory(archivePath, GetBlenderDataPath());
+                ZipFile.ExtractToDirectory(archivePath, GetBlenderDataPath(), true);
 
                 EnsureOldDirectoryFormat(version.Name, os);
 
@@ -218,6 +218,7 @@ namespace LogicReinc.BlendFarm.Server
             }
             catch(Exception ex)
             {
+                Console.WriteLine($"Exception during extraction:" + ex.Message);
                 if (Directory.Exists(GetVersionPath(version.Name, os)))
                     Directory.Delete(GetVersionPath(version.Name, os));
                 if (File.Exists(archivePath))

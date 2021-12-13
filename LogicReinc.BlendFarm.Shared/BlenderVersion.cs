@@ -24,7 +24,7 @@ namespace LogicReinc.BlendFarm.Shared
 
         private const string VERSIONS_URL = "https://download.blender.org/release/";
         private static Regex REGEX_BLENDERVERSION = new Regex("Blender[0-9]\\.[0-9]*\\/");
-        private static Regex REGEX_BLENDERSUBVERSION = new Regex("(blender-[0-9]\\.[0-9][0-9]\\.[0-9])-(.*?)\\.(.*)");
+        private static Regex REGEX_BLENDERSUBVERSION = new Regex("(blender-[0-9]\\.[0-9][0-9]?\\.[0-9])-(.*?)\\.(.*)");
 
         private static int CACHE_DAYS = 3;
 
@@ -96,9 +96,6 @@ namespace LogicReinc.BlendFarm.Shared
                 foreach (WebIndex v in coreVersions.Where(x => REGEX_BLENDERVERSION.IsMatch(x.Name) && !x.IsFile))
                 {
                     List<WebIndex> subVersions = v.GetIndexes();
-
-                    if (v.Name == "Blender2.93/")
-                        v.Name = v.Name;
 
                     List<(WebIndex, Match)> matches = subVersions.Select(x => (x, REGEX_BLENDERSUBVERSION.Match(x.Name)))
                         .Where(x => x.Item2.Groups.Count == 4)
