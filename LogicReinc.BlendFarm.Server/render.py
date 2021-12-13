@@ -56,9 +56,12 @@ def renderWithSettings(renderSettings, id, path):
         scn.render.threads_mode = 'FIXED';
         scn.render.threads = max(cpu_count(), int(renderSettings["Cores"]));
         
-        scn.render.tile_x = int(renderSettings["TileWidth"]);
-        scn.render.tile_y = int(renderSettings["TileHeight"]);
+        if (bpy.app.version < (3,0,0)):
+            print("Blender > 3.0 doesn't support tile size, thus ignored");
+            scn.render.tile_x = int(renderSettings["TileWidth"]);
+            scn.render.tile_y = int(renderSettings["TileHeight"]);
         
+
         # Set constraints
         scn.render.use_border = True
         scn.render.use_crop_to_border = renderSettings["Crop"];

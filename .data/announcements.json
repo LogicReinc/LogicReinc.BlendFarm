@@ -1,5 +1,23 @@
 [
 	{
+		"Date": "2021-12-13",
+		"Name": "Version 1.0.8 is out!",
+		"Segments": [
+			{
+				"Type": "Text",
+				"Text": "A new version of BlendFarm is available. This version supports Blender 3.0 after API changes. It also adds requested feature of saving render settings."
+			},
+			{
+				"Type": "Image",
+				"Text": "https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/dev-1.0.8/.data/blender3.0-art.png"
+			},
+			{
+				"Type": "Button",
+				"Text": "Open Releases|https://github.com/LogicReinc/LogicReinc.BlendFarm/releases"
+			}
+		]
+	},
+	{
 		"Date": "2021-10-25",
 		"Name": "Version 1.0.7 is out!",
 		"Segments": [
