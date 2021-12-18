@@ -1,10 +1,12 @@
-﻿using LogicReinc.BlendFarm.Server;
+﻿using LogicReinc.BlendFarm.Objects;
+using LogicReinc.BlendFarm.Server;
 using LogicReinc.BlendFarm.Shared;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using static LogicReinc.BlendFarm.Windows.RenderWindow;
 
 namespace LogicReinc.BlendFarm
 {
@@ -23,6 +25,7 @@ namespace LogicReinc.BlendFarm
         /// </summary>
         public bool LocalBlendFilesRelative { get; set; } = true;
 
+        public OpenBlenderProject.UISettings UISettings { get; set; } = null;
 
         /// <summary>
         /// Determines if the application should listen for servers over udp broadcasts

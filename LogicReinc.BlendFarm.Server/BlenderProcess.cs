@@ -12,9 +12,12 @@ namespace LogicReinc.BlendFarm.Server
     public class BlenderProcess
     {
         private static Regex REGEX_Progress = new Regex("Fra:.*Time:(.*?)\\|.*?Remaining:(.*?)\\|.*?Rendered(.*?)\\/(.*?)Tiles");
+        private static Regex REGEX_Progress_3_0 = new Regex("Fra:.*Time:(.*?)\\|.*?Remaining:(.*?)\\|.*?Sample (.*?)/(.*?)$");
 
         public string CMD { get; private set; }
         public string ARG { get; private set; }
+        public string Version { get; private set; }
+
         public event Action<string> OnBlenderOutput;
 
         public Process Process { get; private set; }
@@ -32,10 +35,11 @@ namespace LogicReinc.BlendFarm.Server
         /// </summary>
         public event Action<Status> OnBlenderStatus;
 
-        public BlenderProcess(string blender, string args)
+        public BlenderProcess(string blender, string args, string version)
         {
             this.CMD = blender;
             this.ARG = args;
+            this.Version = version;
         }
 
         /// <summary>
@@ -86,7 +90,16 @@ namespace LogicReinc.BlendFarm.Server
 
             try
             {
-                Match match = REGEX_Progress.Match(line);
+                Match match;
+
+                if(Version == "blender-3.0.0")
+				{
+                    match = REGEX_Progress_3_0.Match(line);
+				}
+				else
+				{
+                    match = REGEX_Progress.Match(line);
+                }
 
                 //Handle Status
                 if (OnBlenderStatus != null && match != null && match.Success && match.Groups.Count == 5)

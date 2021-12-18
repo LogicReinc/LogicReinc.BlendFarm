@@ -31,17 +31,23 @@ def useGPU(type, gpuOnly):
     cyclesPref = bpy.context.preferences.addons["cycles"].preferences;
 
     cyclesPref.compute_device_type = type
-    cuda_devices, opencl_devices = cyclesPref.get_devices()
+    devices = cyclesPref.get_devices_for_type(type)
     print(cyclesPref.compute_device_type)
-    
-    devices = None;
-    if(type == "CUDA"):
-        devices = cuda_devices;
-    else:
-        devices = opencl_devices;
-    for d in devices:
-        d.use = (not gpuOnly) or (d.type != "CPU");
-        print(type + " Device:", d["name"], d["use"]);
+
+    #cyclesPref = bpy.context.preferences.addons["cycles"].preferences;
+    #
+    #cyclesPref.compute_device_type = type
+    #cuda_devices, opencl_devices = cyclesPref.get_devices()
+    #print(cyclesPref.compute_device_type)
+    #
+    #devices = None;
+    #if(type == "CUDA"):
+    #    devices = cuda_devices;
+    #else:
+    #    devices = opencl_devices;
+    #for d in devices:
+    #    d.use = (not gpuOnly) or (d.type != "CPU");
+    #    print(type + " Device:", d["name"], d["use"]);
 
 
 #Renders provided settings with id to path
@@ -55,10 +61,12 @@ def renderWithSettings(renderSettings, id, path):
         # Set threading
         scn.render.threads_mode = 'FIXED';
         scn.render.threads = max(cpu_count(), int(renderSettings["Cores"]));
-        
-        scn.render.tile_x = int(renderSettings["TileWidth"]);
-        scn.render.tile_y = int(renderSettings["TileHeight"]);
-        
+
+        if (bpy.app.version < (3,0,0)):
+            print("Blender > 3.0 doesn't support tile size, thus ignored");
+            scn.render.tile_x = int(renderSettings["TileWidth"]);
+            scn.render.tile_y = int(renderSettings["TileHeight"]);
+
         # Set constraints
         scn.render.use_border = True
         scn.render.use_crop_to_border = renderSettings["Crop"];
@@ -107,7 +115,6 @@ def renderWithSettings(renderSettings, id, path):
             bpy.context.scene.cycles.device = "GPU";
             print("Use OpenCL (GPU)");
         
-
         #Denoiser
         denoise = renderSettings["Denoiser"];
         if denoise is not None:
