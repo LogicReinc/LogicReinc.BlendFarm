@@ -18,31 +18,51 @@ import json
 import time
 from multiprocessing import cpu_count
 
+isPre3 = bpy.app.version < (3,0,0);
+
+if(isPre3):
+    print('Detected Blender >= 3.0.0\n');
 
 argv = sys.argv
 argv = argv[argv.index("--") + 1:]
 
 scn = bpy.context.scene
 
-
 jsonPath = argv[0];
 
 def useGPU(type, gpuOnly):
     cyclesPref = bpy.context.preferences.addons["cycles"].preferences;
-
-    cyclesPref.compute_device_type = type
-    cuda_devices, opencl_devices = cyclesPref.get_devices()
-    print(cyclesPref.compute_device_type)
     
-    devices = None;
-    if(type == "CUDA"):
-        devices = cuda_devices;
+    #For older Blender Builds
+    if (isPre3):
+        cyclesPref.compute_device_type = type
+        devs = cyclesPref.get_devices()
+        cuda_devices, opencl_devices = cyclesPref.get_devices()
+        print(cyclesPref.compute_device_type)
+        
+        devices = None;
+        if(type == "CUDA"):
+            devices = cuda_devices;
+        else:
+            devices = opencl_devices;
+        for d in devices:
+            d.use = (not gpuOnly) or (d.type != "CPU");
+            print(type + " Device:", d["name"], d["use"]);
+    #For Blender Builds >= 3.0
     else:
-        devices = opencl_devices;
-    for d in devices:
-        d.use = (not gpuOnly) or (d.type != "CPU");
-        print(type + " Device:", d["name"], d["use"]);
-
+        cyclesPref.compute_device_type = type
+        
+        print(cyclesPref.compute_device_type)
+        
+        devices = None;
+        if(type == "CUDA"):
+            devices = cyclesPref.get_devices_for_type("CUDA");
+        else:
+            devices = cyclesPref.get_devices_for_type("OPENCL");
+        print("Devices Found:", devices);
+        for d in devices:
+            d.use = (not gpuOnly) or (d.type != "CPU");
+            print(type + " Device:", d["name"], d["use"]);
 
 #Renders provided settings with id to path
 def renderWithSettings(renderSettings, id, path):
@@ -56,10 +76,11 @@ def renderWithSettings(renderSettings, id, path):
         scn.render.threads_mode = 'FIXED';
         scn.render.threads = max(cpu_count(), int(renderSettings["Cores"]));
         
-        if (bpy.app.version < (3,0,0)):
-            print("Blender > 3.0 doesn't support tile size, thus ignored");
+        if (isPre3):
             scn.render.tile_x = int(renderSettings["TileWidth"]);
             scn.render.tile_y = int(renderSettings["TileHeight"]);
+        else:
+            print("Blender > 3.0 doesn't support tile size, thus ignored");
         
 
         # Set constraints
