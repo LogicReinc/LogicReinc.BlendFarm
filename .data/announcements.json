@@ -1,5 +1,23 @@
 [
 	{
+		"Date": "2022-1-9",
+		"Name": "Version 1.0.8.1 Hotfix",
+		"Segments": [
+			{
+				"Type": "Text",
+				"Text": "Blender 3.0 changed the Cycles GPU api, v1.0.8.1 fixes GPU rendering for Blender >=3.0"
+			},
+			{
+				"Type": "Image",
+				"Text": "https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/dev-1.0.8/.data/blender3.0-art.png"
+			},
+			{
+				"Type": "Button",
+				"Text": "Open Releases|https://github.com/LogicReinc/LogicReinc.BlendFarm/releases"
+			}
+		]
+	},
+	{
 		"Date": "2021-12-13",
 		"Name": "Version 1.0.8 is out!",
 		"Segments": [
