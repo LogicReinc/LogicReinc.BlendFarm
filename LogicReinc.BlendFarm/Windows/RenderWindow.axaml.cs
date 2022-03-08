@@ -28,11 +28,6 @@ using Image = Avalonia.Controls.Image;
 
 namespace LogicReinc.BlendFarm.Windows
 {
-
-
-
-    
-
     public class RenderWindow : Window
     {
         private static DirectProperty<RenderWindow, bool> IsRenderingProperty =
@@ -70,38 +65,14 @@ namespace LogicReinc.BlendFarm.Windows
         public bool UseAutomaticPerformance { get; set; } = true;
         public bool UseSyncCompression { get; set; } = false;
 
-        /*
-        //Render Properties
-        public int RenderWidth { get; set; } = 1280;
-        public int RenderHeight { get; set; } = 720;
-        public int ChunkSize { get; set; } = 256;
-        public int Samples { get; set; } = 32;
-        public string Denoiser { get; set; } = "Inherit";
-
-        public bool UseWorkaround { get; set; } = true;
-        public bool UseAutomaticPerformance { get; set; } = true;
-        public bool UseSyncCompression { get; set; } = false;
-
-        public string AnimationFileFormat { get; set; } = "#.png";
-        public int FrameStart { get; set; } = 0;
-        public int FrameEnd { get; set; } = 60;
-        public int FPS { get; set; } = 0;
-        private bool _useFPS = false;
-        public bool UseFPS
-        {
-            get => _useFPS;
-            set
-            {
-                bool old = _useFPS;
-                _useFPS = value;
-                RaisePropertyChanged(UseFPSProperty, old, value);
-            }
-        }
-        */
-
         public OpenBlenderProject CurrentProject { get; set; } = null;
 
         public string CurrentSessionID => CurrentProject?.SessionID;
+
+        public string OS { get; set; }
+        public bool IsWindows => OS == SystemInfo.OS_WINDOWS64;
+        public bool IsLinux => OS == SystemInfo.OS_LINUX64;
+        public bool IsMacOS => OS == SystemInfo.OS_MACOS;
 
 
         //State
@@ -162,7 +133,9 @@ namespace LogicReinc.BlendFarm.Windows
         {
             Projects = new ObservableCollection<OpenBlenderProject>()
             {
-                new OpenBlenderProject("C://some/blend/dir/Example Project.blend"),
+                new OpenBlenderProject("C://some/blend/dir/Example Project.blend"){
+                    UseNetworkedPath = true
+                    },
                 new OpenBlenderProject("C://some/blend/dir/Some other project.blend"),
                 new OpenBlenderProject("C://some/blend/dir/asdf1234.blend"),
                 new OpenBlenderProject("C://some/blend/dir/testing.blend"),
@@ -207,6 +180,7 @@ namespace LogicReinc.BlendFarm.Windows
         }
         private void Init()
         {
+            OS = SystemInfo.GetOSName();
             if(Manager?.Nodes != null)
             {
                 foreach(RenderNode node in Manager.Nodes.ToList())
@@ -232,9 +206,6 @@ namespace LogicReinc.BlendFarm.Windows
             Manager?.StartFileWatch();
 
             this.InitializeComponent();
-#if DEBUG
-            //this.AttachDevTools();
-#endif
         }
 
         private void InitializeComponent()
@@ -314,6 +285,12 @@ namespace LogicReinc.BlendFarm.Windows
                 if (proj == CurrentProject)
                     await Dispatcher.UIThread.InvokeAsync(() => _image.Source = bitmap); ;
             };
+            proj.OnNetworkedChanged += async (proj, networked) =>
+            {
+                Manager.IsNetworked = networked;
+                foreach (var node in Nodes.Where(x => x.Connected))
+                    node.UpdateSyncedStatus(proj.SessionID, false);
+            };
             Projects.Add(proj);
 
             SwitchProject(proj);
@@ -349,7 +326,10 @@ namespace LogicReinc.BlendFarm.Windows
         }
         public async Task SyncAll()
         {
-            await Manager?.Sync(CurrentProject.BlendFile, UseSyncCompression);
+            if (!CurrentProject.UseNetworkedPath)
+                await Manager?.Sync(CurrentProject.BlendFile, UseSyncCompression);
+            else
+                await Manager?.Sync(CurrentProject.BlendFile, CurrentProject.NetworkPathWindows, CurrentProject.NetworkPathLinux, CurrentProject.NetworkPathMacOS);
         }
 
         public void AddNewNode()
@@ -417,8 +397,13 @@ namespace LogicReinc.BlendFarm.Windows
             //Check if any unsynced nodes
             if(!noSync && Manager.Nodes.Any(x=> x.Connected && !x.IsSessionSynced(currentProject.SessionID)))//!x.IsSynced))
             {
-                if(await YesNoNeverWindow.Show(this, "Unsynced nodes", "You have nodes that are not yet synced, would you like to sync them to use for rendering?", "syncBeforeRendering"))
-                    await Manager.Sync(CurrentProject.BlendFile, UseSyncCompression);
+                if (await YesNoNeverWindow.Show(this, "Unsynced nodes", "You have nodes that are not yet synced, would you like to sync them to use for rendering?", "syncBeforeRendering"))
+                {
+                    if (!CurrentProject.UseNetworkedPath)
+                        await Manager?.Sync(CurrentProject.BlendFile, UseSyncCompression);
+                    else
+                        await Manager?.Sync(CurrentProject.BlendFile, CurrentProject.NetworkPathWindows, CurrentProject.NetworkPathLinux, CurrentProject.NetworkPathMacOS);
+                }
             }
 
             //Start rendering thread
@@ -525,7 +510,12 @@ namespace LogicReinc.BlendFarm.Windows
             if (Manager.Nodes.Any(x => x.Connected && !x.IsSessionSynced(currentProject.SessionID)))
             {
                 if (await YesNoNeverWindow.Show(this, "Unsynced nodes", "You have nodes that are not yet synced, would you like to sync them to use for rendering?", "syncBeforeRendering"))
-                    await Manager.Sync(currentProject.BlendFile);
+                {
+                    if (!currentProject.UseNetworkedPath)
+                        await Manager.Sync(currentProject.BlendFile, UseSyncCompression);
+                    else
+                        await Manager.Sync(currentProject.BlendFile, currentProject.NetworkPathWindows, currentProject.NetworkPathLinux, currentProject.NetworkPathMacOS);
+                }
             }
 
             await Task.Run(async () =>
@@ -753,6 +743,32 @@ namespace LogicReinc.BlendFarm.Windows
             RaisePropertyChanged(IsLiveChangingProperty, true, false);
         }
 
+        public async Task SelectNetworkWindowsPath()
+        {
+            string path = await OpenFileDialog("Select Network Path for Windows nodes", "Blend file (.blend)", "blend");
+            if (path == null)
+                return;
+
+            CurrentProject?.SetWindowsNetworkPath(path);
+        }
+        public async Task SelectNetworkLinuxPath()
+        {
+            string path = await OpenFileDialog("Select Network Path for Linux nodes", "Blend file (.blend)", "blend");
+            if (path == null)
+                return;
+
+            CurrentProject?.SetLinuxNetworkPath(path);
+        }
+        public async Task SelectNetworkMacOSPath()
+        {
+            string path = await OpenFileDialog("Select Network Path for MacOS nodes", "Blend file (.blend)", "blend");
+            if (path == null)
+                return;
+
+            CurrentProject?.SetMacOSNetworkPath(path);
+        }
+
+
         //Buttons Top
         public void Github()
         {
@@ -816,6 +832,31 @@ namespace LogicReinc.BlendFarm.Windows
                 return Path.GetFullPath(outputDir);
         }
 
+        public async Task<string> OpenFileDialog(string title, string fileName, string fileExtension)
+        {
+            OpenFileDialog dialog = new OpenFileDialog()
+            {
+                Title = title,
+                AllowMultiple = false,
+                Filters = new List<FileDialogFilter>()
+                {
+                    new FileDialogFilter()
+                    {
+                        Name = fileName,
+                        Extensions = new List<string>()
+                        {
+                            fileExtension
+                        }
+                    }
+                }
+            };
+            string[] results = await dialog.ShowAsync(this);
+
+            if (results.Length == 0)
+                return null;
+            return Statics.SanitizePath(results[0]);
+        }
+
 
         //Buttons Tabs
         public void ScrollRight()
@@ -869,6 +910,7 @@ namespace LogicReinc.BlendFarm.Windows
                 ChunkHeight = ((decimal)proj.ChunkSize / proj.RenderHeight),
                 ChunkWidth = ((decimal)proj.ChunkSize / proj.RenderWidth),
                 Samples = proj.Samples,
+                UseEevee = proj.UseEevee,
                 FPS = (proj.UseFPS) ? proj.FPS : 0,
                 Denoiser = (proj.Denoiser == "Inherit") ? "" : proj.Denoiser ?? "",
                 BlenderUpdateBugWorkaround = proj.UseWorkaround,

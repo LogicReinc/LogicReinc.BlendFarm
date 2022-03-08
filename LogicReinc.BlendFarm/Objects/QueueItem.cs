@@ -96,9 +96,12 @@ namespace LogicReinc.BlendFarm.Objects
                     RefreshInfo();
                     window.RefreshCurrentProject();
 
-                    Task.FileID = manager.UpdateFileVersion(Project.BlendFile);
+                    Task.FileID = manager.UpdateFileVersion(Project.BlendFile, Project.UseNetworkedPath);
 
-                    await manager.Sync(Project.BlendFile, window.UseSyncCompression);
+                    if (!Project.UseNetworkedPath)
+                        await manager.Sync(Project.BlendFile, window.UseSyncCompression);
+                    else
+                        await manager.Sync(Project.BlendFile, Project.NetworkPathWindows, Project.NetworkPathLinux, Project.NetworkPathMacOS);
                     Thread.Sleep(500);
 
                     System.Drawing.Bitmap final = await Task.Render();
@@ -154,9 +157,12 @@ namespace LogicReinc.BlendFarm.Objects
                     Project.SetRenderTask(Task);
                     RefreshInfo();
 
-                    Task.FileID = manager.UpdateFileVersion(Project.BlendFile);
-
-                    await manager.Sync(Project.BlendFile, window.UseSyncCompression);
+                    Task.FileID = manager.UpdateFileVersion(Project.BlendFile, Project.UseNetworkedPath);
+                    
+                    if(!Project.UseNetworkedPath)
+                        await manager.Sync(Project.BlendFile, window.UseSyncCompression);
+                    else
+                        await manager.Sync(Project.BlendFile, Project.NetworkPathWindows, Project.NetworkPathLinux, Project.NetworkPathMacOS);
 
                     Thread.Sleep(500);
 

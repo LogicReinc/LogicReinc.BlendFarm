@@ -97,6 +97,61 @@ namespace LogicReinc.BlendFarm.Server
             };
         }
 
+        [BlendFarmHeader("syncNetwork")]
+        public SyncResponse Packet_SyncNetwork(SyncNetworkRequest req)
+        {
+            try
+            {
+                if (!sessions.Contains(req.SessionID))
+                    sessions.Add(req.SessionID);
+
+                SessionData session = SessionData.GetOrCreate(req.SessionID);
+
+                string uploadID = Guid.NewGuid().ToString();
+                if (req.FileID != session.FileID)
+                {
+                    session.UpdatingFile();
+
+                    string path = null;
+                    switch (SystemInfo.GetOSName())
+                    {
+                        case SystemInfo.OS_WINDOWS64:
+                            path = req.WindowsPath;
+                            break;
+                        case SystemInfo.OS_LINUX64:
+                            path = req.LinuxPath;
+                            break;
+                        case SystemInfo.OS_MACOS:
+                            path = req.MacOSPath;
+                            break;
+                        default:
+                            throw new NotImplementedException("Unknown OS");
+                    }
+                    string sessionPath = Path.Combine(Path.GetDirectoryName(path), Path.GetFileNameWithoutExtension(path) + $".{req.SessionID}.blend");
+                    if (!File.Exists(sessionPath))
+                        throw new InvalidOperationException($"File does not exist [{sessionPath}]");
+
+                    session.IsNetworked = true;
+                    session.NetworkedPath = sessionPath;
+                    session.UpdatedFile(req.FileID);
+                }
+
+                return new SyncResponse()
+                {
+                    Success = true,
+                    SameFile = req.FileID == session.FileID,
+                    UploadID = uploadID
+                };
+            }
+            catch (Exception ex)
+            {
+                return new SyncResponse()
+                {
+                    Success = false,
+                    Message = "Failed due to exception:" + ex.Message
+                };
+            }
+        }
         /// <summary>
         /// Handler sync, Starts a Sync process, registering a file upload
         /// </summary>
@@ -116,6 +171,7 @@ namespace LogicReinc.BlendFarm.Server
                     Directory.CreateDirectory(SystemInfo.RelativeToApplicationDirectory(ServerSettings.Instance.BlenderFiles));
                     _uploads.Add(uploadID, new FileUpload(session.GetBlendFilePath(), req, req.Compression));
                     session.UpdatingFile();
+                    session.IsNetworked = false;
                 }
 
                 return new SyncResponse()
@@ -129,7 +185,7 @@ namespace LogicReinc.BlendFarm.Server
             {
                 return new SyncResponse()
                 {
-                    Success = true,
+                    Success = false,
                     Message = "Failed due to exception:" + ex.Message
                 };
             }

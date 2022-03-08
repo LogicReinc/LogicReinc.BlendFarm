@@ -90,6 +90,11 @@ namespace LogicReinc.BlendFarm.Shared
         public decimal Y2 { get; set; } = 1;
 
         /// <summary>
+        /// Use Eevee instead of cycles
+        /// </summary>
+        public bool UseEevee { get; set; }
+
+        /// <summary>
         /// If render should be cropped (otherwise transparant background for non-rendered parts)
         /// </summary>
         public bool Crop { get; set; }
