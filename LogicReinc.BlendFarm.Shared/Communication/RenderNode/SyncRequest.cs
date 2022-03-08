@@ -20,6 +20,16 @@ namespace LogicReinc.BlendFarm.Shared.Communication.RenderNode
         public Compression Compression { get; set; }
     }
 
+    [BlendFarmHeader("syncNetwork")]
+    public class SyncNetworkRequest : BlendFarmMessage
+    {
+        public string SessionID { get; set; }
+        public long FileID { get; set; }
+        public string WindowsPath { get; set; }
+        public string LinuxPath { get; set; }
+        public string MacOSPath { get; set; }
+    }
+
     [BlendFarmHeader("syncResp")]
     public class SyncResponse : BlendFarmMessage
     {

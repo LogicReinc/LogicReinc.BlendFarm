@@ -315,6 +315,50 @@ namespace LogicReinc.BlendFarm.Client
 
             return resp;
         }
+
+        public async Task<SyncResponse> SyncNetworkFile(string sess, long fileid, string windowsPath, string linuxPath, string macOSPath)
+        {
+            if (Client == null)
+                throw new InvalidOperationException("Client not connected");
+            SyncResponse resp = null;
+            try
+            {
+                UpdateActivity("Syncing");
+
+                //Start Sync
+
+                //Initialize Sync
+                resp = await Client.Send<SyncResponse>(new SyncNetworkRequest()
+                {
+                    SessionID = sess,
+                    FileID = fileid,
+                    WindowsPath = windowsPath,
+                    LinuxPath = linuxPath,
+                    MacOSPath = macOSPath
+                }, CancellationToken.None);
+
+                if (!resp.Success)
+                    throw new Exception(resp.Message);
+                if (resp.SameFile)
+                {
+                    UpdateSyncedStatus(sess, true);
+                    return resp;
+                }
+
+                //End Sync
+                if (await CheckSyncFile(sess, fileid))
+                    UpdateSyncedStatus(sess, true);
+                else
+                    UpdateSyncedStatus(sess, false);
+            }
+            finally
+            {
+                UpdateActivity("");
+            }
+
+            return resp;
+        }
+
         /// <summary>
         /// Transfer blender file to node
         /// </summary>

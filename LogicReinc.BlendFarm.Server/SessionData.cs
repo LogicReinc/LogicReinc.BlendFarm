@@ -33,6 +33,15 @@ namespace LogicReinc.BlendFarm.Server
         public DateTime Updated { get; set; }
 
         /// <summary>
+        /// If blendfile is a network file
+        /// </summary>
+        public bool IsNetworked { get; set; }
+        /// <summary>
+        /// Network Path
+        /// </summary>
+        public string NetworkedPath { get; set; }
+
+        /// <summary>
         /// Delete a session and associated blend file
         /// </summary>
         public void Delete()
@@ -115,12 +124,17 @@ namespace LogicReinc.BlendFarm.Server
             if (sess.FileID == 0 || sess.Updated == DateTime.MinValue)
                 return null;
 
-            string path = sess.GetBlendFilePath();
+            string path = null;
+
+            if (!sess.IsNetworked)
+                path = sess.GetBlendFilePath();
+            else
+                path = sess.NetworkedPath;
 
             if (!File.Exists(path))
                 return null;
 
-            return sess.GetBlendFilePath();
+            return path;
         }
     }
 }
