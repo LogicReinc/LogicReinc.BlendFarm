@@ -1,6 +1,24 @@
 [
 	{
-		"Date": "2022-1-9",
+		"Date": "2022-03-09",
+		"Name": "Version 1.0.9",
+		"Segments": [
+			{
+				"Type": "Text",
+				"Text": "V1.0.9 brings support for using network shares instead of syncing, as well as limited Eevee support (Requires display due to Blender)"
+			},
+			{
+				"Type": "Image",
+				"Text": "https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/dev-1.0.9/.data/v109.JPG"
+			},
+			{
+				"Type": "Button",
+				"Text": "Open Releases|https://github.com/LogicReinc/LogicReinc.BlendFarm/releases"
+			}
+		]
+	},
+	{
+		"Date": "2022-01-09",
 		"Name": "Version 1.0.8.1 Hotfix",
 		"Segments": [
 			{
