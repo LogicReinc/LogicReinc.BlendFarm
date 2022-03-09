@@ -202,6 +202,7 @@ namespace LogicReinc.BlendFarm.Windows
             {
                 LocalServer.Stop();
                 Manager.StopFileWatch();
+                Manager.Cleanup();
             };
             Manager?.StartFileWatch();
 
