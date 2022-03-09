@@ -102,6 +102,11 @@ namespace LogicReinc.BlendFarm.Client
         public bool Syncing { get; private set; } = false;
 
         /// <summary>
+        /// If currently rendering
+        /// </summary>
+        public bool IsRendering => CurrentTask != null;
+
+        /// <summary>
         /// If file is network shared
         /// </summary>
         public bool IsNetworked { get; set; } = false;
