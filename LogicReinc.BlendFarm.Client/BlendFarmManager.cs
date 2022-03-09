@@ -32,6 +32,8 @@ namespace LogicReinc.BlendFarm.Client
         /// </summary>
         public string LocalBlendFile { get; set; }
 
+        public bool Networked { get; set; }
+
         public BlendFarmFileSession(string file, string localDir, string sessionID = null)
         {
             BlendFile = file;
@@ -145,6 +147,19 @@ namespace LogicReinc.BlendFarm.Client
             //SessionID = sessionID ?? Guid.NewGuid().ToString();
             SelectedSessionID = session.SessionID;
             UpdateFileVersion(session, false);
+        }
+
+        public void Cleanup()
+        {
+            foreach(BlendFarmFileSession session in _sessions.Values)
+            {
+                if (session.Networked)
+                {
+                    string path = SessionUtil.GetSessionNetworkPath(session.BlendFile, session.SessionID);
+                    if (File.Exists(path))
+                        File.Delete(path);
+                }
+            }
         }
 
         public string GetFileSessionID(string file)
@@ -281,15 +296,14 @@ namespace LogicReinc.BlendFarm.Client
             long oldID = session.FileID;
             FileInfo info = new FileInfo(session.BlendFile);
             session.FileID = info.LastWriteTime.Ticks;
+            session.Networked = shared;
             if (oldID != session.FileID)
             {
                 if (!shared)
                     File.Copy(session.BlendFile, session.LocalBlendFile, true);
                 else
                 {
-                    string dir = info.Directory.FullName;
-                    string newFileName = $"{Path.GetFileNameWithoutExtension(info.FullName)}.{session.SessionID}.blend";
-                    File.Copy(session.BlendFile, Path.Combine(dir, newFileName), true);
+                    File.Copy(session.BlendFile, SessionUtil.GetSessionNetworkPath(info.FullName, session.SessionID), true);
                 }
                 foreach (RenderNode node in Nodes)
                     node.UpdateSyncedStatus(session.SessionID, false);

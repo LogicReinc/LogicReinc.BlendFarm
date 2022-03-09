@@ -127,7 +127,7 @@ namespace LogicReinc.BlendFarm.Server
                         default:
                             throw new NotImplementedException("Unknown OS");
                     }
-                    string sessionPath = Path.Combine(Path.GetDirectoryName(path), Path.GetFileNameWithoutExtension(path) + $".{req.SessionID}.blend");
+                    string sessionPath = SessionUtil.GetSessionNetworkPath(path, req.SessionID);
                     if (!File.Exists(sessionPath))
                         throw new InvalidOperationException($"File does not exist [{sessionPath}]");
 
