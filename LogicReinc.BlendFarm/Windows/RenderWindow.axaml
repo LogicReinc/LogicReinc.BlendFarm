@@ -244,7 +244,7 @@
                     </StackPanel>
                   </StackPanel>
                   <StackPanel DockPanel.Dock="Bottom">
-                    <TabControl SelectedIndex="0">
+                    <TabControl SelectedIndex="3">
                       <TabItem Header="Image" Margin="10,0,0,0">
                         <StackPanel Background="#1F1F1F">
                           <StackPanel Margin="10,20,10,10">
@@ -354,6 +354,36 @@
                           <StackPanel Orientation="Horizontal">
                             <TextBlock Width="90" TextAlignment="Right" Margin="10" ToolTip.Tip="Chunksize for Chunked and SplitChunked, may be modified in certain scenarios">ChunkSize</TextBlock>
                             <NumericUpDown Width="80" Value="{Binding CurrentProject.ChunkSize}" />
+
+                            <TextBlock Width="55" TextAlignment="Right" Margin="10" ToolTip.Tip="Use Eevee instead of Cycles">
+                              Use Eevee
+                            </TextBlock>
+                            <CheckBox IsChecked="{Binding CurrentProject.UseEevee}" />
+                          </StackPanel>
+                          <StackPanel Orientation="Vertical">
+                            <StackPanel Orientation="Horizontal">
+                              <TextBlock Width="110" TextAlignment="Right" Margin="10" ToolTip.Tip="Use a network location instead of transfering over TCP (Allows for shared resources)">
+                                Use Networked Path
+                              </TextBlock>
+                              <CheckBox IsChecked="{Binding CurrentProject.UseNetworkedPath}" />
+                            </StackPanel>
+                            <StackPanel Orientation="Vertical" Background="#1A1A1A"  IsVisible="{Binding CurrentProject.UseNetworkedPath}">
+                              <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBlock Width="90" TextAlignment="Right" Margin="10">Windows Path</TextBlock>
+                                <TextBox Width="220" Text="{Binding CurrentProject.NetworkPathWindows}"></TextBox>
+                                <Button IsVisible="{Binding IsWindows}" Command="{Binding SelectNetworkWindowsPath}">...</Button>
+                              </StackPanel>
+                              <StackPanel Orientation="Horizontal" Margin="0,00,0,0">
+                                <TextBlock Width="90" TextAlignment="Right" Margin="10">Linux Path</TextBlock>
+                                <TextBox Width="220" Text="{Binding CurrentProject.NetworkPathLinux}"></TextBox>
+                                <Button IsVisible="{Binding IsLinux}" Command="{Binding SelectNetworkLinuxPath}">...</Button>
+                              </StackPanel>
+                              <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <TextBlock Width="90" TextAlignment="Right" Margin="10">MacOS Path</TextBlock>
+                                <TextBox Width="220" Text="{Binding CurrentProject.NetworkPathMacOS}"></TextBox>
+                                <Button IsVisible="{Binding IsMacOS}" Command="{Binding SelectNetworkMacOSPath}">...</Button>
+                              </StackPanel>
+                            </StackPanel>
                           </StackPanel>
                         </StackPanel>
                       </TabItem>
