@@ -16,12 +16,34 @@ namespace LogicReinc.BlendFarm.Objects
         public string BlendFile { get; set; }
         public string Name => BlendFile != null ? Path.GetFileNameWithoutExtension(BlendFile) : "Unknown?";
 
+        //Networked Path
+        private bool _useNetworkedPath = false;
+        public bool UseNetworkedPath
+        {
+            get
+            {
+                return _useNetworkedPath;
+            }
+            set
+            {
+                bool changed = _useNetworkedPath != value;
+                _useNetworkedPath = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UseNetworkedPath)));
+                if (changed)
+                    OnNetworkedChanged?.Invoke(this, value);
+            }
+        }
+        public string NetworkPathWindows { get; set; }
+        public string NetworkPathLinux { get; set; }
+        public string NetworkPathMacOS { get; set; }
+
         //Render Properties
         public int RenderWidth { get; set; } = 1280;
         public int RenderHeight { get; set; } = 720;
         public int ChunkSize { get; set; } = 256;
         public int Samples { get; set; } = 32;
         public string Denoiser { get; set; } = "Inherit";
+        public bool UseEevee { get; set; }
 
         public bool UseWorkaround { get; set; } = true;
 
@@ -60,6 +82,7 @@ namespace LogicReinc.BlendFarm.Objects
 
 
         public event Action<OpenBlenderProject, Bitmap> OnBitmapChanged;
+        public event Action<OpenBlenderProject, bool> OnNetworkedChanged;
         public event PropertyChangedEventHandler PropertyChanged;
         public OpenBlenderProject(string blendfile, string sessionID = null)
         {
@@ -85,6 +108,22 @@ namespace LogicReinc.BlendFarm.Objects
             CurrentTask = task;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentTask)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsRendering)));
+        }
+
+        public void SetWindowsNetworkPath(string path)
+        {
+            NetworkPathWindows = path;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NetworkPathWindows)));
+        }
+        public void SetLinuxNetworkPath(string path)
+        {
+            NetworkPathLinux = path;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NetworkPathLinux)));
+        }
+        public void SetMacOSNetworkPath(string path)
+        {
+            NetworkPathMacOS = path;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NetworkPathMacOS)));
         }
 
 

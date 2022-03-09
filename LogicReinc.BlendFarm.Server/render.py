@@ -145,6 +145,12 @@ def renderWithSettings(renderSettings, id, path):
         if fps is not None and fps > 0:
             scn.render.fps = fps;
 
+        if(renderSettings["UseEevee"]):
+            print("Using EEVEE");
+            scn.render.engine = "BLENDER_EEVEE";
+        else:
+            scn.render.engine = "CYCLES";
+
         # Set frame
         scn.frame_set(frame)
         

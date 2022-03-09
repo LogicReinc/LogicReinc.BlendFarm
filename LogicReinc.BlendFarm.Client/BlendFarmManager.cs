@@ -32,6 +32,8 @@ namespace LogicReinc.BlendFarm.Client
         /// </summary>
         public string LocalBlendFile { get; set; }
 
+        public bool Networked { get; set; }
+
         public BlendFarmFileSession(string file, string localDir, string sessionID = null)
         {
             BlendFile = file;
@@ -100,6 +102,17 @@ namespace LogicReinc.BlendFarm.Client
         /// If currently syncing
         /// </summary>
         public bool Syncing { get; private set; } = false;
+
+        /// <summary>
+        /// If currently rendering
+        /// </summary>
+        public bool IsRendering => CurrentTask != null;
+
+        /// <summary>
+        /// If file is network shared
+        /// </summary>
+        public bool IsNetworked { get; set; } = false;
+
         /// <summary>
         /// Current render task (null if none)
         /// </summary>
@@ -133,7 +146,20 @@ namespace LogicReinc.BlendFarm.Client
             Version = version;
             //SessionID = sessionID ?? Guid.NewGuid().ToString();
             SelectedSessionID = session.SessionID;
-            UpdateFileVersion(session);
+            UpdateFileVersion(session, false);
+        }
+
+        public void Cleanup()
+        {
+            foreach(BlendFarmFileSession session in _sessions.Values)
+            {
+                if (session.Networked)
+                {
+                    string path = SessionUtil.GetSessionNetworkPath(session.BlendFile, session.SessionID);
+                    if (File.Exists(path))
+                        File.Delete(path);
+                }
+            }
         }
 
         public string GetFileSessionID(string file)
@@ -222,6 +248,7 @@ namespace LogicReinc.BlendFarm.Client
             if (IsWatchingFile)
                 return;
             IsWatchingFile = true;
+            bool isNetworking = IsNetworked;
             new Thread(() =>
             {
                 while (IsWatchingFile)
@@ -232,18 +259,21 @@ namespace LogicReinc.BlendFarm.Client
                     {
                         try
                         {
-                            if (new FileInfo(session.BlendFile).LastWriteTime.Ticks != session.FileID)
+                            if (new FileInfo(session.BlendFile).LastWriteTime.Ticks != session.FileID || isNetworking != IsNetworked)
                             {
+                                if (isNetworking != IsNetworked)
+                                    session.FileID = -1;
+                                isNetworking = IsNetworked;
                                 if (!Syncing && (CurrentTask == null || AlwaysUpdateFile))
                                 {
-                                    UpdateFileVersion(session.BlendFile);
+                                    UpdateFileVersion(session.BlendFile, isNetworking);
                                     OnFileChanged?.Invoke(this);
                                 }
                             }
                         }
                         catch(Exception ex)
                         {
-                            //...
+                            Console.WriteLine($"File Watch exception: [{ex.GetType().Name}] {ex.Message}");
                         }
                     }
                     Thread.Sleep(WatchInterval);
@@ -261,21 +291,28 @@ namespace LogicReinc.BlendFarm.Client
         /// <summary>
         /// Updates the file version and copy it to a local directory
         /// </summary>
-        public long UpdateFileVersion(BlendFarmFileSession session)
+        public long UpdateFileVersion(BlendFarmFileSession session, bool shared)
         {
             long oldID = session.FileID;
-            session.FileID = new FileInfo(session.BlendFile).LastWriteTime.Ticks;
+            FileInfo info = new FileInfo(session.BlendFile);
+            session.FileID = info.LastWriteTime.Ticks;
+            session.Networked = shared;
             if (oldID != session.FileID)
             {
-                File.Copy(session.BlendFile, session.LocalBlendFile, true);
+                if (!shared)
+                    File.Copy(session.BlendFile, session.LocalBlendFile, true);
+                else
+                {
+                    File.Copy(session.BlendFile, SessionUtil.GetSessionNetworkPath(info.FullName, session.SessionID), true);
+                }
                 foreach (RenderNode node in Nodes)
                     node.UpdateSyncedStatus(session.SessionID, false);
             }
             return session.FileID;
         }
-        public long UpdateFileVersion(string file)
+        public long UpdateFileVersion(string file, bool shared)
         {
-            return UpdateFileVersion(GetOrCreateSession(file));
+            return UpdateFileVersion(GetOrCreateSession(file), shared);
         }
 
 
@@ -363,17 +400,55 @@ namespace LogicReinc.BlendFarm.Client
                     node.LastStatus = $"Ready";
             }).ToArray());
         }
+
         /// <summary>
-        /// Synchronize a the Blend file with all connected nodes
+        /// Synchronize the Blend file with a network path with all connected nodes
         /// </summary>
-        /// <returns></returns>
+        public async Task Sync(string localPath, string windowsPath, string linuxPath, string macOSPath)
+        {
+            try
+            {
+                BlendFarmFileSession session = GetOrCreateSession(localPath);
+
+                UpdateFileVersion(session, true);
+
+                Syncing = true;
+
+                long id = session.FileID;
+
+                await Task.WhenAll(Nodes.ToList().Select(async node =>
+                {
+                    SyncResponse resp = null;
+                    try
+                    {
+                        resp = await node.SyncNetworkFile(session.SessionID, id, windowsPath, linuxPath, macOSPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        node.UpdateException(ex.Message);
+                        return;
+                    }
+                    if (resp == null)
+                        node.LastStatus = $"Sync Failed: No version..";
+                    else
+                        node.LastStatus = $"Ready";
+                }).ToArray());
+            }
+            finally
+            {
+                Syncing = false;
+            }
+        }
+        /// <summary>
+        /// Synchronize the Blend file with all connected nodes
+        /// </summary>
         public async Task Sync(string file, bool compress = false)
         {
             try
             {
                 BlendFarmFileSession session = GetOrCreateSession(file);
 
-                UpdateFileVersion(session);
+                UpdateFileVersion(session, false);
 
                 Syncing = true;
                 //Optimize
