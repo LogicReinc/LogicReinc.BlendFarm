@@ -12,6 +12,13 @@ namespace LogicReinc.BlendFarm.Shared
         CUDA_GPUONLY = 3,
         OPENCL_GPUONLY = 4
     }
+    public enum EngineType
+    {
+        Cycles = 0,
+        Eevee = 1,
+        OptiX = 2
+    }
+
     /// <summary>
     /// Model used to transfer render settings between client and render node
     /// (SubTask => BlenderRenderSettings)
@@ -90,9 +97,9 @@ namespace LogicReinc.BlendFarm.Shared
         public decimal Y2 { get; set; } = 1;
 
         /// <summary>
-        /// Use Eevee instead of cycles
+        /// Engine to use
         /// </summary>
-        public bool UseEevee { get; set; }
+        public EngineType Engine { get; set; } = EngineType.Cycles;
 
         /// <summary>
         /// If render should be cropped (otherwise transparant background for non-rendered parts)

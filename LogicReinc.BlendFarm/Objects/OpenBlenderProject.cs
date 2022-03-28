@@ -43,7 +43,7 @@ namespace LogicReinc.BlendFarm.Objects
         public int ChunkSize { get; set; } = 256;
         public int Samples { get; set; } = 32;
         public string Denoiser { get; set; } = "Inherit";
-        public bool UseEevee { get; set; }
+        public EngineType Engine { get; set; } = EngineType.Cycles;
 
         public bool UseWorkaround { get; set; } = true;
 

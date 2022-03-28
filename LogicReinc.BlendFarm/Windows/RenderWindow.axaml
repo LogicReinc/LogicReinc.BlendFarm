@@ -223,7 +223,7 @@
 
 
                     <StackPanel Margin="0,15,0,10">
-                      <TextBlock TextAlignment="Center">New Node</TextBlock>
+                      <TextBlock TextAlignment="Left">New Node</TextBlock>
 
                       <StackPanel Orientation="Horizontal">
                         <TextBox Width="130" Watermark="Name" x:Name="inputClientName" Text="{Binding InputClientName}"></TextBox>
@@ -356,9 +356,10 @@
                             <NumericUpDown Width="80" Value="{Binding CurrentProject.ChunkSize}" />
 
                             <TextBlock Width="55" TextAlignment="Right" Margin="10" ToolTip.Tip="Use Eevee instead of Cycles">
-                              Use Eevee
+                              Engine
                             </TextBlock>
-                            <CheckBox IsChecked="{Binding CurrentProject.UseEevee}" />
+                            <ComboBox x:Name="selectRenderType" Margin="0,0,0,0" Items="{Binding EngineOptions}" SelectedItem="{Binding CurrentProject.Engine}" FontSize="15"></ComboBox>
+                            <!--<CheckBox IsChecked="{Binding CurrentProject.UseEevee}" /> -->
                           </StackPanel>
                           <StackPanel Orientation="Vertical">
                             <StackPanel Orientation="Horizontal">
