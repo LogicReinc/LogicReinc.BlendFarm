@@ -78,9 +78,10 @@ namespace LogicReinc.BlendFarm.Meta
                         if (_bitmapCache.ContainsKey(TextPart1))
                             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BitmapFromText)));
                     }
-                    catch
+                    catch(Exception ex)
                     {
-                        _bitmapCache.Add(TextPart1, null);
+                        if(!_bitmapCache.ContainsKey(TextPart1))
+                            _bitmapCache.Add(TextPart1, null);
                     }
                 });
                 return null;
