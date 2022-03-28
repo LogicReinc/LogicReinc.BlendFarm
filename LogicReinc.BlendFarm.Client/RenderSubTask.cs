@@ -110,7 +110,7 @@ namespace LogicReinc.BlendFarm.Client
                 FPS = Parent.Settings.FPS,
                 Denoiser = Parent.Settings.Denoiser,
                 TaskID = ID,
-                UseEevee = Parent.Settings.UseEevee,
+                Engine = Parent.Settings.Engine,
                 Workaround = Parent.Settings.BlenderUpdateBugWorkaround,
                 Crop = Crop || Parent.Settings.BlenderUpdateBugWorkaround
             };
