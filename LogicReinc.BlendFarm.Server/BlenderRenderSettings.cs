@@ -83,9 +83,9 @@ namespace LogicReinc.BlendFarm.Server
         public int Height { get; set; } = 1080;
 
         /// <summary>
-        /// Use Eevee instead of cycles
+        /// Engine to use
         /// </summary>
-        public bool UseEevee { get; set; }
+        public EngineType Engine { get; set; } = EngineType.Cycles;
 
         /// <summary>
         /// Crop output (discouraged)
@@ -125,7 +125,7 @@ namespace LogicReinc.BlendFarm.Server
                 Denoiser = settings.Denoiser,
                 FPS = settings.FPS,
                 Workaround = settings.Workaround,
-                UseEevee = settings.UseEevee
+                Engine = settings.Engine
             };
 
             return result;

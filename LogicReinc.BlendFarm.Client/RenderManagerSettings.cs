@@ -65,9 +65,9 @@ namespace LogicReinc.BlendFarm.Client
         public bool UseAutoPerformance { get; set; } = true;
 
         /// <summary>
-        /// Use Eevee instead of cycles
+        /// Engine to use
         /// </summary>
-        public bool UseEevee { get; set; } = false;
+        public EngineType Engine { get; set; } = EngineType.Cycles;
 
         /// <summary>
         /// A sad requirement that works around a problem in Blender.

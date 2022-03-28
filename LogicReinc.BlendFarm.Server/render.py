@@ -30,7 +30,7 @@ scn = bpy.context.scene
 
 jsonPath = argv[0];
 
-def useGPU(type, gpuOnly):
+def useDevices(type, allowGPU, allowCPU):
     cyclesPref = bpy.context.preferences.addons["cycles"].preferences;
     
     #For older Blender Builds
@@ -43,10 +43,12 @@ def useGPU(type, gpuOnly):
         devices = None;
         if(type == "CUDA"):
             devices = cuda_devices;
+        elif(type == "OPTIX"):
+            devices = cuda_devices;
         else:
             devices = opencl_devices;
         for d in devices:
-            d.use = (not gpuOnly) or (d.type != "CPU");
+            d.use = (allowCPU and d.type == "CPU") or (allowGPU and d.type != "CPU");
             print(type + " Device:", d["name"], d["use"]);
     #For Blender Builds >= 3.0
     else:
@@ -57,11 +59,13 @@ def useGPU(type, gpuOnly):
         devices = None;
         if(type == "CUDA"):
             devices = cyclesPref.get_devices_for_type("CUDA");
+        elif(type == "OPTIX"):
+            devices = cyclesPref.get_devices_for_type("OPTIX");
         else:
             devices = cyclesPref.get_devices_for_type("OPENCL");
         print("Devices Found:", devices);
         for d in devices:
-            d.use = (not gpuOnly) or (d.type != "CPU");
+            d.use = (allowCPU and d.type == "CPU") or (allowGPU and d.type != "CPU");
             print(type + " Device:", d["name"], d["use"]);
 
 #Renders provided settings with id to path
@@ -105,31 +109,40 @@ def renderWithSettings(renderSettings, id, path):
         scn.render.use_persistent_data = True;
 
         #Render Device
-        #TODO: Proper GPU
         renderType = int(renderSettings["ComputeUnit"]);
-        if renderType == 0: #CPU
-            scn.cycles.device = "CPU";
-            print("Use CPU");
-        elif renderType == 1: #Cuda
-            useGPU("CUDA", False);
-            scn.cycles.device = 'GPU';
-            bpy.context.scene.cycles.device = "GPU";
-            print("Use Cuda");
-        elif renderType == 2: #OpenCL
-            useGPU("OPENCL", False);
-            scn.cycles.device = 'GPU';
-            bpy.context.scene.cycles.device = "GPU";
-            print("Use OpenCL");
-        elif renderType == 3: #Cuda
-            useGPU("CUDA", True);
-            scn.cycles.device = 'GPU';
-            bpy.context.scene.cycles.device = "GPU";
-            print("Use Cuda (GPU)");
-        elif renderType == 4: #OpenCL
-            useGPU("OPENCL", True);
-            scn.cycles.device = 'GPU';
-            bpy.context.scene.cycles.device = "GPU";
-            print("Use OpenCL (GPU)");
+        engine = int(renderSettings["Engine"]);
+        if(engine == 2): #Optix
+            optixGPU = renderType == 1 or renderType == 3; #CUDA or CUDA_GPU_ONLY
+            optixCPU = renderType != 3; #!CUDA_CPU_ONLY
+            if(optixCPU and not optixGPU):
+                scn.cycles.device = "CPU";
+            else:
+                scn.cycles.device = "GPU";
+            useDevices("OPTIX", optixGPU, optixCPU);
+        else: #Cycles/Eevee
+            if renderType == 0: #CPU
+                scn.cycles.device = "CPU";
+                print("Use CPU");
+            elif renderType == 1: #Cuda
+                useDevices("CUDA", True, True);
+                scn.cycles.device = 'GPU';
+                bpy.context.scene.cycles.device = "GPU";
+                print("Use Cuda");
+            elif renderType == 2: #OpenCL
+                useDevices("OPENCL", True, True);
+                scn.cycles.device = 'GPU';
+                bpy.context.scene.cycles.device = "GPU";
+                print("Use OpenCL");
+            elif renderType == 3: #Cuda (GPU Only)
+                useDevices("CUDA", True, False);
+                scn.cycles.device = 'GPU';
+                bpy.context.scene.cycles.device = "GPU";
+                print("Use Cuda (GPU)");
+            elif renderType == 4: #OpenCL (GPU Only)
+                useDevices("OPENCL", True, False);
+                scn.cycles.device = 'GPU';
+                bpy.context.scene.cycles.device = "GPU";
+                print("Use OpenCL (GPU)");
         
 
         #Denoiser
@@ -145,7 +158,7 @@ def renderWithSettings(renderSettings, id, path):
         if fps is not None and fps > 0:
             scn.render.fps = fps;
 
-        if(renderSettings["UseEevee"]):
+        if(engine == 1): #Eevee
             print("Using EEVEE");
             scn.render.engine = "BLENDER_EEVEE";
         else:
