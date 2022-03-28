@@ -355,7 +355,7 @@
                             <TextBlock Width="90" TextAlignment="Right" Margin="10" ToolTip.Tip="Chunksize for Chunked and SplitChunked, may be modified in certain scenarios">ChunkSize</TextBlock>
                             <NumericUpDown Width="80" Value="{Binding CurrentProject.ChunkSize}" />
 
-                            <TextBlock Width="55" TextAlignment="Right" Margin="10" ToolTip.Tip="Use Eevee instead of Cycles">
+                            <TextBlock Width="55" TextAlignment="Right" Margin="10" ToolTip.Tip="Which engine to use. Optix will adhere to CUDA settings. Otherwise CPU is used.">
                               Engine
                             </TextBlock>
                             <ComboBox x:Name="selectRenderType" Margin="0,0,0,0" Items="{Binding EngineOptions}" SelectedItem="{Binding CurrentProject.Engine}" FontSize="15"></ComboBox>
