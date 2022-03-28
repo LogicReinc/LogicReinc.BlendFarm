@@ -12,6 +12,7 @@ namespace LogicReinc.BlendFarm.Server
     public class BlenderProcess
     {
         private static Regex REGEX_Progress = new Regex("Fra:.*Time:(.*?)\\|.*?Remaining:(.*?)\\|.*?Rendered(.*?)\\/(.*?)Tiles");
+        private static Regex REGEX_Progress2 = new Regex("Fra:.*Time:(.*?)\\|.*?Remaining:(.*?)\\|.*?Sample(.*?)\\/([0-9]*)");
 
         public string CMD { get; private set; }
         public string ARG { get; private set; }
@@ -87,6 +88,8 @@ namespace LogicReinc.BlendFarm.Server
             try
             {
                 Match match = REGEX_Progress.Match(line);
+                if(match == null || !match.Success || match.Groups.Count != 5)
+                    match = REGEX_Progress2.Match(line);
 
                 //Handle Status
                 if (OnBlenderStatus != null && match != null && match.Success && match.Groups.Count == 5)

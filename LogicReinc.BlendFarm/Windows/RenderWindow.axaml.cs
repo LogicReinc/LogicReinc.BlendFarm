@@ -93,6 +93,7 @@ namespace LogicReinc.BlendFarm.Windows
 
         //Options
         protected string[] DenoiserOptions { get; } = new string[] { "Inherit", "None", "NLM", "OPTIX", "OPENIMAGEDENOISE" };
+        protected EngineType[] EngineOptions { get; } = (EngineType[])Enum.GetValues(typeof(EngineType));
 
         //Dialogs
         private string _lastAnimationDirectory = null;
@@ -911,7 +912,7 @@ namespace LogicReinc.BlendFarm.Windows
                 ChunkHeight = ((decimal)proj.ChunkSize / proj.RenderHeight),
                 ChunkWidth = ((decimal)proj.ChunkSize / proj.RenderWidth),
                 Samples = proj.Samples,
-                UseEevee = proj.UseEevee,
+                Engine = proj.Engine,
                 FPS = (proj.UseFPS) ? proj.FPS : 0,
                 Denoiser = (proj.Denoiser == "Inherit") ? "" : proj.Denoiser ?? "",
                 BlenderUpdateBugWorkaround = proj.UseWorkaround,
