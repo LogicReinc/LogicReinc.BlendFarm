@@ -19,7 +19,7 @@ While a network renderer is not perfect and does have some overhead. With 2 iden
 Watch the video below for an overview:
 
 [![Demonstration Video](https://img.youtube.com/vi/J5fYMfi6Nb0/0.jpg)](https://www.youtube.com/watch?v=J5fYMfi6Nb0)
- * **Distributed Rendering** - Duh, Network renderer. Support both CPU and GPU (CUDA/OPENCL, OPTIX planned when I obtain Ampere)
+ * **Distributed Rendering** - Duh, Network renderer. Support both CPU and GPU (CUDA/OPENCL/OPTIX)
  * **Stand-alone client** - Automatically updates when your .blend updates, doesn't slow Blender
  * **Headless server** - Easy deployment with a single executable
  * **Blender Versions** - Automatically downloads the right version of Blender
@@ -56,8 +56,6 @@ Quite some time went into getting this up. If you enjoy the software, please con
 https://patreon.com/LogicReinc
 
 If you like to donate crypto:
-
-Bitcoin: 3FidXvMfvqusmXzKroCLZ2gUE1YMNVVHoz
 
 Ethereum: 0xd2C3BCCc981d359e037457f0CdB9d48fdc289Feb
 
@@ -187,7 +185,10 @@ ___
  - blender-2.91.2-macOS
  - blender-2.92.5-windows64
  - blender-2.93.5-linux64
- 
+ - blender-3.0.0-windows64
+ - blender-3.0.0-linux64
+ - blender-3.1.0-windows64
+ - blender-3.1.0-linux64
 ___
 
 # FAQ
