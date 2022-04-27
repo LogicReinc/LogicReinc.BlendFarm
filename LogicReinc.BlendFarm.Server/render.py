@@ -28,7 +28,12 @@ argv = argv[argv.index("--") + 1:]
 
 scn = bpy.context.scene
 
-jsonPath = argv[0];
+jsonPathInitial = argv[0];
+useContinue = len(argv) > 1 and argv[1] == 'True';
+
+if(useContinue):
+    print('Continuation enabled\n');
+    
 
 def useDevices(type, allowGPU, allowCPU):
     cyclesPref = bpy.context.preferences.addons["cycles"].preferences;
@@ -181,10 +186,7 @@ def renderWithSettings(renderSettings, id, path):
 
 
 
-
-
-#Main
-try:
+def runBatch(jsonPath):
     print("Json Path:" + jsonPath + "\n");
 
     # Load Json
@@ -226,5 +228,28 @@ try:
 
     print("BATCH_COMPLETE\n");
 
+#Main
+
+try:
+    newJsonPath = jsonPathInitial;
+    count = 0;
+    while newJsonPath.strip():
+        if(count > 0):
+            print("Continue count: " + str(count));
+
+        runBatch(newJsonPath);
+        newJsonPath = "";
+        
+        if(useContinue):
+            print("AWAITING CONTINUE:\n");
+            newInput = input("");
+            newInput = newInput.strip();
+            print("Received:" + newInput + "\n");
+            if(newInput):
+                newJsonPath = newInput;
+                count = count + 1;
+            else:
+                break;
+        
 except Exception as e:
     print("EXCEPTION:" + str(e));

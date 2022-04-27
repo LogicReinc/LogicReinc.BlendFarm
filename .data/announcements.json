@@ -1,5 +1,27 @@
 [
 	{
+		"Date": "2022-04-27",
+		"Name": "Version 1.1.1 is out! Animation performance improvements",
+		"Segments": [
+			{
+				"Type": "Text",
+				"Text": "V1.1.1 Improves the speed at which multiple renders of the same file are rendered. Depending on the file this can be speed increase 20% for tasks such as animation."
+			},
+			{
+				"Type": "Image",
+				"Text": "https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/dev-1.1.1/.data/blender3.1-art.JPG"
+			},
+			{
+				"Type": "Text",
+				"Text": "Next month will likely be a rewrite of some internal systems including more output supports."
+			},
+			{
+				"Type": "Button",
+				"Text": "Open Releases|https://github.com/LogicReinc/LogicReinc.BlendFarm/releases"
+			}
+		]
+	},
+	{
 		"Date": "2022-03-28",
 		"Name": "Version 1.1.0 is out! OptiX and progress fix",
 		"Segments": [

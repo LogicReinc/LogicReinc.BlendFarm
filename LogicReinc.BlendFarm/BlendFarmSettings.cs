@@ -28,6 +28,10 @@ namespace LogicReinc.BlendFarm
 
         public OpenBlenderProject.UISettings UISettings { get; set; } = null;
 
+        /// <summary>
+        /// Previously used version
+        /// </summary>
+        public string LastVersion { get; set; }
 
         /// <summary>
         /// Previously used blend files

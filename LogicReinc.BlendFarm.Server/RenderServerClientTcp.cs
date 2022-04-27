@@ -359,38 +359,49 @@ namespace LogicReinc.BlendFarm.Server
                 List<string> exceptions = new List<string>();
 
                 //Render
+                Action<BlenderProcess.Status> onStatus = (status) =>
+                {
+                    if (DateTime.Now.Subtract(lastUpdate).TotalMilliseconds > UPDATE_TIMING_MS)
+                    {
+                        lastUpdate = DateTime.Now;
+                        SendPacket(new RenderInfoResponse()
+                        {
+                            TaskID = req.TaskID,
+                            TilesFinished = status.TilesFinish,
+                            TilesTotal = status.TilesTotal,
+                            Time = status.Time,
+                            TimeRemaining = status.TimeRemaining
+                        });
+                    }
+                };
+                Action<string> onCompletion = (taskID) =>
+                {
+                    BlenderRenderSettings settings = batch.FirstOrDefault(x => x.TaskID == taskID);
+                    if (settings != null)
+                    {
+                        SendPacket(new RenderBatchResult()
+                        {
+                            Data = File.ReadAllBytes(settings.Output),
+                            Success = true,
+                            TaskID = settings.TaskID
+                        });
+                    }
+                };
+                Action<string> onException = (excp) => exceptions.Add(excp);
+
                 List<string> files = _blender.RenderBatch(req.Version, filePath, batch,
+                    req.FileID,
                     (process) =>
                     {
-                        process.OnBlenderStatus += (status)=>
-                        {
-                            if (DateTime.Now.Subtract(lastUpdate).TotalMilliseconds > UPDATE_TIMING_MS)
-                            {
-                                lastUpdate = DateTime.Now;
-                                SendPacket(new RenderInfoResponse()
-                                {
-                                    TaskID = req.TaskID,
-                                    TilesFinished = status.TilesFinish,
-                                    TilesTotal = status.TilesTotal,
-                                    Time = status.Time,
-                                    TimeRemaining = status.TimeRemaining
-                                });
-                            }
-                        };
-                        process.OnBlenderCompleteTask += (taskID) =>
-                        {
-                            BlenderRenderSettings settings = batch.FirstOrDefault(x => x.TaskID == taskID);
-                            if (settings != null)
-                            {
-                                SendPacket(new RenderBatchResult()
-                                {
-                                    Data = File.ReadAllBytes(settings.Output),
-                                    Success = true,
-                                    TaskID = settings.TaskID
-                                });
-                            }
-                        };
-                        process.OnBlenderException += (excp) => exceptions.Add(excp);
+                        process.OnBlenderStatus += onStatus;
+                        process.OnBlenderCompleteTask += onCompletion;
+                        process.OnBlenderException += onException;
+                    },
+                    (process)=>
+                    {
+                        process.OnBlenderStatus -= onStatus;
+                        process.OnBlenderCompleteTask -= onCompletion;
+                        process.OnBlenderException -= onException;
                     });
 
                 //Handle Result
@@ -487,26 +498,34 @@ namespace LogicReinc.BlendFarm.Server
                 List<string> exceptions = new List<string>();
 
                 //Render
+                Action<BlenderProcess.Status> onStatus = (status) =>
+                {
+                    if (DateTime.Now.Subtract(lastUpdate).TotalMilliseconds > UPDATE_TIMING_MS)
+                    {
+                        lastUpdate = DateTime.Now;
+                        SendPacket(new RenderInfoResponse()
+                        {
+                            TaskID = req.TaskID,
+                            TilesFinished = status.TilesFinish,
+                            TilesTotal = status.TilesTotal,
+                            Time = status.Time,
+                            TimeRemaining = status.TimeRemaining
+                        });
+                    }
+                };
+                Action<string> onException = (excp) => exceptions.Add(excp);
                 string file = _blender.Render(req.Version, filePath, 
                     BlenderRenderSettings.FromRenderSettings(req.Settings), 
+                    req.FileID,
                     (process)=>
                     {
-                        process.OnBlenderStatus += (state) =>
-                        {
-                            if (DateTime.Now.Subtract(lastUpdate).TotalMilliseconds > UPDATE_TIMING_MS)
-                            {
-                                lastUpdate = DateTime.Now;
-                                SendPacket(new RenderInfoResponse()
-                                {
-                                    TaskID = req.TaskID,
-                                    TilesFinished = state.TilesFinish,
-                                    TilesTotal = state.TilesTotal,
-                                    Time = state.Time,
-                                    TimeRemaining = state.TimeRemaining
-                                });
-                            }
-                        };
-                        process.OnBlenderException += (excp) => exceptions.Add(excp);
+                        process.OnBlenderStatus += onStatus;
+                        process.OnBlenderException += onException;
+                    },
+                    (process)=>
+                    {
+                        process.OnBlenderStatus -= onStatus;
+                        process.OnBlenderException -= onException;
                     });
 
                 //Handle Result
