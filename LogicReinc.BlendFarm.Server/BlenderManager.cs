@@ -21,7 +21,7 @@ namespace LogicReinc.BlendFarm.Server
     {
         private static string _scripts = null;
         public const int CONTINUE_TIMEOUT = 60000;
-        public const bool USE_CONTINUATION = false;
+        public const bool USE_CONTINUATION = true;
 
         private object _renderLock = new object();
 
