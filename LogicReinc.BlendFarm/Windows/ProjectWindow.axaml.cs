@@ -191,7 +191,14 @@ This may have to do with the port being in use. Note that to discover other pcs 
                     600, 250);
             }
             comboVersions.Items = versions;
-            comboVersions.SelectedIndex = 0;
+            int selectedIndex = 0;
+            if (!string.IsNullOrEmpty(BlendFarmSettings.Instance.LastVersion))
+            {
+                BlenderVersion lastVersion = versions.FirstOrDefault(x => x.Name == BlendFarmSettings.Instance.LastVersion);
+                if (lastVersion != null)
+                    selectedIndex = versions.IndexOf(lastVersion);
+            }
+            comboVersions.SelectedIndex = selectedIndex;
         }
         public async void ShowCustomWizard()
         {
@@ -264,6 +271,7 @@ This may have to do with the port being in use. Note that to discover other pcs 
                 Path = file,
                 Date = DateTime.Now
             });
+            BlendFarmSettings.Instance.LastVersion = version.Name;
             BlendFarmSettings.Instance.History = BlendFarmSettings.Instance.History.OrderByDescending(x => x.Date).Take(10).ToList();
             BlendFarmSettings.Instance.Save();
 
