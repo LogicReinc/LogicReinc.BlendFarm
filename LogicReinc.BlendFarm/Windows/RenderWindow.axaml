@@ -244,7 +244,7 @@
                     </StackPanel>
                   </StackPanel>
                   <StackPanel DockPanel.Dock="Bottom">
-                    <TabControl SelectedIndex="3">
+                    <TabControl SelectedIndex="0">
                       <TabItem Header="Image" Margin="10,0,0,0">
                         <StackPanel Background="#1F1F1F">
                           <StackPanel Margin="10,20,10,10">

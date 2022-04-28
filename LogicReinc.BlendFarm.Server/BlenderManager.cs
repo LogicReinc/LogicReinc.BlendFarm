@@ -20,6 +20,10 @@ namespace LogicReinc.BlendFarm.Server
     public class BlenderManager
     {
         private static string _scripts = null;
+        public const int CONTINUE_TIMEOUT = 60000;
+        public const bool USE_CONTINUATION = true;
+
+        private object _renderLock = new object();
 
         public BlenderProcess RenderProcess { get; private set; }
         public string RenderSession { get; private set; }
@@ -374,11 +378,23 @@ namespace LogicReinc.BlendFarm.Server
         /// <summary>
         /// Renders a batch of render settings in a single Blender instance.
         /// </summary>
-        public List<string> RenderBatch(string version, string file, BlenderRenderSettings[] batch, Action<BlenderProcess> beforeStart = null)
+        public List<string> RenderBatch(string version, string file, BlenderRenderSettings[] batch, long fileId = -1, Action<BlenderProcess> beforeStart = null, Action<BlenderProcess> beforeEnd = null)
         {
-            if (Busy)
-                throw new InvalidOperationException("Currently already rendering");
-            Busy = true;
+            lock (_renderLock)
+            {
+                if (Busy)
+                    throw new InvalidOperationException("Currently already rendering");
+                Busy = true;
+            }
+
+            //Does an ongoing render process match Blender, File, and File version
+            if(RenderProcess != null && RenderProcess.Active && RenderProcess.IsContinueing && 
+                (version != RenderProcess.Version || file != RenderProcess.File || RenderProcess.FileID != fileId))
+            {
+                Console.WriteLine("Old continueing RenderProcess, cancelling..");
+                RenderProcess.Cancel();
+                RenderProcess = null;
+            }
 
             try
             {
@@ -406,21 +422,39 @@ namespace LogicReinc.BlendFarm.Server
                     if (SystemInfo.IsOS(SystemInfo.OS_MACOS))
                         cmd = $"{blenderDir}/Contents/MacOS/Blender";
 
-                    string arg = $"--factory-startup -noaudio -b \"{Path.GetFullPath(file)}\" -P \"{GetRenderScriptPath()}\" -- \"{path}\"";
+                    string arg = $"--factory-startup -noaudio -b \"{Path.GetFullPath(file)}\" -P \"{GetRenderScriptPath()}\" -- \"{path}\" {USE_CONTINUATION}";
+
+                    //If an continueing process is ongoing, continue instead.
+                    if (RenderProcess == null || !RenderProcess.Active || !RenderProcess.IsContinueing)
+                    {
+                        RenderProcess = new BlenderProcess(cmd, arg, version, file, fileId);
 
 
-                    RenderProcess = new BlenderProcess(cmd, arg);
-                    if (beforeStart != null)
-                        beforeStart(RenderProcess);
+                        if (beforeStart != null)
+                            beforeStart(RenderProcess);
+                        RenderProcess.Run();
+                        if (beforeEnd != null)
+                            beforeEnd(RenderProcess);
+                    }
+                    else
+                    {
+                        if (beforeStart != null)
+                            beforeStart(RenderProcess);
+                        RenderProcess.Continue(path);
+                        if (beforeEnd != null)
+                            beforeEnd(RenderProcess);
+                    }
 
-                    RenderProcess.Run();
                 });
                 return batch.Select(x => x.Output).ToList();
             }
             finally
             {
-                RenderSession = null;
-                RenderProcess = null;
+                if (!USE_CONTINUATION || !RenderProcess.Active)
+                {
+                    RenderSession = null;
+                    RenderProcess = null;
+                }
                 Busy = false;
             }
         }
@@ -495,9 +529,9 @@ namespace LogicReinc.BlendFarm.Server
         /// <summary>
         /// Render a single render settings (calls batch underneath with single entry)
         /// </summary>
-        public string Render(string version, string file, BlenderRenderSettings settings, Action<BlenderProcess> beforeStart = null)
+        public string Render(string version, string file, BlenderRenderSettings settings, long fileId = -1, Action<BlenderProcess> beforeStart = null, Action<BlenderProcess> beforeEnd = null)
         {
-            return RenderBatch(version, file, new[] { settings }, beforeStart).FirstOrDefault();
+            return RenderBatch(version, file, new[] { settings }, fileId, beforeStart, beforeEnd).FirstOrDefault();
         }
 
         /// <summary>
@@ -579,5 +613,6 @@ namespace LogicReinc.BlendFarm.Server
                 CopyRecursive(subInfo.FullName, Path.Combine(dest, subInfo.Name));
             }
         }
+
     }
 }
