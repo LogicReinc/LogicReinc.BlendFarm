@@ -446,7 +446,7 @@ namespace LogicReinc.BlendFarm.Server
                     }
 
                 });
-                return batch.Select(x => x.Output).ToList();
+                return batch.Select(x => FindOutput(x.Output)).Where(x=>x != null).ToList();
             }
             finally
             {
@@ -519,8 +519,6 @@ namespace LogicReinc.BlendFarm.Server
                     settings.Output = outputPath;
 
                 settings.Output = Path.GetFullPath(outputPath);
-                if (string.IsNullOrEmpty(Path.GetExtension(settings.Output)))
-                    settings.Output += ".png";
             }
         }
 
@@ -614,5 +612,14 @@ namespace LogicReinc.BlendFarm.Server
             }
         }
 
+
+        internal static string FindOutput(string output)
+        {
+            string dir = Path.GetDirectoryName(output);
+            output = Path.GetFileName(output);
+
+            FileInfo[] filesInDir = new DirectoryInfo(dir).GetFiles();
+            return filesInDir.FirstOrDefault(x => Path.GetFileNameWithoutExtension(x.Name) == output)?.FullName;
+        }
     }
 }

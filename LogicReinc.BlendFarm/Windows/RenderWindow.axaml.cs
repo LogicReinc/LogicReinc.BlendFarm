@@ -8,6 +8,8 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using LogicReinc.BlendFarm.Client;
+using LogicReinc.BlendFarm.Client.ImageTypes;
+using LogicReinc.BlendFarm.Client.Tasks;
 using LogicReinc.BlendFarm.Objects;
 using LogicReinc.BlendFarm.Server;
 using LogicReinc.BlendFarm.Shared;
@@ -95,6 +97,8 @@ namespace LogicReinc.BlendFarm.Windows
         protected string[] DenoiserOptions { get; } = new string[] { "Inherit", "None", "NLM", "OPTIX", "OPENIMAGEDENOISE" };
         protected EngineType[] EngineOptions { get; } = (EngineType[])Enum.GetValues(typeof(EngineType));
 
+        protected string[] ImageFormats { get; } = Client.ImageTypes.ImageFormats.Formats;
+
         //Dialogs
         private string _lastAnimationDirectory = null;
 
@@ -111,6 +115,8 @@ namespace LogicReinc.BlendFarm.Windows
         private TextBlock _lastRenderTime = null;
         private ComboBox _selectStrategy = null;
         private ComboBox _selectOrder = null;
+        private ComboBox _selectOutputType = null;
+        private TextBox _inputAnimationFileFormat = null;
 
 
         //Debug data
@@ -147,11 +153,11 @@ namespace LogicReinc.BlendFarm.Windows
                 {
 
                 }){
-                        Task = new RenderTask(null, null, null, 0)
+                        Task = new ChunkedTask(null, null, null, 0)
                         {
                             Progress = 0.43
                         }
-                    },
+                },
                 new QueueItem(this, new OpenBlenderProject("C://whatever/asdfdsag.blend"), new RenderManagerSettings()
                 {
 
@@ -207,6 +213,7 @@ namespace LogicReinc.BlendFarm.Windows
             };
             Manager?.StartFileWatch();
 
+
             this.InitializeComponent();
         }
 
@@ -228,6 +235,8 @@ namespace LogicReinc.BlendFarm.Windows
             _lastRenderTime = this.Find<TextBlock>("lastRenderTime");
             _selectStrategy = this.Find<ComboBox>("selectStrategy");
             _selectOrder = this.Find<ComboBox>("selectOrder");
+            _selectOutputType = this.Find<ComboBox>("selectOutputType");
+            _inputAnimationFileFormat = this.Find<TextBox>("inputAnimationFileFormat");
 
             _selectStrategy.Items = Enum.GetValues(typeof(RenderStrategy));
             _selectStrategy.SelectedIndex = 0;
@@ -238,9 +247,25 @@ namespace LogicReinc.BlendFarm.Windows
             {
                 if (b.Key == Avalonia.Input.Key.Delete)
                 {
-                    CurrentProject.LastBitmap = new System.Drawing.Bitmap(1, 1).ToAvaloniaBitmap();
+                    CurrentProject.LastImage = new System.Drawing.Bitmap(1, 1).ToAvaloniaBitmap();
                     RefreshCurrentProject();
                     _lastRenderTime.Text = "";
+                }
+            };
+
+            _selectOutputType.SelectionChanged += (s, e) =>
+            {
+                string selected = _selectOutputType.SelectedItem?.ToString();
+                string fileExtension = Client.ImageTypes.ImageFormats.GetExtension(selected);
+                if(fileExtension != null)
+                {
+                    if(CurrentProject.AnimationFileFormat != null && 
+                        Client.ImageTypes.ImageFormats.Extensions.Any(ext=>CurrentProject.AnimationFileFormat.ToLower().EndsWith("." + ext.ToLower())))
+                    {
+                        CurrentProject.AnimationFileFormat = CurrentProject.AnimationFileFormat.Substring(0,
+                            CurrentProject.AnimationFileFormat.LastIndexOf(".")) + "." + fileExtension;
+                        CurrentProject.TriggerPropertyChange(nameof(CurrentProject.AnimationFileFormat));
+                    }
                 }
             };
         }
@@ -314,7 +339,7 @@ namespace LogicReinc.BlendFarm.Windows
                 RaisePropertyChanged(CanTabScrollLeftProperty, !CanTabScrollLeft, CanTabScrollLeft);
                 RaisePropertyChanged(CanTabScrollRightProperty, !CanTabScrollRight, CanTabScrollRight);
 
-                _image.Source = proj.LastBitmap;
+                _image.Source = proj.LastImage;
             });
         }
 
@@ -418,12 +443,12 @@ namespace LogicReinc.BlendFarm.Windows
 
 
                     //Create Task
-                    currentProject.SetRenderTask(Manager.GetRenderTask(CurrentProject.BlendFile, GetSettingsFromUI(), async (task, updated) =>
+                    currentProject.SetRenderTask(Manager.GetImageTask(CurrentProject.BlendFile, GetSettingsFromUI(), async (task, updated) =>
                     {
                         //Apply image to canvas
                         await Dispatcher.UIThread.InvokeAsync(() =>
                         {
-                            currentProject.LastBitmap = updated.ToAvaloniaBitmap();
+                            currentProject.LastImage = updated.ToAvaloniaBitmap();
                             if(CurrentProject == currentProject)
                                 RaisePropertyChanged(CurrentProjectProperty, null, CurrentProject);
 
@@ -445,18 +470,19 @@ namespace LogicReinc.BlendFarm.Windows
                     await Dispatcher.UIThread.InvokeAsync(() => RaisePropertyChanged(IsRenderingProperty, false, true));
 
                     //Render
-                    var finalBitmap = await currentProject.CurrentTask.Render();
+                    await currentProject.CurrentTask.Render();
+                    var finalImage = ((currentProject.CurrentTask is IImageTask) ? (IImageTask)currentProject.CurrentTask : null)?.FinalImage;
 
                     //Finalize
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        if (finalBitmap != null)
+                        if (finalImage != null)
                         {
-                            currentProject.LastBitmap = finalBitmap.ToAvaloniaBitmap();
+                            currentProject.LastImage = finalImage.ToAvaloniaBitmap();
                             if(currentProject == CurrentProject)
                                 RaisePropertyChanged(CurrentProjectProperty, null, CurrentProject);
 
-                            finalBitmap.Save("lastRender.png");
+                            finalImage.Save("lastRender.png");
                         }
                         _lastRenderTime.Text = watch.Elapsed.ToString();
                         this._imageProgress.IsVisible = false;
@@ -529,13 +555,13 @@ namespace LogicReinc.BlendFarm.Windows
 
 
                     //Create Task
-                    currentProject.SetRenderTask(Manager.GetRenderTask(currentProject.BlendFile, GetSettingsFromUI(), null, async (task, frame) =>
+                    currentProject.SetRenderTask(Manager.GetAnimationTask(currentProject.BlendFile, currentProject.FrameStart, currentProject.FrameEnd, GetSettingsFromUI(), async (task, frame) =>
                     {
                         string filePath = Path.Combine(outputDir, animationFileFormat.Replace("#", task.Frame.ToString()));
 
                         try
                         {
-                            frame.Save(filePath);
+                            File.WriteAllBytes(filePath, frame.Image);
                         }
                         catch (Exception ex)
                         {
@@ -548,11 +574,15 @@ namespace LogicReinc.BlendFarm.Windows
                         {
                             try
                             {
-                                currentProject.LastBitmap = new Bitmap(filePath);
+                                using (System.Drawing.Image img = ImageConverter.Convert(frame.Image, task.Parent.Settings.RenderFormat))
+                                {
+                                    if (img != null)
+                                        currentProject.LastImage = img.ToAvaloniaBitmap();
+                                    else
+                                        currentProject.LastImage = Statics.NoPreviewImage;
+                                }
                                 if (currentProject == CurrentProject)
                                     RaisePropertyChanged(CurrentProjectProperty, null, CurrentProject);
-                                //_lastBitmap = new Bitmap(filePath);
-                                //_image.Source = _lastBitmap;
                             }
                             catch (Exception ex)
                             {
@@ -575,7 +605,7 @@ namespace LogicReinc.BlendFarm.Windows
                     await Dispatcher.UIThread.InvokeAsync(() => RaisePropertyChanged(IsRenderingProperty, false, true));
 
                     //Render
-                    var success = await currentProject.CurrentTask.RenderAnimation(currentProject.FrameStart, currentProject.FrameEnd);
+                    var success = await currentProject.CurrentTask.Render();
                     if (success)
                         _ = MessageWindow.ShowOnUIThread(this, "Animation Rendered", $"Frames {currentProject.FrameStart} to {currentProject.FrameEnd} rendered.\nLocated at {outputDir}.");
 
@@ -700,7 +730,10 @@ namespace LogicReinc.BlendFarm.Windows
 
             string saveTo = await OpenFolderDialog("Directory to save frames to");
 
-            QueueItem item = new QueueItem(this, proj, settings, saveTo, proj.FrameEnd - proj.FrameStart);
+            QueueItem item = new QueueItem(this, proj, settings, saveTo, (proj.FrameEnd - proj.FrameStart) + 1)
+            {
+                FrameFormat = proj.AnimationFileFormat
+            };
 
             lock (Queue)
                 Queue.Add(item);
@@ -722,8 +755,8 @@ namespace LogicReinc.BlendFarm.Windows
         public async Task SaveImage()
         {
             string result = await OpenSaveFileDialog("Save current BlendFarm render", "render.png");
-            if (result != null && CurrentProject.LastBitmap != null)
-                CurrentProject.LastBitmap.Save(result);
+            if (result != null && CurrentProject.LastImage != null)
+                CurrentProject.LastImage.Save(result);
         }
 
 
@@ -913,6 +946,7 @@ namespace LogicReinc.BlendFarm.Windows
                 ChunkWidth = ((decimal)proj.ChunkSize / proj.RenderWidth),
                 Samples = proj.Samples,
                 Engine = proj.Engine,
+                RenderFormat = proj.RenderFormat,
                 FPS = (proj.UseFPS) ? proj.FPS : 0,
                 Denoiser = (proj.Denoiser == "Inherit") ? "" : proj.Denoiser ?? "",
                 BlenderUpdateBugWorkaround = proj.UseWorkaround,

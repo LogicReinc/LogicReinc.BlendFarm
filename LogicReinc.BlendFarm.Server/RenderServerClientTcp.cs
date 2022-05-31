@@ -379,9 +379,11 @@ namespace LogicReinc.BlendFarm.Server
                     BlenderRenderSettings settings = batch.FirstOrDefault(x => x.TaskID == taskID);
                     if (settings != null)
                     {
+                        string output = BlenderManager.FindOutput(settings.Output);
+
                         SendPacket(new RenderBatchResult()
                         {
-                            Data = File.ReadAllBytes(settings.Output),
+                            Data = File.ReadAllBytes(output),
                             Success = true,
                             TaskID = settings.TaskID
                         });

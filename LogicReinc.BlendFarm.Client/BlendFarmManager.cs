@@ -1,4 +1,5 @@
-﻿using LogicReinc.BlendFarm.Shared;
+﻿using LogicReinc.BlendFarm.Client.Tasks;
+using LogicReinc.BlendFarm.Shared;
 using LogicReinc.BlendFarm.Shared.Communication.RenderNode;
 using System;
 using System.Collections.Generic;
@@ -518,15 +519,26 @@ namespace LogicReinc.BlendFarm.Client
         /// <summary>
         /// Creates a RenderTask for the currently connected nodes, not yet executed
         /// </summary>
-        public RenderTask GetRenderTask(string file, RenderManagerSettings settings = null, Action<RenderSubTask, Bitmap> onResultUpdated = null, Action<RenderSubTask, Bitmap> onTileReceived = null)
+        public RenderTask GetImageTask(string file, RenderManagerSettings settings = null, Action<RenderSubTask, Image> onResultUpdated = null, Action<RenderSubTask, Image> onTileReceived = null)
         {
             BlendFarmFileSession session = GetOrCreateSession(file);
-            CurrentTask = new RenderTask(Nodes.ToList(), session.SessionID, Version, session.FileID, settings);
+            CurrentTask = RenderTask.GetImageRenderTask(Nodes.ToList(), session.SessionID, Version, session.FileID, settings);
 
             if (onResultUpdated != null)
                 CurrentTask.OnResultUpdated += onResultUpdated;
             if (onTileReceived != null)
                 CurrentTask.OnTileProcessed += onTileReceived;
+
+            return CurrentTask;
+        }
+
+        public RenderTask GetAnimationTask(string file, int start, int end,RenderManagerSettings settings = null, Action<RenderSubTask, SubTaskResult> onResult = null)
+        {
+            BlendFarmFileSession session = GetOrCreateSession(file);
+            CurrentTask = new AnimationTask(Nodes.ToList(), session.SessionID, Version, session.FileID, start, end, settings);
+
+            if (onResult != null)
+                ((AnimationTask)CurrentTask).OnFrameResult += onResult;
 
             return CurrentTask;
         }
@@ -546,15 +558,19 @@ namespace LogicReinc.BlendFarm.Client
         /// <summary>
         /// Render with provided settings on connected prepared nodes
         /// </summary>
-        public async Task<Bitmap> Render(string file, RenderManagerSettings settings = null, Action<RenderSubTask, Bitmap> onResultUpdated = null, Action<RenderSubTask, Bitmap> onTileReceived = null)
+        public async Task<Image> Render(string file, RenderManagerSettings settings = null, Action<RenderSubTask, Image> onResultUpdated = null, Action<RenderSubTask, Image> onTileReceived = null)
         {
             if (CurrentTask != null)
                 throw new InvalidOperationException("Already rendering..");
             try
             {
-                CurrentTask = GetRenderTask(file, settings, onResultUpdated, onTileReceived);
+                CurrentTask = GetImageTask(file, settings, onResultUpdated, onTileReceived);
 
-                return await CurrentTask.Render();
+                await CurrentTask.Render();
+
+                Image bitmap = ((CurrentTask is IImageTask) ? (IImageTask)CurrentTask : null)?.FinalImage;
+
+                return bitmap;
             }
             finally
             {

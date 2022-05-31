@@ -19,6 +19,12 @@ namespace LogicReinc.BlendFarm.Shared
         OptiX = 2
     }
 
+    public enum FormatType
+    {
+        Default = 0,
+
+    }
+
     /// <summary>
     /// Model used to transfer render settings between client and render node
     /// (SubTask => BlenderRenderSettings)
@@ -100,6 +106,11 @@ namespace LogicReinc.BlendFarm.Shared
         /// Engine to use
         /// </summary>
         public EngineType Engine { get; set; } = EngineType.Cycles;
+
+        /// <summary>
+        /// Format to render to
+        /// </summary>
+        public string RenderFormat { get; set; } = "";
 
         /// <summary>
         /// If render should be cropped (otherwise transparant background for non-rendered parts)
