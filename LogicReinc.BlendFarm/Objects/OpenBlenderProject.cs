@@ -44,6 +44,7 @@ namespace LogicReinc.BlendFarm.Objects
         public int Samples { get; set; } = 32;
         public string Denoiser { get; set; } = "Inherit";
         public EngineType Engine { get; set; } = EngineType.Cycles;
+        public string RenderFormat { get; set; } = "PNG";
 
         public bool UseWorkaround { get; set; } = true;
 
@@ -63,16 +64,16 @@ namespace LogicReinc.BlendFarm.Objects
             }
         }
 
-        private Bitmap _lastBitmap = null;
-        public Bitmap LastBitmap
+        private Bitmap _lastImage = null;
+        public Bitmap LastImage
         {
             get
             {
-                return _lastBitmap;
+                return _lastImage;
             }
             set
             {
-                _lastBitmap = value;
+                _lastImage = value;
                 OnBitmapChanged?.Invoke(this, value);
             }
         }
@@ -156,6 +157,11 @@ namespace LogicReinc.BlendFarm.Objects
             BlendFarmSettings.Instance.Save();
         }
 
+
+        internal void TriggerPropertyChange(string prop)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
+        }
 
         public class UISettings
         {

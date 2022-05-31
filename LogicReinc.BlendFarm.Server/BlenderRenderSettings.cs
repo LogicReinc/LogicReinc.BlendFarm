@@ -88,6 +88,12 @@ namespace LogicReinc.BlendFarm.Server
         public EngineType Engine { get; set; } = EngineType.Cycles;
 
         /// <summary>
+        /// Format to render to
+        /// </summary>
+        public string RenderFormat { get; set; } = "";
+
+
+        /// <summary>
         /// Crop output (discouraged)
         /// </summary>
         public bool Crop { get; set; }
@@ -125,7 +131,8 @@ namespace LogicReinc.BlendFarm.Server
                 Denoiser = settings.Denoiser,
                 FPS = settings.FPS,
                 Workaround = settings.Workaround,
-                Engine = settings.Engine
+                Engine = settings.Engine,
+                RenderFormat = settings.RenderFormat
             };
 
             return result;

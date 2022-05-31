@@ -1,4 +1,6 @@
 ﻿using LogicReinc.BlendFarm.Client;
+using LogicReinc.BlendFarm.Client.ImageTypes;
+using LogicReinc.BlendFarm.Client.Tasks;
 using LogicReinc.BlendFarm.Shared.Communication.RenderNode;
 using System;
 using System.Collections.Concurrent;
@@ -17,7 +19,7 @@ namespace LogicReinc.BlendFarm.Shared
     /// <summary>
     /// Describes a render task for a specific blender version and blend file
     /// </summary>
-    public class RenderTask : INotifyPropertyChanged
+    public abstract class RenderTask : INotifyPropertyChanged
     {
         /// <summary>
         /// Used to identify the task
@@ -51,11 +53,11 @@ namespace LogicReinc.BlendFarm.Shared
         /// <summary>
         /// Event whenever a tile has finished rendering
         /// </summary>
-        public event Action<RenderSubTask, Bitmap> OnTileProcessed;
+        public event Action<RenderSubTask, Image> OnTileProcessed;
         /// <summary>
         /// Event whenever the result bitmap is changed
         /// </summary>
-        public event Action<RenderSubTask, Bitmap> OnResultUpdated;
+        public event Action<RenderSubTask, Image> OnResultUpdated;
         /// <summary>
         /// Event whenever progress is made
         /// </summary>
@@ -74,7 +76,7 @@ namespace LogicReinc.BlendFarm.Shared
         /// </summary>
         public bool Cancelled { get; set; }
 
-        private List<RenderNode> _usedNodes = new List<RenderNode>();
+        protected List<RenderNode> _usedNodes = new List<RenderNode>();
 
         public RenderTask(List<RenderNode> nodes, string session, string version, long fileId, RenderManagerSettings settings = null)
         {
@@ -87,426 +89,49 @@ namespace LogicReinc.BlendFarm.Shared
             FileID = fileId;
         }
 
-        /// <summary>
-        /// Execute task and render the image on valid nodes
-        /// </summary>
-        public async Task<Bitmap> Render()
+
+        public async Task<bool> Render()
         {
             if (Consumed)
                 throw new InvalidOperationException("Already started render..");
             Consumed = true;
 
-            try
+            List<RenderNode> pool = Nodes.Where(x => x.Connected).ToList();
+            List<RenderNode> validNodes = new List<RenderNode>();
+
+            await Task.WhenAll(pool.Select(async x =>
             {
-                List<RenderNode> pool = Nodes.Where(x => x.Connected).ToList();
-                List<RenderNode> validNodes = new List<RenderNode>();
+                bool hasVersion = await x.CheckVersion(Version);
+                if (!hasVersion)
+                    return;
 
-                await Task.WhenAll(pool.Select(async x =>
+                bool hasFile = await x.CheckSyncFile(SessionID, FileID);
+                if (!hasFile)
+                    return;
+
+                bool isBusy = await x.IsBusy();
+                if (isBusy)
+                    return;
+
+                lock (validNodes)
                 {
-                    bool hasVersion = await x.CheckVersion(Version);
-                    if (!hasVersion)
-                        return;
-
-                    bool hasFile = await x.CheckSyncFile(SessionID, FileID);
-                    if (!hasFile)
-                        return;
-
-                    bool isBusy = await x.IsBusy();
-                    if (isBusy)
-                        return;
-
-                    lock (validNodes)
-                    {
-                        validNodes.Add(x);
-                    }
-                }));
-
-                if (validNodes.Count == 0)
-                    throw new InvalidOperationException("No ready nodes available");
-                _usedNodes = validNodes;
-
-                foreach (RenderNode useNode in _usedNodes)
-                    useNode.UpdateException("");
-
-                Bitmap result = null;
-
-                Action<RenderSubTask> onSubTaskFinished = (task) =>
-                {
-                    Progress += task.Value;
-                    TriggerPropUpdate(nameof(Progress));
-                    OnProgress?.Invoke(this, Progress);
-                };
-                Progress = 0;
-
-                switch (Settings.Strategy)
-                {
-                    case RenderStrategy.Chunked:
-                        result = await RenderChunked(validNodes, onSubTaskFinished);
-                        break;
-                    case RenderStrategy.SplitHorizontal:
-                        result = await RenderSplit(validNodes, onSubTaskFinished, false);
-                        break;
-                    case RenderStrategy.SplitVertical:
-                        result = await RenderSplit(validNodes, onSubTaskFinished, true);
-                        break;
-                    case RenderStrategy.SplitChunked:
-                        result = await RenderSplitChunked(validNodes, onSubTaskFinished);
-                        break;
+                    validNodes.Add(x);
                 }
+            }));
 
-                return result;
-            }
-            catch(Exception ex)
-            {
-                throw;
-            }
-            finally
-            {
+            if (validNodes.Count == 0)
+                throw new InvalidOperationException("No ready nodes available");
+            _usedNodes = validNodes;
 
-            }
+            foreach (RenderNode useNode in _usedNodes)
+                useNode.UpdateException("");
+
+            bool result = await Execute();
+
+            return result;
         }
+        protected abstract Task<bool> Execute();
 
-        public async Task<bool> RenderAnimation(int start, int end)
-        {
-            if (Consumed)
-                throw new InvalidOperationException("Already started render..");
-            Consumed = true;
-            try
-            {
-                List<RenderNode> pool = Nodes.Where(x => x.Connected).ToList();
-                List<RenderNode> validNodes = new List<RenderNode>();
-
-                await Task.WhenAll(pool.Select(async x =>
-                {
-                    bool hasVersion = await x.CheckVersion(Version);
-                    if (!hasVersion)
-                        return;
-
-                    bool hasFile = await x.CheckSyncFile(SessionID, FileID);
-                    if (!hasFile)
-                        return;
-
-                    bool isBusy = await x.IsBusy();
-                    if (isBusy)
-                        return;
-
-                    lock (validNodes)
-                    {
-                        validNodes.Add(x);
-                    }
-                }));
-
-                if (validNodes.Count == 0)
-                    throw new InvalidOperationException("No ready nodes available");
-                _usedNodes = validNodes;
-
-                foreach (RenderNode useNode in _usedNodes)
-                    useNode.UpdateException("");
-
-                int framesFinished = 0;
-                int framesTotal = end - start + 1;
-
-                Action<RenderSubTask> onSubTaskFinished = (task) =>
-                {
-                    framesFinished++;
-                    Progress = (double)framesFinished / framesTotal;
-                    TriggerPropUpdate(nameof(Progress));
-                    OnProgress?.Invoke(this, Progress);
-                };
-                Progress = 0;
-
-                //StartRenderSplit
-
-                object drawLock = new object();
-                Bitmap result = new Bitmap(Settings.OutputWidth, Settings.OutputHeight);
-                Graphics g = Graphics.FromImage(result);
-
-
-                ConcurrentQueue<RenderSubTask> queue = new ConcurrentQueue<RenderSubTask>();
-                for(int i = start; i <= end; i++)
-                    queue.Enqueue(new RenderSubTask(this, 0, 1, 0, 1, i));
-
-
-                int finished = 0;
-                List<string> exceptions = new List<string>();
-                return await Task.Run(() =>
-                {
-                    ForceParallel(validNodes, (node) =>
-                    {
-                        string lastException = null;
-
-                        while (queue.Count > 0)
-                        {
-                            RenderSubTask task = null;
-                            if (!queue.TryDequeue(out task))
-                                continue;
-                            SubTaskResult taskPart = null;
-                            try
-                            {
-                                taskPart = ExecuteSubTask(node, task);
-
-                                if (taskPart.Image == null)
-                                    throw new Exception(taskPart.Exception?.Message ?? "Unknown Remote Exception");
-
-                                ProcessTile(task, (Bitmap)taskPart.Image, ref g, ref result, ref drawLock);
-
-                                onSubTaskFinished?.Invoke(task);
-
-                                finished++;
-                            }
-                            catch (TaskCanceledException ex)
-                            {
-                                if (Cancelled)
-                                    return;
-                            }
-                            catch (Exception ex)
-                            {
-                                if (task != null)
-                                    queue.Enqueue(task);
-                                node.UpdateException($"Render fail: {ex.Message}");
-                                exceptions.Add(ex.Message);
-                                return;
-                            }
-                            if (taskPart.Exception != null)
-                            {
-                                node.UpdateException(taskPart.Exception.Message);
-                                lastException = taskPart.Exception.Message;
-                                Thread.Sleep(1000);
-                                continue;
-                            }
-                        }
-                    });
-
-                    if (finished != (end-start) + 1)
-                        throw new AggregateException($"Not all frames rendered ({finished}/{(end-start) + 1})", exceptions.Select(x => new Exception(x)));
-
-                    return true;
-                });
-            }
-            catch (Exception ex)
-            {
-                throw;
-            }
-            finally
-            {
-                //Consumed = false;
-            }
-        }
-
-
-        //Strategies
-        /// <summary>
-        /// Renders file with Settings in maximum chunks based on Cores and Performance
-        /// eg. 3 valid nodes of equal performance will render a single part on each node with a 0.33 ratio
-        /// </summary>
-        private async Task<Bitmap> RenderSplit(List<RenderNode> validNodes, Action<RenderSubTask> onSubTaskFinished = null, bool isVertical = false)
-        {
-            object drawLock = new object();
-            Bitmap result = new Bitmap(Settings.OutputWidth, Settings.OutputHeight);
-            Graphics g = Graphics.FromImage(result);
-
-            Dictionary<RenderNode, RenderSubTask> assignment = GetSplitSubTasks(validNodes, isVertical);
-
-            int finished = 0;
-            List<string> exceptions = new List<string>();
-            return await Task.Run(() =>
-            {
-                ForceParallel(validNodes, (node) =>
-                {
-                    RenderSubTask task = assignment[node];
-                    if (task == null)
-                        return;
-
-                    string lastException = null;
-                    bool rendered = false;
-                    for (int i = 0; i < 3; i++)
-                    {
-                        if (Cancelled)
-                            return;
-
-                        SubTaskResult taskPart = null;
-                        try
-                        {
-                            taskPart = ExecuteSubTask(node, task);
-                        }
-                        catch(TaskCanceledException ex)
-                        {
-                            if (Cancelled)
-                                return;
-                        }
-                        catch (Exception ex)
-                        {
-                            node.UpdateException($"[{i + 1}/3] " + ex.Message);
-                            lastException = ex.Message;
-                            Thread.Sleep(1000);
-                            continue;
-                        }
-                        if (taskPart.Exception != null)
-                        {
-                            node.UpdateException($"[{i+1}/3] " + taskPart.Exception.Message);
-                            lastException = taskPart.Exception.Message;
-                            Thread.Sleep(1000);
-                            continue;
-                        }
-
-                        Image part = taskPart.Image;
-
-                        ProcessTile(task, (Bitmap)part, ref g, ref result, ref drawLock);
-
-                        onSubTaskFinished?.Invoke(task);
-                        finished++;
-                        rendered = true;
-                        return;
-                    }
-                    if (!rendered && lastException != null)
-                        exceptions.Add(lastException);
-                });
-
-                if (finished != validNodes.Count)
-                    throw new AggregateException("Not all tiles rendered", exceptions.Select(x => new Exception(x)));
-
-                return result;
-            });
-        }
-        /// <summary>
-        /// Renders file with Settings in pre-defined chunksizes. Each chunk will be rendered independently without batching
-        /// Very slow due to blender being initialized for every chunk. But tasks are consumed optimally
-        /// Benefits from live update as tiles finish they are send back to client
-        /// </summary>
-        private async Task<Bitmap> RenderChunked(List<RenderNode> validNodes, Action<RenderSubTask> onSubTaskFinished = null)
-        {
-            object drawLock = new object();
-            Bitmap result = new Bitmap(Settings.OutputWidth, Settings.OutputHeight);
-            Graphics g = Graphics.FromImage(result);
-
-
-            List<RenderSubTask> tasks = GetChunkedSubTasks();
-            ConcurrentQueue<RenderSubTask> queue = GetTaskQueueInOrder(tasks, Settings.Order);
-
-            List<string> exceptions = new List<string>();
-
-            //Force parallelization
-            return await Task.Run(() =>
-            {
-                ForceParallel(validNodes, (node) =>
-                {
-                    int errorCount = 0;
-                    while (queue.Count > 0)
-                    {
-                        RenderSubTask task = null;
-                        if (!queue.TryDequeue(out task))
-                            continue;
-                        try
-                        {
-                            SubTaskResult taskResult = ExecuteSubTask(node, task);
-
-                            ProcessTile(task, (Bitmap)taskResult.Image, ref g, ref result, ref drawLock);
-
-                            onSubTaskFinished?.Invoke(task);
-                        }
-                        catch(Exception ex)
-                        {
-                            errorCount++;
-                            if (task != null)
-                                queue.Enqueue(task);
-                            node.UpdateException($"Render fail [{errorCount+1}/3]: {ex.Message}");
-                            exceptions.Add(ex.Message);
-                            if (errorCount > 2)
-                                return;
-                        }
-                    }
-                });
-
-                if (queue.Count > 0)
-                    throw new AggregateException("Not all tiles rendered", exceptions.Select(x=>new Exception(x)));
-
-                if (g != null)
-                    g.Dispose();
-
-                return result;
-            });
-        }
-        /// <summary>
-        /// Renders file with Settings in pre-defined chunksizes. Chunks will be assigned based on Cores and Performance.
-        /// Renders relatively quick but some overhead, will render using a single blender instance.
-        /// Benefits from live update as tiles finish they are send back to the client
-        /// eg. 3 valid nodes of equal performance with chunk size of about 10%
-        /// Each node will get x chunks of 10% fitting in 33% of the image.
-        /// </summary>
-        private async Task<Bitmap> RenderSplitChunked(List<RenderNode> validNodes, Action<RenderSubTask> onSubTaskFinished = null)
-        {
-            object drawLock = new object();
-            Bitmap result = new Bitmap(Settings.OutputWidth, Settings.OutputHeight);
-            Graphics g = Graphics.FromImage(result);
-
-            Dictionary<RenderNode, decimal> shares = GetRelativePerformance(validNodes);
-
-            List<RenderSubTask> tasks = GetChunkedSubTasks();
-
-            ConcurrentQueue<RenderSubTask> queue = GetTaskQueueInOrder(tasks, Settings.Order);
-
-            Dictionary<RenderNode, List<RenderSubTask>> assignment = validNodes.ToDictionary(x => x, y => new List<RenderSubTask>());
-
-            //Divide Tasks
-            //Assume every core has the same performance..
-            while(queue.Count > 0)
-            {
-                RenderSubTask nextTask = null;
-                queue.TryDequeue(out nextTask); //Single threaded, always true
-
-                RenderNode nextNode = validNodes.OrderBy(node =>
-                {
-                    int nrTiles = assignment[node].Count;
-                    return nrTiles * (1 / shares[node]);
-                }).FirstOrDefault();
-                assignment[nextNode].Add(nextTask);
-            }
-
-            //Run tasks over all rendernodes
-            return await Task.Run(() =>
-            {
-                ForceParallel(validNodes, (node) =>
-                {
-                    List<RenderSubTask> nodeTasks = assignment[node];
-                    if (nodeTasks.Count == 0)
-                        return;
-
-                    try
-                    {
-                        SubTaskBatchResult resp = ExecuteSubTasks(node, (rsbt, rbr) =>
-                        {
-
-                            Image bitmap = null;
-                            using (MemoryStream str = new MemoryStream(rbr.Data))
-                                bitmap = Bitmap.FromStream(str);
-
-                            ProcessTile(rsbt, (Bitmap)bitmap, ref g, ref result, ref drawLock);
-
-                            onSubTaskFinished?.Invoke(rsbt);
-                        }, assignment[node].ToArray());
-                        if (resp?.Exception != null)
-                            node.UpdateException(resp.Exception.Message);
-                    }
-                    catch(TaskCanceledException ex)
-                    {
-                        node.UpdateException("Cancalled");
-                        return;
-                    }
-                    catch(AggregateException ex)
-                    {
-                        node.UpdateException(string.Join(", ", ex.InnerExceptions.Select(x => x.Message)));
-                    }
-                    catch(Exception ex)
-                    {
-                        node.UpdateException(ex.Message);
-                    }
-                });
-
-                if (g != null)
-                    g.Dispose();
-                return result;
-            });
-        }
 
         /// <summary>
         /// Determines device performance based on past renders or default
@@ -559,7 +184,7 @@ namespace LogicReinc.BlendFarm.Shared
         /// </summary>
         private Dictionary<RenderNode, RenderSubTask> GetSplitSubTasks(List<RenderNode> validNodes, bool isVertical = false, decimal overlap = 0.01m)
         {
-            Dictionary<RenderNode, decimal> shares =  GetRelativePerformance(validNodes);
+            Dictionary<RenderNode, decimal> shares = GetRelativePerformance(validNodes);
 
             Dictionary<RenderNode, RenderSubTask> tasks = new Dictionary<RenderNode, RenderSubTask>();
             decimal offsetX = 0;
@@ -579,7 +204,7 @@ namespace LogicReinc.BlendFarm.Shared
                     endX = Math.Min(1, endX + overlap);
                 }
 
-                if(!isVertical)
+                if (!isVertical)
                     tasks.Add(node, new RenderSubTask(this, startX, endX, 0, 1, Settings.Frame));
                 else
                     tasks.Add(node, new RenderSubTask(this, 0, 1, startX, endX, Settings.Frame));
@@ -593,7 +218,7 @@ namespace LogicReinc.BlendFarm.Shared
         /// <summary>
         /// Splits up file into subtasks based on Settings.ChunkWidth/Height
         /// </summary>
-        private List<RenderSubTask> GetChunkedSubTasks(decimal overlap = 0.003m)
+        protected List<RenderSubTask> GetChunkedSubTasks(decimal overlap = 0.003m)
         {
             decimal blockSizeX = Settings.ChunkWidth;
             decimal blockSizeY = Settings.ChunkHeight;
@@ -647,7 +272,7 @@ namespace LogicReinc.BlendFarm.Shared
         /// <summary>
         /// Creates a queue from a list of subtasks based on the provided order (eg. Center)
         /// </summary>
-        private ConcurrentQueue<RenderSubTask> GetTaskQueueInOrder(List<RenderSubTask> queue, TaskOrder order)
+        protected ConcurrentQueue<RenderSubTask> GetTaskQueueInOrder(List<RenderSubTask> queue, TaskOrder order)
         {
             List<RenderSubTask> newOrder = new List<RenderSubTask>();
 
@@ -679,17 +304,62 @@ namespace LogicReinc.BlendFarm.Shared
 
 
         //Execution
+        protected async Task HandleQueueAsync(RenderNode[] nodes, RenderSubTask[] tasks, Action<RenderSubTask, SubTaskResult> onFinished, Action<RenderNode, RenderSubTask, Exception> onException)
+        {
+            await Task.Run(() => HandleQueue(nodes, tasks, onFinished, onException));
+        }
+        protected void HandleQueue(RenderNode[] nodes, RenderSubTask[] tasks, Action<RenderSubTask, SubTaskResult> onFinished, Action<RenderNode, RenderSubTask, Exception> onException)
+        {
+            ConcurrentQueue<RenderSubTask> subtasks = new ConcurrentQueue<RenderSubTask>(tasks);
+
+            ForceParallel(nodes, (node) =>
+            {
+                while (subtasks.Count > 0 && !Cancelled)
+                {
+                    RenderSubTask task = null;
+                    if (!subtasks.TryDequeue(out task))
+                        continue;
+                    SubTaskResult taskPart = null;
+                    try
+                    {
+                        taskPart = ExecuteSubTask(node, task);
+
+                        if (taskPart.Image == null)
+                            throw new Exception(taskPart.Exception?.Message ?? "Unknown Remote Exception");
+
+                        //ProcessTile(task, (Bitmap)taskPart.Image, ref g, ref result, ref drawLock);
+
+                        onFinished(task, taskPart);
+                    }
+                    catch (TaskCanceledException ex)
+                    {
+                        if (Cancelled)
+                            return;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (task != null)
+                            subtasks.Enqueue(task);
+                        node.UpdateException($"Render fail: {ex.Message}");
+                        onException(node, task, ex);
+                        return;
+                    }
+                }
+            });
+
+        }
+
         /// <summary>
         /// Blocking executes a batch of subtasks on node (calls async underneath)
         /// </summary>
-        private SubTaskBatchResult ExecuteSubTasks(RenderNode node, Action<RenderSubTask, RenderBatchResult> onResult, params RenderSubTask[] tasks)
+        protected SubTaskBatchResult ExecuteSubTasks(RenderNode node, Action<RenderSubTask, RenderBatchResult> onResult, params RenderSubTask[] tasks)
         {
             return  ExecuteSubTasksAsync(node, onResult, tasks).GetAwaiter().GetResult();
         }
         /// <summary>
         /// Async executes a batch of subtasks on node
         /// </summary>
-        private async Task<SubTaskBatchResult> ExecuteSubTasksAsync(RenderNode node, Action<RenderSubTask, RenderBatchResult> onResult, params RenderSubTask[] tasks)
+        protected async Task<SubTaskBatchResult> ExecuteSubTasksAsync(RenderNode node, Action<RenderSubTask, RenderBatchResult> onResult, params RenderSubTask[] tasks)
         {
             List<RenderRequest> reqs = tasks.Select(x => x.GetRenderRequest()).ToList();
 
@@ -739,18 +409,18 @@ namespace LogicReinc.BlendFarm.Shared
         /// <summary>
         /// Blocking executes a subtask on node (calls async underneath)
         /// </summary>
-        private SubTaskResult ExecuteSubTask(RenderNode node, RenderSubTask task)
+        protected SubTaskResult ExecuteSubTask(RenderNode node, RenderSubTask task)
         {
             return ExecuteSubTaskAsync(node, task).GetAwaiter().GetResult();
         }
         /// <summary>
         /// Async executes a subtask on node
         /// </summary>
-        private async Task<SubTaskResult> ExecuteSubTaskAsync(RenderNode node, RenderSubTask task)
+        protected async Task<SubTaskResult> ExecuteSubTaskAsync(RenderNode node, RenderSubTask task)
         {
             RenderRequest req = task.GetRenderRequest();
 
-            Image bitmap = null;
+            byte[] result = null;
 
             Stopwatch time = new Stopwatch();
             time.Start();
@@ -772,8 +442,8 @@ namespace LogicReinc.BlendFarm.Shared
                 node.UpdatePerformance((int)((req.Settings.Height * (req.Settings.Y2 - req.Settings.Y)) * (req.Settings.Width * (req.Settings.X2 - req.Settings.X))), 
                     (int)time.ElapsedMilliseconds);
 
-                using (MemoryStream str = new MemoryStream(resp.Data))
-                    bitmap = Bitmap.FromStream(str);
+                result = resp.Data;
+
                 resp = null;
             }
             finally
@@ -781,12 +451,20 @@ namespace LogicReinc.BlendFarm.Shared
                 time.Stop();
             }
 
-            return new SubTaskResult(bitmap);
+            return new SubTaskResult(result);
+        }
+
+        protected void ProcessTile(RenderSubTask task, SubTaskResult tresult, ref Graphics g, ref Bitmap result, ref object drawLock, bool dontDraw = false)
+        {
+            using(Image img = ImageConverter.Convert(tresult.Image, task.Parent.Settings.RenderFormat))
+            {
+                ProcessTile(task, img, ref g, ref result, ref drawLock, dontDraw);
+            }
         }
         /// <summary>
         /// Handles an incoming tile and trigger the events as well as drawing the tile to an image/graphics
         /// </summary>
-        private void ProcessTile(RenderSubTask task, Bitmap part, ref Graphics g, ref Bitmap result, ref object drawLock, bool dontDraw = false)
+        protected void ProcessTile(RenderSubTask task, Image part, ref Graphics g, ref Bitmap result, ref object drawLock, bool dontDraw = false)
         {
             if (Cancelled)
                 return;
@@ -820,12 +498,18 @@ namespace LogicReinc.BlendFarm.Shared
         }
 
         //Util
-        private void TriggerPropUpdate(string name)
+        protected void TriggerPropUpdate(string name)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
+        protected void ChangeProgress(double progress)
+        {
+            Progress = (double)progress;
+            TriggerPropUpdate(nameof(Progress));
+            OnProgress?.Invoke(this, progress);
+        }
 
-        private void ForceParallel<T>(IEnumerable<T> collections, Action<T> act)
+        protected void ForceParallel<T>(IEnumerable<T> collections, Action<T> act)
         {
             List<Thread> threads = collections.Select(node =>
             {
@@ -841,28 +525,31 @@ namespace LogicReinc.BlendFarm.Shared
                 t.Join();
         }
 
-
-        /// <summary>
-        /// Internally manages subtask results or error
-        /// </summary>
-        private class SubTaskResult
+        public static RenderTask GetImageRenderTask(List<RenderNode> nodes, string session, string version, long fileId, RenderManagerSettings settings = null)
         {
-            public Image Image { get; set; }
-            public Exception Exception { get; set; }
-
-            public SubTaskResult(Exception ex)
+            RenderTask task = null;
+            switch(settings?.Strategy)
             {
-                Exception = ex;
+                case RenderStrategy.Chunked:
+                    task = new ChunkedTask(nodes, session, version, fileId, settings);
+                    break;
+                case RenderStrategy.SplitChunked:
+                    task = new SplitChunkedTask(nodes, session, version, fileId, settings);
+                    break;
+                default:
+                case RenderStrategy.SplitHorizontal:
+                case RenderStrategy.SplitVertical:
+                    task = new SplittedTask(nodes, session, version, fileId, settings, settings?.Strategy == RenderStrategy.SplitVertical);
+                    break;
             }
-            public SubTaskResult(Image image)
-            {
-                Image = image;
-            }
+            return task;
         }
+
+
         /// <summary>
         /// Internally manages batch subtask results or error
         /// </summary>
-        private class SubTaskBatchResult
+        protected class SubTaskBatchResult
         {
             public RenderBatchResult[] Results { get; set; }
             public Exception Exception { get; set; }
@@ -875,6 +562,24 @@ namespace LogicReinc.BlendFarm.Shared
             {
                 Results = result;
             }
+        }
+    }
+
+    /// <summary>
+    /// Manages subtask results or error
+    /// </summary>
+    public class SubTaskResult
+    {
+        public byte[] Image { get; set; }
+        public Exception Exception { get; set; }
+
+        public SubTaskResult(Exception ex)
+        {
+            Exception = ex;
+        }
+        public SubTaskResult(byte[] image)
+        {
+            Image = image;
         }
     }
 
