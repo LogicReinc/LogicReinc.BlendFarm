@@ -1,5 +1,7 @@
 ﻿using Avalonia.Threading;
 using LogicReinc.BlendFarm.Client;
+using LogicReinc.BlendFarm.Client.ImageTypes;
+using LogicReinc.BlendFarm.Client.Tasks;
 using LogicReinc.BlendFarm.Shared;
 using LogicReinc.BlendFarm.Windows;
 using System;
@@ -44,7 +46,7 @@ namespace LogicReinc.BlendFarm.Objects
 
         public bool FinishedAllFrames { get; set; }
 
-        public System.Drawing.Bitmap LastBitmap { get; set; }
+        public System.Drawing.Image LastImage { get; set; }
 
         public QueueItem(RenderWindow owner, OpenBlenderProject proj, RenderManagerSettings settings, string saveTo = null, int frames = 1)
         {
@@ -75,12 +77,12 @@ namespace LogicReinc.BlendFarm.Objects
                 if (Frames <= 1)
                 {
                     //Normal Render
-                    Task = manager.GetRenderTask(Project.BlendFile, Settings, (st, bitmap) =>
+                    Task = manager.GetImageTask(Project.BlendFile, Settings, (st, bitmap) =>
                     {
                         //Apply image to canvas
                         Dispatcher.UIThread.InvokeAsync(() =>
                         {
-                            Project.LastBitmap = bitmap.ToAvaloniaBitmap();
+                            Project.LastImage = bitmap.ToAvaloniaBitmap();
                             window.RefreshCurrentProject();
                             RefreshInfo();
                         });
@@ -104,8 +106,10 @@ namespace LogicReinc.BlendFarm.Objects
                         await manager.Sync(Project.BlendFile, Project.NetworkPathWindows, Project.NetworkPathLinux, Project.NetworkPathMacOS);
                     Thread.Sleep(500);
 
-                    System.Drawing.Bitmap final = await Task.Render();
-                    LastBitmap = final;
+                    await Task.Render();
+                    System.Drawing.Image final = ((Task is IImageTask) ? (IImageTask)Task : null)?.FinalImage;
+                    Thread.Sleep(500);
+                    LastImage = final;
 
                     if (!string.IsNullOrEmpty(SaveTo))
                         final.Save(SaveTo);
@@ -113,7 +117,7 @@ namespace LogicReinc.BlendFarm.Objects
                     //Apply final to canvas
                     Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        Project.LastBitmap = final.ToAvaloniaBitmap();
+                        Project.LastImage = final.ToAvaloniaBitmap();
 
                         Project.SetRenderTask(null);
                         RefreshInfo();
@@ -127,14 +131,14 @@ namespace LogicReinc.BlendFarm.Objects
                         throw new ArgumentException("Missing frameformat for animation");
 
                     //Normal Render
-                    Task = manager.GetRenderTask(Project.BlendFile, Settings, null, async (task, frame) =>
+                    Task = manager.GetAnimationTask(Project.BlendFile, Settings.Frame, Settings.Frame + Frames, Settings, async (task, frame) =>
                     {
 
                         string filePath = Path.Combine(SaveTo, FrameFormat.Replace("#", task.Frame.ToString()));
 
                         try
                         {
-                            frame.Save(filePath);
+                            File.WriteAllBytes(filePath, frame.Image);
                         }
                         catch (Exception ex)
                         {
@@ -142,9 +146,20 @@ namespace LogicReinc.BlendFarm.Objects
                             return;
                         }
 
-                        Project.LastBitmap = frame.ToAvaloniaBitmap();
+                        using (System.Drawing.Image image = ImageConverter.Convert(frame.Image, task.Parent.Settings.RenderFormat))
+                        {
+                            if (image != null)
+                            {
+                                Project.LastImage = image.ToAvaloniaBitmap();
+                                LastImage = image;
+                            }
+                            else
+                                Project.LastImage = Statics.NoPreviewImage;
+                        }
 
-                        LastBitmap = frame;
+                        //Remove bytes
+                        frame.Image = null;
+
                         RefreshInfo();
                         window.RefreshCurrentProject();
                     });
@@ -166,7 +181,8 @@ namespace LogicReinc.BlendFarm.Objects
 
                     Thread.Sleep(500);
 
-                    await Task.RenderAnimation(Settings.Frame, Settings.Frame + Frames);
+                    await Task.Render();
+                    //await Task.RenderAnimation(Settings.Frame, Settings.Frame + Frames);
 
                     FinishedAllFrames = true;
                     Project.SetRenderTask(null);
@@ -218,9 +234,9 @@ namespace LogicReinc.BlendFarm.Objects
                 if (Completed)
                 {
                     if (!string.IsNullOrEmpty(SaveTo))
-                        BitmapViewer.Show(_owner, Project.BlendFile, LastBitmap.ToAvaloniaBitmap());
+                        BitmapViewer.Show(_owner, Project.BlendFile, LastImage.ToAvaloniaBitmap());
                     else
-                        BitmapViewer.Show(_owner, Project.BlendFile, LastBitmap.ToAvaloniaBitmap());
+                        BitmapViewer.Show(_owner, Project.BlendFile, LastImage.ToAvaloniaBitmap());
                 }
             }
             catch (Exception ex)

@@ -1,4 +1,5 @@
-﻿using LogicReinc.BlendFarm.Shared;
+﻿using LogicReinc.BlendFarm.Client.Tasks;
+using LogicReinc.BlendFarm.Shared;
 using LogicReinc.BlendFarm.Shared.Communication.RenderNode;
 using System;
 using System.Collections.Generic;
@@ -112,7 +113,8 @@ namespace LogicReinc.BlendFarm.Client
                 TaskID = ID,
                 Engine = Parent.Settings.Engine,
                 Workaround = Parent.Settings.BlenderUpdateBugWorkaround,
-                Crop = Crop || Parent.Settings.BlenderUpdateBugWorkaround
+                Crop = Crop || Parent.Settings.BlenderUpdateBugWorkaround,
+                RenderFormat = (Parent is AnimationTask) ? Parent.Settings.RenderFormat : ""
             };
         }
     }

@@ -70,6 +70,11 @@ namespace LogicReinc.BlendFarm.Client
         public EngineType Engine { get; set; } = EngineType.Cycles;
 
         /// <summary>
+        /// Format to render to
+        /// </summary>
+        public string RenderFormat { get; set; } = "";
+
+        /// <summary>
         /// A sad requirement that works around a problem in Blender.
         /// Blender doesn't properly update before rendering in subsequent tasks in a batch
         /// It changes both rendering at the node as well as handling of incoming tiles
