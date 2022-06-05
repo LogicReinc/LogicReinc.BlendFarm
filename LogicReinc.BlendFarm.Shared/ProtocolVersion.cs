@@ -9,6 +9,6 @@ namespace LogicReinc.BlendFarm.Shared
         /// <summary>
         /// Incremented when Protocol changes are made.
         /// </summary>
-        public static readonly int Version = 3;
+        public static readonly int Version = 4;
     }
 }

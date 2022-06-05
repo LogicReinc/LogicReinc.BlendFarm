@@ -1,5 +1,35 @@
 [
 	{
+		"Date": "2022-06-04",
+		"Name": "Version 1.1.2 is out! Animation File Formats, OpenSSL3.x Support",
+		"Segments": [
+			{
+				"Type": "Text",
+				"Text": "V1.1.2 restructures some code, and now allows animations to be rendered to specific file formats (eg. EXR). Some formats will not have previews in app. Besides file formats it also updates the runtime to .NET6, which now should support OpenSSL3.x which some Linux distros decided on changing to"
+			},
+			{
+				"Type": "Image",
+				"Text": "https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/dev-1.1.2/.data/v112.JPG"
+			},
+			{
+				"Type": "Text",
+				"Text": "If you find BlendFarm productive, please consider dropping a donation on Patreon!"
+			},
+			{
+				"Type": "Button",
+				"Text": "Open Releases|https://github.com/LogicReinc/LogicReinc.BlendFarm/releases"
+			},
+			{
+				"Type": "Button",
+				"Text": "https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/dev-1.0.7/.data/patreon.png|https://www.patreon.com/LogicReinc"
+			},
+			{
+				"Type": "Empty",
+				"Text": ""
+			}
+		]
+	},
+	{
 		"Date": "2022-04-27",
 		"Name": "Version 1.1.1 is out! Animation performance improvements",
 		"Segments": [

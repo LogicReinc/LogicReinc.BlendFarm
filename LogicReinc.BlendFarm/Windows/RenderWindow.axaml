@@ -301,7 +301,7 @@
                           <TextBlock TextWrapping="Wrap" Margin="10">Render an animation to a directory</TextBlock>
                           <StackPanel Orientation="Horizontal">
                             <TextBlock Width="90" TextAlignment="Right" Margin="10">File Format</TextBlock>
-                            <TextBox Width="235" Text="{Binding CurrentProject.AnimationFileFormat}" />
+                            <TextBox Width="235" x:Name="inputAnimationFileFormat" Text="{Binding CurrentProject.AnimationFileFormat}" />
                           </StackPanel>
                           <StackPanel Orientation="Horizontal">
                             <TextBlock Width="90" TextAlignment="Right" Margin="10" ToolTip.Tip="Frame to start at">Frame Start</TextBlock>
@@ -312,6 +312,8 @@
                           <StackPanel Orientation="Horizontal">
                             <CheckBox Width="90" Margin="10" HorizontalContentAlignment="Right" IsChecked="{Binding CurrentProject.UseFPS}">FPS</CheckBox>
                             <NumericUpDown Width="80" Value="{Binding CurrentProject.FPS}" IsEnabled="{Binding CurrentProject.UseFPS}" />
+							<TextBlock Width="55" TextAlignment="Right" Margin="10" ToolTip.Tip="File format Blender should render in">Output</TextBlock>
+						    <ComboBox x:Name="selectOutputType" Margin="0,0,0,0" Width="80" Items="{Binding ImageFormats}" SelectedItem="{Binding CurrentProject.RenderFormat}" FontSize="15"></ComboBox>
                           </StackPanel>
                           <StackPanel IsVisible="{Binding !IsQueueing}">
                             <Button Margin="10,10,10,5" IsVisible="{Binding !CurrentProject.IsRendering}" Command="{Binding RenderAnimation}" Background="#400083" BorderBrush="#200041">

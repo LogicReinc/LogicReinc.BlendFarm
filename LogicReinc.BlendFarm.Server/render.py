@@ -202,12 +202,18 @@ def runBatch(jsonPath):
     isFirst = True
         
     scn.render.engine = "CYCLES"
-    scn.render.image_settings.file_format = "PNG";
+    
 
     # Loop over batches
     for i in range(len(renderSettingsBatch)):
         current = renderSettingsBatch[i];
         renderSettings = current;
+        
+        renderFormat = renderSettings["RenderFormat"];
+        if (not renderFormat):
+            scn.render.image_settings.file_format = "PNG";
+        else:
+            scn.render.image_settings.file_format = renderFormat;
 
         output = renderSettings["Output"];
         id = renderSettings["TaskID"];
