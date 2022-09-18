@@ -1,4 +1,5 @@
-﻿using LogicReinc.BlendFarm.Client.ImageTypes;
+﻿using LogicReinc.BlendFarm.Client.Exceptions;
+using LogicReinc.BlendFarm.Client.ImageTypes;
 using LogicReinc.BlendFarm.Shared;
 using System;
 using System.Collections.Generic;
@@ -59,6 +60,13 @@ namespace LogicReinc.BlendFarm.Client.Tasks
                             {
                                 if (Cancelled)
                                     return;
+                            }
+                            catch(RecoverException ex)
+                            {
+                                node.UpdateException(ex.Message);
+                                exceptions.Add(ex.Message);
+                                lastException = ex.Message;
+                                return;
                             }
                             catch (Exception ex)
                             {

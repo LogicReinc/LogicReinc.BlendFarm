@@ -497,6 +497,7 @@ namespace LogicReinc.BlendFarm.Server
                     //GPU tile size is optimally 256
                     case RenderType.CUDA_GPUONLY:
                     case RenderType.OPENCL_GPUONLY:
+                    case RenderType.HIP_GPUONLY:
                         if (settings.TileWidth <= 0) settings.TileWidth = 256;
                         if (settings.TileHeight <= 0) settings.TileHeight = 256;
                         break;

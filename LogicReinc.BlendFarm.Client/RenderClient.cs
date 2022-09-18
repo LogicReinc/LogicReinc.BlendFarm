@@ -1,4 +1,5 @@
-﻿using LogicReinc.BlendFarm.Shared.Communication;
+﻿using LogicReinc.BlendFarm.Client.Exceptions;
+using LogicReinc.BlendFarm.Shared.Communication;
 using LogicReinc.BlendFarm.Shared.Communication.RenderNode;
 using System;
 using System.Collections.Generic;
@@ -101,6 +102,9 @@ namespace LogicReinc.BlendFarm.Client
             await sema.WaitAsync(cancel);
             sema.Dispose();
 
+            if (response is BlendFarmDisconnected)
+                throw new BlendFarmDisconnectedException();
+
             return (T)response;
         }
 
@@ -119,7 +123,7 @@ namespace LogicReinc.BlendFarm.Client
             foreach (var handler in _respHandlers.Values.ToList())
                 try
                 {
-                    handler(null);
+                    handler(new BlendFarmDisconnected());
                 }
                 catch { }
 

@@ -27,6 +27,8 @@ namespace LogicReinc.BlendFarm.Server
 
         private List<string> sessions = new List<string>();
 
+        private bool _isRendering = false;
+
         /// <summary>
         /// Event on client disconnected
         /// </summary>
@@ -40,8 +42,14 @@ namespace LogicReinc.BlendFarm.Server
 
         protected override void HandleDisconnected()
         {
-            SessionData.CleanUp(sessions.ToArray());
+            //SessionData.CleanUp(sessions.ToArray());
+            SessionData.CleanUpDelayed(10000, sessions.ToArray());
             OnDisconnect?.Invoke(this);
+            if (_isRendering)
+            {
+                _blender.Cancel();
+                _isRendering = false;
+            }
         }
 
 
@@ -91,9 +99,52 @@ namespace LogicReinc.BlendFarm.Server
         [BlendFarmHeader("checkSync")]
         public CheckSyncResponse Packet_CheckSync(CheckSyncRequest req)
         {
+            SessionData session = SessionData.GetOrCreate(req.SessionID);
+            session.InUse = true;
             return new CheckSyncResponse()
             {
-                Success = SessionData.GetOrCreate(req.SessionID).FileID == req.FileID
+                Success = session.FileID == req.FileID
+            };
+        }
+
+        [BlendFarmHeader("recover")]
+        public RecoverResponse Packet_Recover(RecoverRequest req)
+        {
+            if(req.SessionIDs != null)
+            {
+                List<SessionData> datas = new List<SessionData>();
+                try
+                {
+                    foreach (string ses in req.SessionIDs)
+                    {
+                        SessionData sesData = SessionData.Get(ses);
+                        if (sesData == null)
+                            return new RecoverResponse()
+                            {
+                                Success = false,
+                                Message = $"Failed to recover [{ses}], Session no longer exists..",
+                                SessionIDs = req.SessionIDs
+                            };
+                        sesData.InUse = true;
+                        datas.Add(sesData);
+                    }
+                }
+                catch(Exception ex)
+                {
+                    SessionData.CleanUpDelayed(10000, datas.Select(x => x.SessionID).ToArray());
+                }
+
+                foreach(SessionData data in datas)
+                {
+                    if (!sessions.Contains(data.SessionID))
+                        sessions.Add(data.SessionID);
+                }
+            }
+
+            return new RecoverResponse()
+            {
+                Success = true,
+                SessionIDs = req.SessionIDs
             };
         }
 
@@ -106,6 +157,7 @@ namespace LogicReinc.BlendFarm.Server
                     sessions.Add(req.SessionID);
 
                 SessionData session = SessionData.GetOrCreate(req.SessionID);
+                session.InUse = true;
 
                 string uploadID = Guid.NewGuid().ToString();
                 if (req.FileID != session.FileID)
@@ -164,6 +216,7 @@ namespace LogicReinc.BlendFarm.Server
                     sessions.Add(req.SessionID);
 
                 SessionData session = SessionData.GetOrCreate(req.SessionID);
+                session.InUse = true;
 
                 string uploadID = Guid.NewGuid().ToString();
                 if (req.FileID != session.FileID)
@@ -264,6 +317,7 @@ namespace LogicReinc.BlendFarm.Server
                     upload.Dispose();
 
                     SessionData session = SessionData.GetOrCreate(obj.SessionID);
+                    session.InUse = true;
 
                     session.UpdatedFile(obj.FileID);
 
@@ -330,6 +384,7 @@ namespace LogicReinc.BlendFarm.Server
 
             try
             {
+                _isRendering = true;
                 //Validate Settings
                 string filePath = SessionData.GetFilePath(req.SessionID);
                 if (filePath == null)
@@ -460,6 +515,10 @@ namespace LogicReinc.BlendFarm.Server
                     Message = "Exception:" + ex.Message
                 };
             }
+            finally
+            {
+                _isRendering = false;
+            }
         }
 
         /// <summary>
@@ -478,6 +537,7 @@ namespace LogicReinc.BlendFarm.Server
 
             try
             {
+                _isRendering = true;
                 //Validate Settings
                 string filePath = SessionData.GetFilePath(req.SessionID);
                 if (filePath == null)
@@ -571,6 +631,10 @@ namespace LogicReinc.BlendFarm.Server
                     Message = "Exception:" + ex.Message
                 };
             }
+            finally
+            {
+                _isRendering = false;
+            }
         }
 
         /// <summary>
@@ -580,6 +644,7 @@ namespace LogicReinc.BlendFarm.Server
         public void Packet_Cancel_Render(CancelRenderRequest req)
         {
             _blender.Cancel();
+            _isRendering = false;
         }
         #endregion
 

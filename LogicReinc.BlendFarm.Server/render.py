@@ -66,9 +66,17 @@ def useDevices(type, allowGPU, allowCPU):
             devices = cyclesPref.get_devices_for_type("CUDA");
         elif(type == "OPTIX"):
             devices = cyclesPref.get_devices_for_type("OPTIX");
+        elif(type == "HIP"):
+            devices = cyclesPref.get_devices_for_type("HIP");
+        elif(type == "METAL"):
+            devices = cyclesPref.get_devices_for_type("METAL");
+        elif(type == "ONEAPI"):
+            devices = cyclesPref.get_devices_for_type("ONEAPI");
         else:
             devices = cyclesPref.get_devices_for_type("OPENCL");
         print("Devices Found:", devices);
+        if(len(devices) == 0):
+            raise Exception("No devices found for type " + type + ", Unsupported hardware or platform?");
         for d in devices:
             d.use = (allowCPU and d.type == "CPU") or (allowGPU and d.type != "CPU");
             print(type + " Device:", d["name"], d["use"]);
@@ -148,6 +156,36 @@ def renderWithSettings(renderSettings, id, path):
                 scn.cycles.device = 'GPU';
                 bpy.context.scene.cycles.device = "GPU";
                 print("Use OpenCL (GPU)");
+            elif renderType == 5: #HIP
+                useDevices("HIP", True, False);
+                scn.cycles.device = 'GPU';
+                bpy.context.scene.cycles.device = "GPU";
+                print("Use HIP");
+            elif renderType == 6: #HIP (GPU Only)
+                useDevices("HIP", True, True);
+                scn.cycles.device = 'GPU';
+                bpy.context.scene.cycles.device = "GPU";
+                print("Use HIP (GPU)");
+            elif renderType == 7: #METAL
+                useDevices("METAL", True, True);
+                scn.cycles.device = 'GPU';
+                bpy.context.scene.cycles.device = "GPU";
+                print("Use METAL");
+            elif renderType == 8: #METAL (GPU Only)
+                useDevices("METAL", True, False);
+                scn.cycles.device = 'GPU';
+                bpy.context.scene.cycles.device = "GPU";
+                print("Use METAL (GPU)");
+            elif renderType == 9: #ONEAPI
+                useDevices("ONEAPI", True, True);
+                scn.cycles.device = 'GPU';
+                bpy.context.scene.cycles.device = "GPU";
+                print("Use ONEAPI");
+            elif renderType == 10: #ONEAPI (GPU Only)
+                useDevices("ONEAPI", True, False);
+                scn.cycles.device = 'GPU';
+                bpy.context.scene.cycles.device = "GPU";
+                print("Use ONEAPI (GPU)");
         
 
         #Denoiser

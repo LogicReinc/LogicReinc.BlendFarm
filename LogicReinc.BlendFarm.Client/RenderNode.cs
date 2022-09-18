@@ -1,4 +1,5 @@
-﻿using LogicReinc.BlendFarm.Shared;
+﻿using LogicReinc.BlendFarm.Client.Exceptions;
+using LogicReinc.BlendFarm.Shared;
 using LogicReinc.BlendFarm.Shared.Communication;
 using LogicReinc.BlendFarm.Shared.Communication.RenderNode;
 using System;
@@ -22,8 +23,8 @@ namespace LogicReinc.BlendFarm.Client
         //Used to specify the minimum server required version
         //Modified when protocol changes
         public const int MinumumVersionMajor = 1;
-        public const int MinimumVersionMinor = 0;
-        public const int MinimumVersionPatch = 5;
+        public const int MinimumVersionMinor = 1;
+        public const int MinimumVersionPatch = 3;
 
         //Info
         /// <summary>
@@ -240,6 +241,39 @@ namespace LogicReinc.BlendFarm.Client
             }
         }
         /// <summary>
+        /// Attempts to recover a session connection
+        /// </summary>
+        public async Task<RecoverResponse> ConnectRecover(string[] sessions)
+        {
+            if (Connected)
+                throw new InvalidOperationException("Already connected");
+            await Connect();
+            return await Recover(sessions);
+        }
+        /// <summary>
+        /// Attempts to recover a session connection n attempts
+        /// </summary>
+        public async Task<RecoverResponse> ConnectRecover(int attempts, int interval, string[] sessions)
+        {
+            if (Connected)
+                throw new InvalidOperationException("Already connected");
+            for (int i = 0; i < attempts; i++)
+            {
+                try
+                {
+                    await Connect();
+                    return await Recover(sessions);
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine($"Recover failed due to: {ex.Message} ({i+1}/{attempts})");
+                }
+                await Task.Delay(interval);
+            }
+            throw new RecoverException("Failed to recover connection");
+        }
+
+        /// <summary>
         /// Disconnect from node
         /// </summary>
         public void Disconnect()
@@ -274,6 +308,14 @@ namespace LogicReinc.BlendFarm.Client
         }
 
         //Remote Tasks
+
+        public async Task<RecoverResponse> Recover(string[] sessions)
+        {
+            return await Client.Send<RecoverResponse>(new RecoverRequest()
+            {
+                SessionIDs = sessions
+            }, CancellationToken.None);
+        }
 
         public async Task<CheckProtocolResponse> CheckProtocol(int major, int minor, int patch, int version)
         {
@@ -338,7 +380,7 @@ namespace LogicReinc.BlendFarm.Client
                 }, CancellationToken.None);
 
                 if (!resp.Success)
-                    throw new Exception(resp.Message);
+                    throw new SyncException(resp.Message);
                 if (resp.SameFile)
                 {
                     UpdateSyncedStatus(sess, true);
@@ -385,7 +427,7 @@ namespace LogicReinc.BlendFarm.Client
                 }, CancellationToken.None);
 
                 if (!resp.Success)
-                    throw new Exception(resp.Message);
+                    throw new SyncException(resp.Message);
                 if (resp.SameFile)
                 {
                     UpdateSyncedStatus(sess, true);
@@ -408,7 +450,7 @@ namespace LogicReinc.BlendFarm.Client
                     }, CancellationToken.None);
 
                     if (!uploadResp.Success)
-                        throw new Exception(uploadResp.Message);
+                        throw new SyncException(uploadResp.Message);
 
                     written += read;
 
@@ -457,7 +499,24 @@ namespace LogicReinc.BlendFarm.Client
 
                 UpdateActivity("Render Loading..");
 
-                resp = await Client.Send<RenderBatchResponse>(req, _taskCancelToken.Token);
+                while (true)
+                {
+                    try
+                    {
+                        resp = await Client.Send<RenderBatchResponse>(req, _taskCancelToken.Token);
+                        break;
+                    }
+                    catch (BlendFarmDisconnectedException ex)
+                    {
+                        RecoverResponse r = await ConnectRecover(3, 1000, new string[] { req.SessionID });
+                        if (!r.Success)
+                            throw new RecoverException(r.Message);
+                    }
+                    catch (Exception exOther)
+                    {
+                        throw;
+                    }
+                }
             }
             finally
             {
@@ -482,8 +541,30 @@ namespace LogicReinc.BlendFarm.Client
 
                 UpdateActivity("Render Loading..");
 
-                if (Client != null)
-                    resp = await Client.Send<RenderResponse>(req, _taskCancelToken.Token);
+                int recoverAtts = 0;
+                while (true) 
+                {
+                    try
+                    {
+                        resp = await Client.Send<RenderResponse>(req, _taskCancelToken.Token);
+                        break;
+                    }
+                    catch (BlendFarmDisconnectedException ex)
+                    {
+                        recoverAtts++;
+                        if (recoverAtts > 3)
+                            throw new RecoverException($"Failed to recover too many times, connection too unstable");
+
+                        RecoverResponse r = await ConnectRecover(3, 1000, new string[] { req.SessionID });
+                        if (!r.Success)
+                            throw new RecoverException(r.Message);
+                    }
+                    catch (Exception exOther)
+                    {
+                        throw;
+                    }
+                }
+
             }
             finally
             {
