@@ -172,9 +172,9 @@
                                   <Button Width="50" Height="30" Grid.Column="0"
                                       Background="#00000000"
                                       BorderThickness="0"
-                                      IsEnabled="{Binding Activity, Converter={x:Static StringConverters.IsNullOrEmpty}}"
                                       IsVisible="{Binding Connected}}"
                                       Command="{Binding Disconnect}">
+                                      <!--IsEnabled="{Binding Activity, Converter={x:Static StringConverters.IsNullOrEmpty}}"-->
                                     <Image Source="/Icons/radioOn.png" Height="30" Width="30" />
                                   </Button>
                                   <Button Grid.Column="0"

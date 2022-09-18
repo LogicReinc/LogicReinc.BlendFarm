@@ -1,5 +1,35 @@
 [
 	{
+		"Date": "2022-09-18",
+		"Name": "Version 1.1.3 is out! HIP, Metal, OneAPI, Reconnection during render",
+		"Segments": [
+			{
+				"Type": "Text",
+				"Text": "V1.1.3 adds support for HIP, Metal and OneAPI (although untested as I dont have the hardware ready at the moment, but should work as expected). It also adds some logic that attempts to reconnect on client disconnection during rendering."
+			},
+			{
+				"Type": "Image",
+				"Text": "https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/main/.data/blender3.3-art.jpg"
+			},
+			{
+				"Type": "Text",
+				"Text": "If you find BlendFarm productive, please consider dropping a donation on Patreon!"
+			},
+			{
+				"Type": "Button",
+				"Text": "Open Releases|https://github.com/LogicReinc/LogicReinc.BlendFarm/releases"
+			},
+			{
+				"Type": "Button",
+				"Text": "https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/dev-1.0.7/.data/patreon.png|https://www.patreon.com/LogicReinc"
+			},
+			{
+				"Type": "Empty",
+				"Text": ""
+			}
+		]
+	},
+	{
 		"Date": "2022-06-04",
 		"Name": "Version 1.1.2 is out! Animation File Formats, OpenSSL3.x Support",
 		"Segments": [

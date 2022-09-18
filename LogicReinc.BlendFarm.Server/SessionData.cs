@@ -4,6 +4,7 @@ using System.Text;
 using System.Collections;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace LogicReinc.BlendFarm.Server
 {
@@ -42,12 +43,20 @@ namespace LogicReinc.BlendFarm.Server
         public string NetworkedPath { get; set; }
 
         /// <summary>
+        /// Keeps track if currently in use
+        /// </summary>
+        public bool InUse { get; set; } = false;
+
+        /// <summary>
         /// Delete a session and associated blend file
         /// </summary>
         public void Delete()
         {
-            if (Sessions.ContainsKey(SessionID))
-                Sessions.Remove(SessionID);
+            lock (Sessions)
+            {
+                if (Sessions.ContainsKey(SessionID))
+                    Sessions.Remove(SessionID);
+            }
             string blendFile = GetBlendFilePath();
             if (File.Exists(blendFile))
                 File.Delete(blendFile);
@@ -58,15 +67,30 @@ namespace LogicReinc.BlendFarm.Server
         /// </summary>
         public static SessionData GetOrCreate(string sessionID)
         {
-            if (!Sessions.ContainsKey(sessionID))
+            lock (Sessions)
             {
-                Sessions.Add(sessionID, new SessionData()
+                if (!Sessions.ContainsKey(sessionID))
                 {
-                    SessionID = sessionID
-                });
-            }
+                    Sessions.Add(sessionID, new SessionData()
+                    {
+                        SessionID = sessionID
+                    });
+                }
 
-            return Sessions[sessionID];
+                return Sessions[sessionID];
+            }
+        }
+        /// <summary>
+        /// Get a session with given SessionID if it exists 
+        /// </summary>
+        public static SessionData Get(string sessionID)
+        {
+            lock (Sessions)
+            {
+                if (!Sessions.ContainsKey(sessionID))
+                    return null;
+                return Sessions[sessionID];
+            }
         }
 
         /// <summary>
@@ -74,11 +98,31 @@ namespace LogicReinc.BlendFarm.Server
         /// </summary>
         public static void CleanUp(params string[] args)
         {
-            List<SessionData> sessions = args.Distinct().Where(x => Sessions.ContainsKey(x)).Select(x => Sessions[x]).ToList();
+            List<SessionData> sessions = null;
+            lock (Sessions)
+                sessions = args.Distinct().Where(x => Sessions.ContainsKey(x)).Select(x => Sessions[x]).ToList();
             foreach (SessionData ses in sessions)
                 try
                 {
                     ses.Delete();
+                }
+                catch (Exception ex) { }
+        }
+        public static async Task CleanUpDelayed(int ms, params string[] args)
+        {
+            List<SessionData> sessions = null;
+            lock(Sessions)
+                sessions = args.Distinct().Where(x => Sessions.ContainsKey(x)).Select(x => Sessions[x]).ToList();
+
+            foreach (SessionData ses in sessions)
+                ses.InUse = false;
+
+            await Task.Delay(ms);
+            foreach (SessionData ses in sessions)
+                try
+                {
+                    if (!ses.InUse)
+                        ses.Delete();
                 }
                 catch (Exception ex) { }
         }
@@ -116,8 +160,9 @@ namespace LogicReinc.BlendFarm.Server
         public static string GetFilePath(string session)
         {
             SessionData sess = null;
-            if (Sessions.ContainsKey(session))
-                sess = Sessions[session];
+            lock (Sessions)
+                if (Sessions.ContainsKey(session))
+                    sess = Sessions[session];
 
             if (sess == null)
                 return null;

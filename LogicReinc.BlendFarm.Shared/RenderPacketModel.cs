@@ -10,7 +10,13 @@ namespace LogicReinc.BlendFarm.Shared
         CUDA = 1,
         OPENCL = 2,
         CUDA_GPUONLY = 3,
-        OPENCL_GPUONLY = 4
+        OPENCL_GPUONLY = 4,
+        HIP = 5,
+        HIP_GPUONLY = 6,
+        METAL = 7,
+        METAL_GPUONLY = 8,
+        ONEAPI = 9,
+        ONEAPI_GPUONLY = 10
     }
     public enum EngineType
     {
