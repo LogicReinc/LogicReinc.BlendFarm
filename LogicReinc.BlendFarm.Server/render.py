@@ -137,9 +137,9 @@ def renderWithSettings(renderSettings, id, path):
         renderType = int(renderSettings["ComputeUnit"]);
         engine = int(renderSettings["Engine"]);
 
-        if(False and engine == 2): #Optix, Old logic, now uses RenderType
-            optixGPU = renderType == 1 or renderType == 3; #CUDA or CUDA_GPU_ONLY
-            optixCPU = renderType != 3; #!CUDA_CPU_ONLY
+        if(engine == 2): #Optix
+            optixGPU = renderType == 1 or renderType == 3 or renderType == 11 or renderType == 12; #CUDA or CUDA_GPU_ONLY
+            optixCPU = renderType != 3 and renderType != 12; #!CUDA_GPU_ONLY && !OPTIX_GPU_ONLY
             if(optixCPU and not optixGPU):
                 scn.cycles.device = "CPU";
             else:
