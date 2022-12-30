@@ -105,6 +105,7 @@ namespace LogicReinc.BlendFarm.Client
                 X2 = X2,
                 Y2 = Y2,
                 Frame = Frame,
+                Scene = Parent.Settings.Scene,
                 Height = Parent.Settings.OutputHeight,
                 Width = Parent.Settings.OutputWidth,
                 Samples = Parent.Settings.Samples,

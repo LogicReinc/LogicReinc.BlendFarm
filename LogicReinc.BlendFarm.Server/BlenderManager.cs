@@ -241,7 +241,9 @@ namespace LogicReinc.BlendFarm.Server
             string archivePath = Path.Combine(GetBlenderDataPath(), archiveName);
             try
             {
-                Directory.CreateDirectory(GetBlenderDataPath());
+                string blenderDataPath = GetBlenderDataPath();
+
+                Directory.CreateDirectory(blenderDataPath);
 
                 using (WebClient client = new WebClient())
                 {
@@ -250,6 +252,8 @@ namespace LogicReinc.BlendFarm.Server
                 }
                 Console.WriteLine($"Extracting {version.Name}...");
 
+                List<(string, string)> links = new List<(string, string)>();
+                string currentDir = "";
                 using (FileStream str = new FileStream(archivePath, FileMode.Open))
                 using (var reader = ReaderFactory.Open(str))
                 {
@@ -257,14 +261,40 @@ namespace LogicReinc.BlendFarm.Server
                     {
                         if (!reader.Entry.IsDirectory)
                         {
-                            reader.WriteEntryToDirectory(GetBlenderDataPath(), new SharpCompress.Common.ExtractionOptions()
+                            if (reader.Entry.LinkTarget != null)
                             {
-                                ExtractFullPath = true,
-                                Overwrite = true
-                            });
+                                Console.WriteLine($"Link detected, workaround..({reader.Entry.Key}): {reader.Entry.LinkTarget}");
+                                string dir = Path.GetDirectoryName(reader.Entry.Key);
+                                links.Add((reader.Entry.Key, Path.Combine(dir, reader.Entry.LinkTarget)));
+                            }
+                            else
+                            {
+                                reader.WriteEntryToDirectory(blenderDataPath, new SharpCompress.Common.ExtractionOptions()
+                                {
+                                    ExtractFullPath = true,
+                                    Overwrite = true
+                                });
+                            }
                         }
+                        else
+                            currentDir = reader.Entry.Key;
                     }
                 }
+                if (links.Count > 0)
+                    Console.WriteLine("Fixing symlinks by copy..");
+                foreach ((string, string) link in links)
+                {
+                    try
+                    {
+                        Console.WriteLine($"SymLink by Copy: ({link.Item1}) => ({link.Item2})");
+                        File.Copy(Path.Combine(blenderDataPath, link.Item2), Path.Combine(blenderDataPath, link.Item1));
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Failed to fake-link due to: " + ex.Message);
+                    }
+                }
+
                 EnsureOldDirectoryFormat(version.Name, os);
 
                 Console.WriteLine($"{version.Name} ready");

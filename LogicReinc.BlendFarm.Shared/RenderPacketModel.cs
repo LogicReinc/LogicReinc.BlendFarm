@@ -16,7 +16,9 @@ namespace LogicReinc.BlendFarm.Shared
         METAL = 7,
         METAL_GPUONLY = 8,
         ONEAPI = 9,
-        ONEAPI_GPUONLY = 10
+        ONEAPI_GPUONLY = 10,
+        OPTIX = 11,
+        OPTIX_GPUONLY = 12
     }
     public enum EngineType
     {
@@ -42,9 +44,13 @@ namespace LogicReinc.BlendFarm.Shared
         /// </summary>
         public string TaskID { get; set; }
         /// <summary>
-        /// Frame of Blenderifle to render
+        /// Frame of Blenderfile to render
         /// </summary>
         public int Frame { get; set; } = 0;
+        /// <summary>
+        /// Scene of Blenderfile to render
+        /// </summary>
+        public string Scene { get; set; } = "";
 
         //System
 
