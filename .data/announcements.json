@@ -1,5 +1,35 @@
 [
 	{
+		"Date": "2022-12-30",
+		"Name": "Version 1.1.4 is out! Blender 3.4 fixes, Scene selection, Per-Node OptiX",
+		"Segments": [
+			{
+				"Type": "Text",
+				"Text": "V1.1.4 adds fixes for Blender 3.4 on Linux, Scene selection, and allows a per node configuration to OptiX. (CUDA + OptiX Engine dropdown is still supported for quick switching)"
+			},
+			{
+				"Type": "Image",
+				"Text": "https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/main/.data/blender3.4-art.jpg"
+			},
+			{
+				"Type": "Text",
+				"Text": "If you find BlendFarm productive, please consider dropping a donation on Patreon!"
+			},
+			{
+				"Type": "Button",
+				"Text": "Open Releases|https://github.com/LogicReinc/LogicReinc.BlendFarm/releases"
+			},
+			{
+				"Type": "Button",
+				"Text": "https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/main/.data/patreon.png|https://www.patreon.com/LogicReinc"
+			},
+			{
+				"Type": "Empty",
+				"Text": ""
+			}
+		]
+	},
+	{
 		"Date": "2022-09-18",
 		"Name": "Version 1.1.3 is out! HIP, Metal, OneAPI, Reconnection during render",
 		"Segments": [
