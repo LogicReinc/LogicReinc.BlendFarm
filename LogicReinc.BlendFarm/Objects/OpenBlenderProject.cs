@@ -48,6 +48,7 @@ namespace LogicReinc.BlendFarm.Objects
 
         public bool UseWorkaround { get; set; } = true;
 
+        public string Scene { get; set; } = "";
         public string AnimationFileFormat { get; set; } = "#.png";
         public int FrameStart { get; set; } = 0;
         public int FrameEnd { get; set; } = 60;
@@ -80,6 +81,8 @@ namespace LogicReinc.BlendFarm.Objects
 
         public bool IsRendering => CurrentTask != null;
         public RenderTask CurrentTask { get; private set; }
+
+        public List<string> ScenesAvailable { get; private set; } = new List<string>();
 
 
         public event Action<OpenBlenderProject, Bitmap> OnBitmapChanged;

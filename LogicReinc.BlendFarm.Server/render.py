@@ -85,6 +85,18 @@ def useDevices(type, allowGPU, allowCPU):
 def renderWithSettings(renderSettings, id, path):
         #Dump
         print(json.dumps(renderSettings, indent = 4) + "\n");
+        
+        global scn;
+
+        scen = renderSettings["Scene"];
+        if(scen is None):
+            scen = "";
+        if(scen != ""):
+            print("Rendering specified scene " + scen + "\n");
+            scn = bpy.data.scenes[scen];
+            if(scn is None):
+                raise Exception("Unknown Scene :" + scen);
+
 
         # Parse Parameters
         frame = int(renderSettings["Frame"])
@@ -124,7 +136,8 @@ def renderWithSettings(renderSettings, id, path):
         #Render Device
         renderType = int(renderSettings["ComputeUnit"]);
         engine = int(renderSettings["Engine"]);
-        if(engine == 2): #Optix
+
+        if(False and engine == 2): #Optix, Old logic, now uses RenderType
             optixGPU = renderType == 1 or renderType == 3; #CUDA or CUDA_GPU_ONLY
             optixCPU = renderType != 3; #!CUDA_CPU_ONLY
             if(optixCPU and not optixGPU):
@@ -138,54 +151,52 @@ def renderWithSettings(renderSettings, id, path):
                 print("Use CPU");
             elif renderType == 1: #Cuda
                 useDevices("CUDA", True, True);
-                scn.cycles.device = 'GPU';
-                bpy.context.scene.cycles.device = "GPU";
+                scn.cycles.device = "GPU";
                 print("Use Cuda");
             elif renderType == 2: #OpenCL
                 useDevices("OPENCL", True, True);
-                scn.cycles.device = 'GPU';
-                bpy.context.scene.cycles.device = "GPU";
+                scn.cycles.device = "GPU";
                 print("Use OpenCL");
             elif renderType == 3: #Cuda (GPU Only)
                 useDevices("CUDA", True, False);
                 scn.cycles.device = 'GPU';
-                bpy.context.scene.cycles.device = "GPU";
                 print("Use Cuda (GPU)");
             elif renderType == 4: #OpenCL (GPU Only)
                 useDevices("OPENCL", True, False);
                 scn.cycles.device = 'GPU';
-                bpy.context.scene.cycles.device = "GPU";
                 print("Use OpenCL (GPU)");
             elif renderType == 5: #HIP
                 useDevices("HIP", True, False);
                 scn.cycles.device = 'GPU';
-                bpy.context.scene.cycles.device = "GPU";
                 print("Use HIP");
             elif renderType == 6: #HIP (GPU Only)
                 useDevices("HIP", True, True);
                 scn.cycles.device = 'GPU';
-                bpy.context.scene.cycles.device = "GPU";
                 print("Use HIP (GPU)");
             elif renderType == 7: #METAL
                 useDevices("METAL", True, True);
                 scn.cycles.device = 'GPU';
-                bpy.context.scene.cycles.device = "GPU";
                 print("Use METAL");
             elif renderType == 8: #METAL (GPU Only)
                 useDevices("METAL", True, False);
                 scn.cycles.device = 'GPU';
-                bpy.context.scene.cycles.device = "GPU";
                 print("Use METAL (GPU)");
             elif renderType == 9: #ONEAPI
                 useDevices("ONEAPI", True, True);
                 scn.cycles.device = 'GPU';
-                bpy.context.scene.cycles.device = "GPU";
                 print("Use ONEAPI");
             elif renderType == 10: #ONEAPI (GPU Only)
                 useDevices("ONEAPI", True, False);
                 scn.cycles.device = 'GPU';
-                bpy.context.scene.cycles.device = "GPU";
                 print("Use ONEAPI (GPU)");
+            elif renderType == 11: #OptiX
+                useDevices("OPTIX", True, True);
+                scn.cycles.device = "GPU";
+                print("Use OptiX");
+            elif renderType == 12: #OptiX (GPU Only)
+                useDevices("OPTIX", True, False);
+                scn.cycles.device = "GPU";
+                print("Use OptiX (GPU)");
         
 
         #Denoiser
@@ -217,7 +228,7 @@ def renderWithSettings(renderSettings, id, path):
         # Render
         print("RENDER_START:" + str(id) + "\n", flush=True);
 
-        bpy.ops.render.render(animation=False, write_still=True, use_viewport=False, layer="", scene = "")
+        bpy.ops.render.render(animation=False, write_still=True, use_viewport=False, layer="", scene = scen)
 
         print("SUCCESS:" + str(id) + "\n", flush=True);
 

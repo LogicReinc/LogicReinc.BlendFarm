@@ -43,6 +43,7 @@ namespace LogicReinc.BlendFarm.Windows
             AvaloniaProperty.RegisterDirect<RenderWindow, OpenBlenderProject>(nameof(CurrentProject), (x) => x.CurrentProject, (w, v) => w.CurrentProject = v);
         private static DirectProperty<RenderWindow, string> CurrentSessionProperty =
             AvaloniaProperty.RegisterDirect<RenderWindow, string>(nameof(CurrentProject), (x) => x.CurrentSessionID, (w, v) => { });
+
         private static DirectProperty<RenderWindow, int> TabScrollIndexProperty =
             AvaloniaProperty.RegisterDirect<RenderWindow, int>(nameof(TabScrollIndex), (x) => x.TabScrollIndex, (w, v) => w.TabScrollIndex = v);
         private static DirectProperty<RenderWindow, bool> CanTabScrollRightProperty =
@@ -117,6 +118,7 @@ namespace LogicReinc.BlendFarm.Windows
         private ComboBox _selectOrder = null;
         private ComboBox _selectOutputType = null;
         private TextBox _inputAnimationFileFormat = null;
+        private AutoCompleteBox _scenesAvailableBox = null;
 
 
         //Debug data
@@ -237,6 +239,7 @@ namespace LogicReinc.BlendFarm.Windows
             _selectOrder = this.Find<ComboBox>("selectOrder");
             _selectOutputType = this.Find<ComboBox>("selectOutputType");
             _inputAnimationFileFormat = this.Find<TextBox>("inputAnimationFileFormat");
+            _scenesAvailableBox = this.Find<AutoCompleteBox>("availableScenesBox");
 
             _selectStrategy.Items = Enum.GetValues(typeof(RenderStrategy));
             _selectStrategy.SelectedIndex = 0;
@@ -340,6 +343,7 @@ namespace LogicReinc.BlendFarm.Windows
                 RaisePropertyChanged(CanTabScrollRightProperty, !CanTabScrollRight, CanTabScrollRight);
 
                 _image.Source = proj.LastImage;
+                _scenesAvailableBox.Items = CurrentProject.ScenesAvailable;
             });
         }
 
@@ -404,6 +408,16 @@ namespace LogicReinc.BlendFarm.Windows
             DeviceSettingsWindow.Show(this, node);
         }
 
+        public void StartingRender(RenderTask task)
+        {
+            string scene = task.Settings.Scene;
+            
+            if(!CurrentProject.ScenesAvailable.Contains(scene))
+            {
+                CurrentProject.ScenesAvailable.Add(scene);
+                _scenesAvailableBox.Items = CurrentProject.ScenesAvailable;
+            }
+        }
 
         //Singular
         public async Task Render() => await Render(false, false);
@@ -443,18 +457,20 @@ namespace LogicReinc.BlendFarm.Windows
 
 
                     //Create Task
-                    currentProject.SetRenderTask(Manager.GetImageTask(CurrentProject.BlendFile, GetSettingsFromUI(), async (task, updated) =>
+
+                    RenderTask task = Manager.GetImageTask(CurrentProject.BlendFile, GetSettingsFromUI(), async (task, updated) =>
                     {
                         //Apply image to canvas
                         await Dispatcher.UIThread.InvokeAsync(() =>
                         {
                             currentProject.LastImage = updated.ToAvaloniaBitmap();
-                            if(CurrentProject == currentProject)
+                            if (CurrentProject == currentProject)
                                 RaisePropertyChanged(CurrentProjectProperty, null, CurrentProject);
 
                             _lastRenderTime.Text = watch.Elapsed.ToString();
                         });
-                    }));
+                    });
+                    currentProject.SetRenderTask(task);
 
                     //Progress Updating
                     currentProject.CurrentTask.OnProgress += async (task, progress) =>
@@ -465,6 +481,9 @@ namespace LogicReinc.BlendFarm.Windows
                             this._imageProgress.Value = progress * 100;
                         });
                     };
+                    Dispatcher.UIThread.InvokeAsync(async () => {
+                        StartingRender(task);
+                    });
 
                     //Update view
                     await Dispatcher.UIThread.InvokeAsync(() => RaisePropertyChanged(IsRenderingProperty, false, true));
@@ -553,9 +572,9 @@ namespace LogicReinc.BlendFarm.Windows
                     Stopwatch watch = new Stopwatch();
                     watch.Start();
 
-
+                    
                     //Create Task
-                    currentProject.SetRenderTask(Manager.GetAnimationTask(currentProject.BlendFile, currentProject.FrameStart, currentProject.FrameEnd, GetSettingsFromUI(), async (task, frame) =>
+                    RenderTask rtask = Manager.GetAnimationTask(currentProject.BlendFile, currentProject.FrameStart, currentProject.FrameEnd, GetSettingsFromUI(), async (task, frame) =>
                     {
                         string filePath = Path.Combine(outputDir, animationFileFormat.Replace("#", task.Frame.ToString()));
 
@@ -590,7 +609,8 @@ namespace LogicReinc.BlendFarm.Windows
                             }
                             _lastRenderTime.Text = watch.Elapsed.ToString();
                         });
-                    }));
+                    });
+                    currentProject.SetRenderTask(rtask);
 
                     //Progress Updating
                     currentProject.CurrentTask.OnProgress += async (task, progress) =>
@@ -601,6 +621,10 @@ namespace LogicReinc.BlendFarm.Windows
                             this._imageProgress.Value = progress * 100;
                         });
                     };
+                    Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
+                        StartingRender(rtask);
+                    });
 
                     await Dispatcher.UIThread.InvokeAsync(() => RaisePropertyChanged(IsRenderingProperty, false, true));
 
@@ -938,6 +962,7 @@ namespace LogicReinc.BlendFarm.Windows
             return new RenderManagerSettings()
             {
                 Frame = proj.FrameStart,
+                Scene = proj.Scene,
                 Strategy = (RenderStrategy)_selectStrategy.SelectedItem,
                 Order = (TaskOrder)_selectOrder?.SelectedItem,
                 OutputHeight = proj.RenderHeight,

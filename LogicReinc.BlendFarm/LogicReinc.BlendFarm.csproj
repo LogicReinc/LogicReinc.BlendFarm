@@ -7,6 +7,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
   <ItemGroup>
     <AvaloniaXaml Remove="Content\**" />
@@ -27,6 +28,7 @@
     <None Remove="Icons\radioOn.png" />
     <None Remove="Icons\radioOn.zip" />
     <None Remove="Images\header.png" />
+    <None Remove="Images\icon.png" />
     <None Remove="Images\render.ico" />
   </ItemGroup>
   <ItemGroup>
@@ -43,6 +45,7 @@
     <AvaloniaResource Include="Images\header.png" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Images\icon.png" />
     <EmbeddedResource Include="Images\LogicReinc.BlendFarm.icns">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </EmbeddedResource>
@@ -63,6 +66,12 @@
     <ProjectReference Include="..\LogicReinc.BlendFarm.Client\LogicReinc.BlendFarm.Client.csproj" />
     <ProjectReference Include="..\LogicReinc.BlendFarm.Server\LogicReinc.BlendFarm.Server.csproj" />
     <ProjectReference Include="..\LogicReinc.BlendFarm.Shared\LogicReinc.BlendFarm.Shared.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Images\icon.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </Resource>
   </ItemGroup>
   <ItemGroup>
     <Compile Update="Windows\BitmapViewer.axaml.cs">
