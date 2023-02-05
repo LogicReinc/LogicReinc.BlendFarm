@@ -1,17 +1,13 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Chrome;
 using Avalonia.Markup.Xaml;
 using LogicReinc.BlendFarm.Client;
 using LogicReinc.BlendFarm.Objects;
 using LogicReinc.BlendFarm.Server;
-using LogicReinc.BlendFarm.Shared;
 using LogicReinc.BlendFarm.Shared.Communication.RenderNode;
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using static LogicReinc.BlendFarm.BlendFarmSettings;
+using System.ComponentModel;
 
 namespace LogicReinc.BlendFarm.Windows
 {
@@ -62,18 +58,23 @@ namespace LogicReinc.BlendFarm.Windows
                 OpenBlenderProject project = renderer.CurrentProject;
 
                 //Is there a better way to do this? I don't have enough experience to know...
-                project.RenderHeight = result.Settings.UseHeight ? result.Settings.Height : project.RenderHeight;
-                project.RenderWidth = result.Settings.UseWidth ? result.Settings.Width : project.RenderWidth;
-                project.Samples = result.Settings.UseSamples ? result.Settings.Samples : project.Samples;
-                project.Engine = result.Settings.UseEngine ? result.Settings.Engine : project.Engine;
-                project.FrameStart = result.Settings.UseFrameStart ? result.Settings.FrameStart : project.FrameStart;
-                project.FrameEnd = result.Settings.UseFrameEnd ? result.Settings.FrameEnd : project.FrameEnd;
-                project.TriggerPropertyChange(nameof(project.RenderHeight));
-                project.TriggerPropertyChange(nameof(project.RenderWidth));
-                project.TriggerPropertyChange(nameof(project.Samples));
-                project.TriggerPropertyChange(nameof(project.Engine));
-                project.TriggerPropertyChange(nameof(project.FrameStart));
-                project.TriggerPropertyChange(nameof(project.FrameEnd));
+                if(result.Settings != null) {
+                    project.RenderHeight = result.Settings.UseHeight ? result.Settings.Height : project.RenderHeight;
+                    project.RenderWidth = result.Settings.UseWidth ? result.Settings.Width : project.RenderWidth;
+                    project.Samples = result.Settings.UseSamples ? result.Settings.Samples : project.Samples;
+                    project.Engine = result.Settings.UseEngine ? result.Settings.Engine : project.Engine;
+                    project.FrameStart = result.Settings.UseFrameStart ? result.Settings.FrameStart : project.FrameStart;
+                    project.FrameEnd = result.Settings.UseFrameEnd ? result.Settings.FrameEnd : project.FrameEnd;
+                    project.TriggerPropertyChange(nameof(project.RenderHeight));
+                    project.TriggerPropertyChange(nameof(project.RenderWidth));
+                    project.TriggerPropertyChange(nameof(project.Samples));
+                    project.TriggerPropertyChange(nameof(project.Engine));
+                    project.TriggerPropertyChange(nameof(project.FrameStart));
+                    project.TriggerPropertyChange(nameof(project.FrameEnd));
+
+                    renderer.CameraOptions = result.Settings.UseCameras ? result.Settings.Cameras : renderer.CameraOptions;
+                }
+
                 this.Close();
             }
         }

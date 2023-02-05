@@ -46,6 +46,7 @@ namespace LogicReinc.BlendFarm.Objects
         public EngineType Engine { get; set; } = EngineType.Cycles;
         public string RenderFormat { get; set; } = "PNG";
 
+        public string Camera { get; set; } = "Active Camera";
         public bool UseWorkaround { get; set; } = true;
 
         public string Scene { get; set; } = "";
@@ -142,6 +143,7 @@ namespace LogicReinc.BlendFarm.Objects
             UseWorkaround = settings?.UseWorkaround ?? true;
             FPS = settings?.FPS ?? 0;
             Samples = settings?.Samples ?? 32;
+            Camera = settings?.Camera ?? "Active Camera";
         }
         public void SaveAsDefault()
         {
@@ -177,6 +179,7 @@ namespace LogicReinc.BlendFarm.Objects
             public int FPS { get; set; }
             public string Denoiser { get; set; }
             public bool UseWorkaround { get; set; }
+            public string Camera { get; set; }
         }
     }
 }

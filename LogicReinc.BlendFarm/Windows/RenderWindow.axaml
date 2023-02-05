@@ -274,7 +274,7 @@
                             </StackPanel>
 							  <StackPanel Orientation="Horizontal">
 								  <TextBlock Width="60" TextAlignment="Right" Margin="10">Camera</TextBlock>
-								  <AutoCompleteBox Width="240" Height="30" Margin="0" Watermark="None" Text="{Binding CurrentProject.Camera}" x:Name="availableCamerasBox" />
+								  <ComboBox SelectedIndex="0" Width="240" Height="30" Items="{Binding CameraOptions}" SelectedItem="{Binding CurrentProject.Camera}" x:Name="availableCamerasBox" />
 							  </StackPanel>
 
                             <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
