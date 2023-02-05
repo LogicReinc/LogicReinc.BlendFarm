@@ -429,6 +429,15 @@ namespace LogicReinc.BlendFarm.Windows
         {
             await ImportBlenderSettingsWindow.Show(this);
             RaisePropertyChanged(CameraOptionsProperty, null, CameraOptions);
+            //I'm a CS student who has never been taught C#. I am sure there are more succinct ways to write this code but I just want it to work.
+            foreach(string cam in CameraOptions)
+            {
+                if (cam.Contains("(Active)"))
+                {
+                    _camerasAvailableBox.SelectedItem= cam;
+                    break;
+                }
+            }
         }
         //Singular
         public async Task Render() => await Render(false, false);
@@ -987,7 +996,7 @@ namespace LogicReinc.BlendFarm.Windows
                 Denoiser = (proj.Denoiser == "Inherit") ? "" : proj.Denoiser ?? "",
                 BlenderUpdateBugWorkaround = proj.UseWorkaround,
                 UseAutoPerformance = UseAutomaticPerformance,
-                //Camera = proj.Camera == "Active Camera" ? "" : proj.Camera
+                Camera = proj.Camera == "Active Camera" ? "" : (proj.Camera.Contains(" (Active)") ? proj.Camera[..^" (Active)".Length] : proj.Camera)//remove the (Active) that was only there to help UX 
             };
         }
 

@@ -115,7 +115,8 @@ namespace LogicReinc.BlendFarm.Client
                 Engine = Parent.Settings.Engine,
                 Workaround = Parent.Settings.BlenderUpdateBugWorkaround,
                 Crop = Crop || Parent.Settings.BlenderUpdateBugWorkaround,
-                RenderFormat = (Parent is AnimationTask) ? Parent.Settings.RenderFormat : ""
+                RenderFormat = (Parent is AnimationTask) ? Parent.Settings.RenderFormat : "",
+                Camera = Parent.Settings.Camera
             };
         }
     }
