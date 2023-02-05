@@ -1,4 +1,5 @@
 ﻿using LogicReinc.BlendFarm.Shared;
+using LogicReinc.BlendFarm.Shared.Communication.RenderNode;
 using SharpCompress.Readers;
 using System;
 using System.Collections.Generic;
@@ -8,8 +9,10 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace LogicReinc.BlendFarm.Server
 {
@@ -26,6 +29,8 @@ namespace LogicReinc.BlendFarm.Server
         private object _renderLock = new object();
 
         public BlenderProcess RenderProcess { get; private set; }
+
+        public BlenderProcess ImportSettingsProcess { get; private set; }
         public string RenderSession { get; private set; }
         public bool Busy { get; private set; }
 
@@ -38,6 +43,8 @@ namespace LogicReinc.BlendFarm.Server
         /// </summary>
         public string RenderData { get; set; }
 
+
+        public List<string> Cameras { get; private set; } = new();
         /// <summary>
         /// Use Settings.Instance for directories 
         /// </summary>
@@ -89,7 +96,16 @@ namespace LogicReinc.BlendFarm.Server
             }
             return path;
         }
-
+        public string GetImportScriptPath()
+        {
+            string path = Path.Combine(GetBlenderDataPath(), $"import.py");
+            if (!File.Exists(path) || (!ServerSettings.Instance.BypassScriptUpdate && File.ReadAllText(path) != _scripts))
+            {
+                Directory.CreateDirectory(GetBlenderDataPath());
+                File.WriteAllText(path, GetImportScript());
+            }
+            return path;
+        }
         /// <summary>
         /// Returns OS version, Blender formatted (eg. windows64, linux64)
         /// </summary>
@@ -470,6 +486,7 @@ namespace LogicReinc.BlendFarm.Server
                     {
                         if (beforeStart != null)
                             beforeStart(RenderProcess);
+                        Console.WriteLine("Test");
                         RenderProcess.Continue(path);
                         if (beforeEnd != null)
                             beforeEnd(RenderProcess);
@@ -488,7 +505,40 @@ namespace LogicReinc.BlendFarm.Server
                 Busy = false;
             }
         }
+        /// <summary>
+        /// Renders a batch of render settings in a single Blender instance.
+        /// </summary>
+        public BlenderImportSettings ImportSettings(BlenderImportSettings settings, string version, string file)
+        {
+            try
+            {
 
+                Directory.CreateDirectory(Path.GetFullPath(RenderData));
+                string os = SystemInfo.GetOSName();
+                string blenderDir = GetVersionPath(version, os);
+
+                string cmd = $"{blenderDir}/blender";
+
+                //MacOS has to be special.
+                if (SystemInfo.IsOS(SystemInfo.OS_MACOS))
+                    cmd = $"{blenderDir}/Contents/MacOS/Blender";
+
+                string args = settings.ToString();
+
+                string arg = $"--factory-startup -noaudio -b \"{Path.GetFullPath(file)}\" -P \"{GetImportScriptPath()}\" -- \"{args}\"";
+
+                ImportSettingsProcess = new BlenderProcess(cmd, arg, version, file);
+                Dictionary<string, string> settingsDict = ImportSettingsProcess.ImportSettings();
+                if (settings.UseCameras)
+                    Cameras = ImportSettingsProcess.Cameras;
+                ImportSettingsProcess.Cancel();
+                return BlenderImportSettings.FromBlender(settingsDict, Cameras);
+                    
+                    
+            }
+            catch (Exception ex) { Console.WriteLine(ex.Message); }
+            return null;
+        }
         /// <summary>
         /// Checks settings and fills in missing data
         /// </summary>
@@ -577,8 +627,7 @@ namespace LogicReinc.BlendFarm.Server
         /// <returns></returns>
         private static string GetRenderScript()
         {
-            if (_scripts == null)
-            {
+            _scripts = null;
                 var assembly = Assembly.GetExecutingAssembly();
                 var resourceName = "LogicReinc.BlendFarm.Server.render.py";
 
@@ -587,7 +636,24 @@ namespace LogicReinc.BlendFarm.Server
                 {
                     _scripts = reader.ReadToEnd();
                 }
-            }
+            return _scripts;
+        }
+        /// <summary>
+        /// Reads import script from assembly 
+        /// </summary>
+        /// <returns></returns>
+        private static string GetImportScript()
+        {
+            _scripts= null;
+                var assembly = Assembly.GetExecutingAssembly();
+                var resourceName = "LogicReinc.BlendFarm.Server.import.py";
+
+                using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+                using (StreamReader reader = new StreamReader(stream))
+                {
+                    _scripts = reader.ReadToEnd();
+                }
+            
             return _scripts;
         }
         /// <summary>

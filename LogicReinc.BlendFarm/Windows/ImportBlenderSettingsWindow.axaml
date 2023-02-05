@@ -1,0 +1,41 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="300"
+		x:Class="LogicReinc.BlendFarm.Windows.ImportBlenderSettingsWindow"
+        Title="Import Render Settings">
+	<Window.Styles>
+		<StyleInclude Source="avares://Avalonia.Themes.Default/Accents/BaseDark.xaml" />
+	</Window.Styles>
+	<StackPanel Width="300" Height="300">
+		<TextBlock Text="Import these Settings:" Margin="10,20,10,5" FontSize="20" HorizontalAlignment="Center" />
+
+		<StackPanel>
+			<CheckBox Margin="0,3,0,3" IsChecked="{Binding Settings.UseWidth}" HorizontalAlignment="Center">
+				Width
+			</CheckBox>
+			<CheckBox Margin="0,3,0,3" IsChecked="{Binding Settings.UseHeight}" HorizontalAlignment="Center">
+				Height
+			</CheckBox>
+			<CheckBox Margin="0,3,0,3" IsChecked="{Binding Settings.UseFrameStart}" HorizontalAlignment="Center">
+				Start Frame
+			</CheckBox>
+			<CheckBox Margin="0,3,0,3" IsChecked="{Binding Settings.UseFrameEnd}" HorizontalAlignment="Center">
+				End Frame
+			</CheckBox>
+			<CheckBox Margin="0,3,0,3" IsChecked="{Binding Settings.UseSamples}" HorizontalAlignment="Center">
+				Rendering Samples
+			</CheckBox>
+			<CheckBox Margin="0,3,0,3" IsChecked="{Binding Settings.UseEngine}" HorizontalAlignment="Center">
+				Rendering Engine
+			</CheckBox>
+			<CheckBox Margin="0,3,0,3" IsChecked="{Binding Settings.UseCameras}" HorizontalAlignment="Center">
+				Scene Cameras
+			</CheckBox>
+
+			<Button Margin="0,40,0,0" FontSize="20" Command="{Binding Import}">Import</Button>
+
+		</StackPanel>
+	</StackPanel>
+</Window>

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -18,6 +20,8 @@ namespace LogicReinc.BlendFarm.Server
         private object _continueLock = new object();
 
         public const int CONTINUE_TIMEOUT = 10000;
+
+        public List<string> Cameras { get; private set; }
 
         public string CMD { get; private set; }
         public string ARG { get; private set; }
@@ -115,7 +119,50 @@ namespace LogicReinc.BlendFarm.Server
 
             process.WaitForExit();
         }
+        public Dictionary<string, string> ImportSettings()
+        {
+            Dictionary<string, string> settings = new();
+            Process process = new Process()
+            {
+                StartInfo = new ProcessStartInfo()
+                {
+                    FileName = CMD,
+                    Arguments = ARG,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardInput = true,
+                    CreateNoWindow = true
+                }
+            };
+            process.Exited += (a, b) => Active = false;
+            Process = process;
+            process.Start();
+            Active = true;
 
+            int done = 2;
+            while (!process.StandardOutput.EndOfStream)
+            {
+                var line = process.StandardOutput.ReadLine();
+                if (line.StartsWith("SETTINGS:"))
+                {
+                    Console.WriteLine(line);
+                    settings = ProcessImportSettingsLine(line.Substring(9));
+                    done--;
+                }
+                else if (line.StartsWith("CAMERAS:"))
+                {
+                    Console.WriteLine(line);
+                    Cameras = ProcessImportCamerasLine(line.Substring(8));
+                    done--;
+                }
+                if(done== 0)
+                    return settings;
+            }
+            process.WaitForExit();
+            if (done == 0)
+                return settings;
+            return null;
+        }
         public void Continue(string newPath)
         {
             lock (_continueLock)
@@ -147,6 +194,42 @@ namespace LogicReinc.BlendFarm.Server
         }
 
 
+
+        private Dictionary<string, string> ProcessImportSettingsLine(string line)
+        {
+            Dictionary<string, string> settingsDict = new();
+            string[] settings = line.Split("|X|");
+            if (settings.Length != 1)
+            {
+                foreach(string setting in settings)
+                {
+                    if (setting != "")
+                    {
+                        string[] keyval = setting.Split('=');
+                        settingsDict[keyval[0]] = keyval[1];
+                    }
+                }
+            }
+            return settingsDict;
+
+        }
+        private List<string> ProcessImportCamerasLine(string line)
+        {
+            List<string> cameras = new List<string>();
+            string[] names = line.Split("|X|");
+            if (names.Length != 1)
+            {
+                foreach (string camName in names)
+                {
+                    if (camName != "")
+                    {
+                        cameras.Add(camName);
+                    }
+                }
+            }
+            return cameras;
+
+        }
         /// <summary>
         /// Handles a Blender print line
         /// </summary>

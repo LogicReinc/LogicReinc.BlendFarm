@@ -187,7 +187,7 @@ namespace LogicReinc.BlendFarm.Windows
 
             Init();
         }
-        private void Init()
+        public void Init()
         {
             OS = SystemInfo.GetOSName();
             if(Manager?.Nodes != null)
@@ -418,7 +418,10 @@ namespace LogicReinc.BlendFarm.Windows
                 _scenesAvailableBox.Items = CurrentProject.ScenesAvailable;
             }
         }
-
+        public async Task ImportBlenderSettings()
+        {
+            await ImportBlenderSettingsWindow.Show(this);
+        }
         //Singular
         public async Task Render() => await Render(false, false);
         public async Task Render(bool noSync, bool noExcep = false)

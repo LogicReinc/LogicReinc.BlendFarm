@@ -624,7 +624,10 @@ namespace LogicReinc.BlendFarm.Client
         {
             return (await Client.Send<IsBusyResponse>(new IsBusyRequest(), CancellationToken.None))?.IsBusy ?? false;
         }
-
+        public async Task<ImportSettingsResponse> ImportSettings(ImportSettingsRequest req)
+        {
+            return await Client.Send<ImportSettingsResponse>(req, CancellationToken.None);
+        }
         /// <summary>
         /// Check if a version is present on node
         /// </summary>

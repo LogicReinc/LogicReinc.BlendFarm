@@ -247,7 +247,12 @@
                     <TabControl SelectedIndex="0">
                       <TabItem Header="Image" Margin="10,0,0,0">
                         <StackPanel Background="#1F1F1F">
-                          <StackPanel Margin="10,20,10,10">
+                          <StackPanel Margin="10,10,10,10">
+							  <StackPanel Margin="0,0,0,10">
+								  <Button Margin="0,3,0,5" Command="{Binding ImportBlenderSettings}" Background="#400083" BorderBrush="#200041">
+									  Import Blender Settings
+								  </Button>
+							  </StackPanel>
                             <StackPanel Orientation="Horizontal">
                               <TextBlock Width="60" TextAlignment="Right" Margin="10">Width:</TextBlock>
                               <NumericUpDown Width="80" Value="{Binding CurrentProject.RenderWidth}" />

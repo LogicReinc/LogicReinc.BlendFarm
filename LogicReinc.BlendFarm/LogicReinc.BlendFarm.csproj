@@ -74,8 +74,17 @@
     </Resource>
   </ItemGroup>
   <ItemGroup>
+    <AvaloniaXaml Update="Windows\ImportBlenderSettingsWindow.axaml">
+      <SubType>Designer</SubType>
+    </AvaloniaXaml>
+  </ItemGroup>
+  <ItemGroup>
     <Compile Update="Windows\BitmapViewer.axaml.cs">
       <DependentUpon>BitmapViewer.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Windows\ImportBlenderSettingsWindow.axaml.cs">
+      <SubType>Code</SubType>
+      <DependentUpon>ImportBlenderSettingsWindow.axaml</DependentUpon>
     </Compile>
     <Compile Update="Windows\YesNoNeverWindow.axaml.cs">
       <DependentUpon>YesNoNeverWindow.axaml</DependentUpon>

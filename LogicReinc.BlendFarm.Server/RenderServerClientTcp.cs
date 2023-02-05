@@ -67,6 +67,14 @@ namespace LogicReinc.BlendFarm.Server
             };
         }
 
+        [BlendFarmHeader("importSettings")]
+        public ImportSettingsResponse Packet_ImportSettings(ImportSettingsRequest req)
+        {
+            return new ImportSettingsResponse()
+            {
+                Settings = _blender.ImportSettings(req.Settings, req.Version, req.File)
+            };
+        }
         /// <summary>
         /// Handler computerInfo, returns computer info
         /// </summary>
