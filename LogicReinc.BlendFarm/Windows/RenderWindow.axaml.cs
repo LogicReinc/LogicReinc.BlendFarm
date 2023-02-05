@@ -187,7 +187,7 @@ namespace LogicReinc.BlendFarm.Windows
 
             Init();
         }
-        public void Init()
+        private void Init()
         {
             OS = SystemInfo.GetOSName();
             if(Manager?.Nodes != null)

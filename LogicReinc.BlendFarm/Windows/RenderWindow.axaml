@@ -272,6 +272,10 @@
                               <TextBlock Width="60" TextAlignment="Right" Margin="10">Scene</TextBlock>
                               <AutoCompleteBox Width="240" Height="30" Margin="0" Watermark="Inherit/Main" Text="{Binding CurrentProject.Scene}" x:Name="availableScenesBox" />
                             </StackPanel>
+							  <StackPanel Orientation="Horizontal">
+								  <TextBlock Width="60" TextAlignment="Right" Margin="10">Camera</TextBlock>
+								  <AutoCompleteBox Width="240" Height="30" Margin="0" Watermark="None" Text="{Binding CurrentProject.Camera}" x:Name="availableCamerasBox" />
+							  </StackPanel>
 
                             <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                               <TextBlock Width="110" TextAlignment="Right" Margin="10">Last Render Time:</TextBlock>

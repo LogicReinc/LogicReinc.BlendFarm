@@ -22,6 +22,7 @@ namespace LogicReinc.BlendFarm.Windows
 
         public ImportBlenderSettingsWindow()
         {
+            //Everything starts selected by default
             Settings.UseWidth = true;
             Settings.UseHeight = true;
             Settings.UseFrameStart = true;
@@ -59,6 +60,8 @@ namespace LogicReinc.BlendFarm.Windows
                     File = renderer.CurrentProject.BlendFile
                 });
                 OpenBlenderProject project = renderer.CurrentProject;
+
+                //Is there a better way to do this? I don't have enough experience to know...
                 project.RenderHeight = result.Settings.UseHeight ? result.Settings.Height : project.RenderHeight;
                 project.RenderWidth = result.Settings.UseWidth ? result.Settings.Width : project.RenderWidth;
                 project.Samples = result.Settings.UseSamples ? result.Settings.Samples : project.Samples;

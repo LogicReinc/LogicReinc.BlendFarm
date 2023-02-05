@@ -486,7 +486,6 @@ namespace LogicReinc.BlendFarm.Server
                     {
                         if (beforeStart != null)
                             beforeStart(RenderProcess);
-                        Console.WriteLine("Test");
                         RenderProcess.Continue(path);
                         if (beforeEnd != null)
                             beforeEnd(RenderProcess);
@@ -506,7 +505,7 @@ namespace LogicReinc.BlendFarm.Server
             }
         }
         /// <summary>
-        /// Renders a batch of render settings in a single Blender instance.
+        /// Starts a Blender instance in order to read settings from the save file.
         /// </summary>
         public BlenderImportSettings ImportSettings(BlenderImportSettings settings, string version, string file)
         {
