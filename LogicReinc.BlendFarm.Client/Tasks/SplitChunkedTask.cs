@@ -63,7 +63,7 @@ namespace LogicReinc.BlendFarm.Client.Tasks
                         {
                             SubTaskBatchResult resp = ExecuteSubTasks(node, (rsbt, rbr) =>
                             {
-                                using(Image img = ImageConverter.Convert(rbr.Data, Settings.RenderFormat))
+                                using(Image img = ImageTypes.ImageConverter.Convert(rbr.Data, Settings.RenderFormat))
                                     ProcessTile(rsbt, img, ref g, ref result, ref drawLock);
 
                                 ChangeProgress(Progress + rsbt.Value);
