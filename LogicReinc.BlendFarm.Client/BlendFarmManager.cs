@@ -528,6 +528,7 @@ namespace LogicReinc.BlendFarm.Client
                 CurrentTask.OnResultUpdated += onResultUpdated;
             if (onTileReceived != null)
                 CurrentTask.OnTileProcessed += onTileReceived;
+
             return CurrentTask;
         }
 

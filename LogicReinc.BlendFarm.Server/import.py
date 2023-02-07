@@ -21,10 +21,7 @@ def findCameras():
     list = ["CAMERAS:"]
     for o in s.objects:
         if o.type == 'CAMERA':
-            if s.camera.name == o.name:
-                list.append(o.name + " (Active)")
-            else:
-                list.append(o.name)
+            list.append(o.name)
     print(JOINER.join(list))
 
 

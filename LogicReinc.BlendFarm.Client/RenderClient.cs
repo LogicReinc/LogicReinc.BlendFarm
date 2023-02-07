@@ -80,6 +80,7 @@ namespace LogicReinc.BlendFarm.Client
             string reqID = Guid.NewGuid().ToString();
 
             msg.RequestID = reqID;
+
             BlendFarmMessage response = null;
 
             SemaphoreSlim sema = new SemaphoreSlim(1);
