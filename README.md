@@ -4,12 +4,13 @@ I have a few main goals to improve the software for my own personal use, but I p
 
 1. Ability to import render settings from your save file directly (things like height, width, engine, etc) This also includes the ability to change which camera you render with from this program
 2. UI Improvements
+    
     After looking at the code for the UI its... a mess (as LogicReinc states himself multiple times) I'm not exactly an experienced programmer, but I hope that I can improve the way the UI is created so that adding functionality and improving aethetics becomes routine. In the long term this may include custom themes, because I think that's cool.
 
 Those are the biggest changes. If I stick with this and decide to keep going, my focus will be on improving the following:
 
 3. Batched rendering
-4. Using differnet nodes to render different scenes/views simultaneously using the queue system
+4. Using different nodes to render different scenes/views simultaneously using the queue system
 5. Cleaning up code that I know how to clean up, and learning more about code that I don't understand to see if it can be simplified/built upon for more features.
 
 None of these are set in stone (expect the importation of Blender settings, that's already done lol) but that's the plan for now. Now, on to the original README from the project's author, LogicReinc:
