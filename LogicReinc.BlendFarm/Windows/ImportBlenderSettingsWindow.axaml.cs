@@ -8,6 +8,8 @@ using LogicReinc.BlendFarm.Shared.Communication.RenderNode;
 using System.Linq;
 using System.Threading.Tasks;
 using System.ComponentModel;
+using System.Collections.Generic;
+using System;
 
 namespace LogicReinc.BlendFarm.Windows
 {
@@ -44,39 +46,62 @@ namespace LogicReinc.BlendFarm.Windows
 
         public async void Import()
         {
-            RenderWindow renderer = ((RenderWindow) this.Owner);
+            RenderWindow renderer = ((RenderWindow)this.Owner);
             await renderer.SyncAll();
-            RenderNode node = renderer.Manager.Nodes.First();
-            if (node != null && node.Connected)
+            List<RenderNode> conNodes = renderer.Manager.Nodes.Where((x) => x.Connected).ToList();
+            renderer.Manager.DisconnectAll();
+            RenderNode node = renderer.Manager.Nodes[0];
+            if (node == null)
             {
-                ImportSettingsResponse result = await node.ImportSettings(new ImportSettingsRequest()
-                {
-                    Settings = this.Settings,
-                    Version = renderer.Manager.Version,
-                    File = renderer.CurrentProject.BlendFile
-                });
-                OpenBlenderProject project = renderer.CurrentProject;
-
-                //Is there a better way to do this? I don't have enough experience to know...
-                if(result.Settings != null) {
-                    project.RenderHeight = result.Settings.UseHeight ? result.Settings.Height : project.RenderHeight;
-                    project.RenderWidth = result.Settings.UseWidth ? result.Settings.Width : project.RenderWidth;
-                    project.Samples = result.Settings.UseSamples ? result.Settings.Samples : project.Samples;
-                    project.Engine = result.Settings.UseEngine ? result.Settings.Engine : project.Engine;
-                    project.FrameStart = result.Settings.UseFrameStart ? result.Settings.FrameStart : project.FrameStart;
-                    project.FrameEnd = result.Settings.UseFrameEnd ? result.Settings.FrameEnd : project.FrameEnd;
-                    project.TriggerPropertyChange(nameof(project.RenderHeight));
-                    project.TriggerPropertyChange(nameof(project.RenderWidth));
-                    project.TriggerPropertyChange(nameof(project.Samples));
-                    project.TriggerPropertyChange(nameof(project.Engine));
-                    project.TriggerPropertyChange(nameof(project.FrameStart));
-                    project.TriggerPropertyChange(nameof(project.FrameEnd));
-
-                    renderer.CameraOptions = result.Settings.UseCameras ? result.Settings.Cameras : renderer.CameraOptions;
-                }
-
-                this.Close();
+                Console.WriteLine("At least one node must exist and be able to open Blender for importing to work.");
+                return;
             }
+            foreach(RenderNode possibleNode in renderer.Manager.Nodes) {
+                if(await renderer.Manager.ConnectAndPrepare(possibleNode.Name))
+                {
+                    node = possibleNode;
+                    break;
+                }
+                
+            }
+            if (!node.Connected)
+            {
+                Console.WriteLine("Could not connect to any nodes. They must be reachable in order to import settings.");
+                return;
+            }
+            await renderer.Manager.Sync(renderer.CurrentProject.BlendFile);
+
+            ImportSettingsResponse result = await node.ImportSettings(new ImportSettingsRequest()
+            {
+                Settings = this.Settings,
+                Version = renderer.Manager.Version,
+                File = renderer.CurrentProject.BlendFile
+            });
+            OpenBlenderProject project = renderer.CurrentProject;
+
+            //Is there a better way to do this? I don't have enough experience to know...
+            if (result.Settings != null)
+            {
+                project.RenderHeight = result.Settings.UseHeight ? result.Settings.Height : project.RenderHeight;
+                project.RenderWidth = result.Settings.UseWidth ? result.Settings.Width : project.RenderWidth;
+                project.Samples = result.Settings.UseSamples ? result.Settings.Samples : project.Samples;
+                project.Engine = result.Settings.UseEngine ? result.Settings.Engine : project.Engine;
+                project.FrameStart = result.Settings.UseFrameStart ? result.Settings.FrameStart : project.FrameStart;
+                project.FrameEnd = result.Settings.UseFrameEnd ? result.Settings.FrameEnd : project.FrameEnd;
+                project.TriggerPropertyChange(nameof(project.RenderHeight));
+                project.TriggerPropertyChange(nameof(project.RenderWidth));
+                project.TriggerPropertyChange(nameof(project.Samples));
+                project.TriggerPropertyChange(nameof(project.Engine));
+                project.TriggerPropertyChange(nameof(project.FrameStart));
+                project.TriggerPropertyChange(nameof(project.FrameEnd));
+
+                renderer.CameraOptions = result.Settings.UseCameras ? result.Settings.Cameras : renderer.CameraOptions;
+            }
+
+            node.Disconnect();
+            conNodes.ForEach(node => renderer.Manager.Connect(node.Name));
+            this.Close();
+
         }
 
         public static new async Task Show(Window owner)
