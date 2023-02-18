@@ -83,7 +83,7 @@ namespace LogicReinc.BlendFarm.Client.Tasks
                                 continue;
                             }
 
-                            using (Image img = ImageConverter.Convert(taskPart.Image, task.Parent.Settings.RenderFormat))
+                            using (Image img = ImageTypes.ImageConverter.Convert(taskPart.Image, task.Parent.Settings.RenderFormat))
                                 ProcessTile(task, img, ref g, ref result, ref drawLock);
 
                             ChangeProgress(Progress + task.Value);

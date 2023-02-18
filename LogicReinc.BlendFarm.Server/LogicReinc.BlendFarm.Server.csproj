@@ -25,7 +25,7 @@
 
   <ItemGroup>
     <PackageReference Include="Avalonia.Diagnostics" Version="0.10.18" />
-    <PackageReference Include="SharpCompress" Version="0.26.0" />
+    <PackageReference Include="SharpCompress" Version="0.32.2" />
   </ItemGroup>
 
   <ItemGroup>

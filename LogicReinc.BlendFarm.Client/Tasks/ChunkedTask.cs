@@ -41,7 +41,7 @@ namespace LogicReinc.BlendFarm.Client.Tasks
         protected override void HandleResult(RenderSubTask task, SubTaskResult tresult)
         {
             ChangeProgress(Progress + task.Value);
-            using (Image img = ImageConverter.Convert(tresult.Image, task.Parent.Settings.RenderFormat))
+            using (Image img = ImageTypes.ImageConverter.Convert(tresult.Image, task.Parent.Settings.RenderFormat))
                 ProcessTile(task, img, ref g, ref result, ref _drawLock);
         }
 
