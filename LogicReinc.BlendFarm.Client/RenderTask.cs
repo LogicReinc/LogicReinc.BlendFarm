@@ -127,7 +127,6 @@ namespace LogicReinc.BlendFarm.Shared
                 useNode.UpdateException("");
 
             bool result = await Execute();
-
             return result;
         }
         protected abstract Task<bool> Execute();

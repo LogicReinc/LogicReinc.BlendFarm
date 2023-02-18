@@ -2,14 +2,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="500"
+        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="400"
         x:Class="LogicReinc.BlendFarm.Windows.AnnouncementWindow"
         xmlns:convs="clr-namespace:LogicReinc.BlendFarm.Converters;assembly=LogicReinc.BlendFarm"
         Title="AnnouncementWindow" Background="#333">
   <Window.Resources>
     <convs:ImageUrlConverter x:Key="ImageUrl" />
   </Window.Resources>
-
   <Grid ColumnDefinitions="*" RowDefinitions="30,70,*">
     <ComboBox Background="#222" x:Name="announcementSelection" BorderBrush="#222" Foreground="Gray" Grid.Row="0" SelectedItem="{Binding Announcement}" Items="{Binding Announcements}" >
       <ComboBox.ItemTemplate>
@@ -22,7 +21,7 @@
         </DataTemplate>
       </ComboBox.ItemTemplate>
     </ComboBox>
-      <TextBlock Grid.Row="1" Text="{Binding Announcement.Name}" Foreground="White" FontSize="30" Margin="10,25,10,10" HorizontalAlignment="Center" />
+      <TextBlock Grid.Row="1" TextWrapping="WrapWithOverflow" Text="{Binding Announcement.Name}" Foreground="White" FontSize="30" Margin="10,25,10,10" HorizontalAlignment="Center" />
       <ListBox Grid.Row="2" Margin="0,0,0,0" Padding="0" Background="Transparent" BorderBrush="Transparent" Items="{Binding Announcement.Segments}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
         <ListBox.Styles>
           <Style Selector="ListBoxItem:selected /template/ContentPresenter">

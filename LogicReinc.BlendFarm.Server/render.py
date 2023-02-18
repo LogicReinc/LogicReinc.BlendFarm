@@ -96,7 +96,15 @@ def renderWithSettings(renderSettings, id, path):
             scn = bpy.data.scenes[scen];
             if(scn is None):
                 raise Exception("Unknown Scene :" + scen);
-
+        
+        cam = renderSettings["Camera"];
+        if(cam is None):
+            cam = "";
+        if(cam != ""):
+            scn.camera = bpy.data.objects[cam]
+            if(scn.camera is None):
+                raise Exception("Unknown Camera :" + cam);
+        print("Rendering with camera \"" + scn.camera.name + "\"\n");
 
         # Parse Parameters
         frame = int(renderSettings["Frame"])

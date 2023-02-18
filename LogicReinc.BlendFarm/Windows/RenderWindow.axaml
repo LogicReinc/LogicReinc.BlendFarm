@@ -247,7 +247,12 @@
                     <TabControl SelectedIndex="0">
                       <TabItem Header="Image" Margin="10,0,0,0">
                         <StackPanel Background="#1F1F1F">
-                          <StackPanel Margin="10,20,10,10">
+                          <StackPanel Margin="10,10,10,10">
+							  <StackPanel Margin="0,0,0,10">
+								  <Button Margin="0,3,0,5" Command="{Binding ImportBlenderSettings}" Background="#400083" BorderBrush="#200041">
+									  Import Blender Settings
+								  </Button>
+							  </StackPanel>
                             <StackPanel Orientation="Horizontal">
                               <TextBlock Width="60" TextAlignment="Right" Margin="10">Width:</TextBlock>
                               <NumericUpDown Width="80" Value="{Binding CurrentProject.RenderWidth}" />
@@ -267,6 +272,10 @@
                               <TextBlock Width="60" TextAlignment="Right" Margin="10">Scene</TextBlock>
                               <AutoCompleteBox Width="240" Height="30" Margin="0" Watermark="Inherit/Main" Text="{Binding CurrentProject.Scene}" x:Name="availableScenesBox" />
                             </StackPanel>
+							  <StackPanel Orientation="Horizontal">
+								  <TextBlock Width="60" TextAlignment="Right" Margin="10">Camera</TextBlock>
+								  <ComboBox SelectedIndex="0" Width="240" Height="30" Items="{Binding CameraOptions}" SelectedItem="{Binding CurrentProject.Camera}" x:Name="availableCamerasBox" />
+							  </StackPanel>
 
                             <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                               <TextBlock Width="110" TextAlignment="Right" Margin="10">Last Render Time:</TextBlock>

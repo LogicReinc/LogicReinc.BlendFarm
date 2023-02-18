@@ -52,6 +52,8 @@ namespace LogicReinc.BlendFarm.Windows
             AvaloniaProperty.RegisterDirect<RenderWindow, bool>(nameof(CanTabScrollLeft), (x) => x.CanTabScrollLeft, (w, v) => { });
         private static DirectProperty<RenderWindow, string> QueueNameProperty =
             AvaloniaProperty.RegisterDirect<RenderWindow, string>(nameof(QueueName), (x) => x.QueueName, (w, v) => { });
+        private static DirectProperty<RenderWindow, List<string>> CameraOptionsProperty =
+            AvaloniaProperty.RegisterDirect<RenderWindow, List<string>>(nameof(CameraOptions), (x) => x.CameraOptions, (w, v) => { });
 
         //public string File { get; set; }
         public BlenderVersion Version { get; set; }
@@ -96,6 +98,7 @@ namespace LogicReinc.BlendFarm.Windows
 
         //Options
         protected string[] DenoiserOptions { get; } = new string[] { "Inherit", "None", "NLM", "OPTIX", "OPENIMAGEDENOISE" };
+        public List<string> CameraOptions { get; set; } = new List<string>() { "Active Camera" };
         protected EngineType[] EngineOptions { get; } = (EngineType[])Enum.GetValues(typeof(EngineType));
 
         protected string[] ImageFormats { get; } = Client.ImageTypes.ImageFormats.Formats;
@@ -119,6 +122,7 @@ namespace LogicReinc.BlendFarm.Windows
         private ComboBox _selectOutputType = null;
         private TextBox _inputAnimationFileFormat = null;
         private AutoCompleteBox _scenesAvailableBox = null;
+        private ComboBox _camerasAvailableBox = null;
 
 
         //Debug data
@@ -240,6 +244,9 @@ namespace LogicReinc.BlendFarm.Windows
             _selectOutputType = this.Find<ComboBox>("selectOutputType");
             _inputAnimationFileFormat = this.Find<TextBox>("inputAnimationFileFormat");
             _scenesAvailableBox = this.Find<AutoCompleteBox>("availableScenesBox");
+            
+            _camerasAvailableBox = this.Find<ComboBox>("availableCamerasBox");
+            _camerasAvailableBox.SelectedIndex = 0;
 
             _selectStrategy.Items = Enum.GetValues(typeof(RenderStrategy));
             _selectStrategy.SelectedIndex = 0;
@@ -374,7 +381,7 @@ namespace LogicReinc.BlendFarm.Windows
                 }
                 if(!Regex.IsMatch(InputClientAddress, "^([a-zA-Z0-9\\.]*?):[0-9][0-9]?[0-9]?[0-9]?[0-9]?$"))
                 {
-                    MessageWindow.Show(this, "Invalid Address", "The address provided seems to be invalid, expected format is {hostname}:{port} or {ip}{port}, eg. 192.168.1.123:15000");
+                    MessageWindow.Show(this, "Invalid Address", "The address provided seems to be invalid, expected format is {hostname}:{port} or {ip}:{port}, eg. 192.168.1.123:15000");
                     return;
                 }
 
@@ -418,7 +425,20 @@ namespace LogicReinc.BlendFarm.Windows
                 _scenesAvailableBox.Items = CurrentProject.ScenesAvailable;
             }
         }
-
+        public async void ImportBlenderSettings()
+        {
+            await ImportBlenderSettingsWindow.Show(this);
+            RaisePropertyChanged(CameraOptionsProperty, null, CameraOptions);
+            //I'm a CS student who has never been taught C#. I am sure there are more succinct ways to write this code but I just want it to work.
+            foreach(string cam in CameraOptions)
+            {
+                if (cam.Contains("(Active)"))
+                {
+                    _camerasAvailableBox.SelectedItem= cam;
+                    break;
+                }
+            }
+        }
         //Singular
         public async Task Render() => await Render(false, false);
         public async Task Render(bool noSync, bool noExcep = false)
@@ -975,7 +995,8 @@ namespace LogicReinc.BlendFarm.Windows
                 FPS = (proj.UseFPS) ? proj.FPS : 0,
                 Denoiser = (proj.Denoiser == "Inherit") ? "" : proj.Denoiser ?? "",
                 BlenderUpdateBugWorkaround = proj.UseWorkaround,
-                UseAutoPerformance = UseAutomaticPerformance
+                UseAutoPerformance = UseAutomaticPerformance,
+                Camera = proj.Camera == "Active Camera" ? "" : (proj.Camera.Contains(" (Active)") ? proj.Camera[..^" (Active)".Length] : proj.Camera)//remove the (Active) that was only there to help UX 
             };
         }
 

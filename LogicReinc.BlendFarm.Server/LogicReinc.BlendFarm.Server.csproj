@@ -14,10 +14,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="import.py" />
     <None Remove="render.py" />
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="import.py" />
     <EmbeddedResource Include="render.py" />
   </ItemGroup>
 

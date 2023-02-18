@@ -52,6 +52,7 @@ namespace LogicReinc.BlendFarm.Shared
         /// </summary>
         public string Scene { get; set; } = "";
 
+        public string Camera { get; set; } = "";
         //System
 
         /// <summary>

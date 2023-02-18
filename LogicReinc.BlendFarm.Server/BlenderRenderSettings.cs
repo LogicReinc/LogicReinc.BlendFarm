@@ -28,6 +28,7 @@ namespace LogicReinc.BlendFarm.Server
         /// </summary>
         public string Scene { get; set; } = "";
 
+        public string Camera { get; set; } = "";
         /// <summary>
         /// Number of CPU cores to use
         /// </summary>
@@ -138,7 +139,8 @@ namespace LogicReinc.BlendFarm.Server
                 FPS = settings.FPS,
                 Workaround = settings.Workaround,
                 Engine = settings.Engine,
-                RenderFormat = settings.RenderFormat
+                RenderFormat = settings.RenderFormat,
+                Camera = settings.Camera
             };
 
             return result;
