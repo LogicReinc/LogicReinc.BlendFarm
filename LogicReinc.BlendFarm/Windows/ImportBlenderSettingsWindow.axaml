@@ -34,7 +34,7 @@
 				Scene Cameras
 			</CheckBox>
 
-			<Button Margin="0,40,0,0" FontSize="20" Command="{Binding Import}">Import</Button>
+			<Button Margin="0,40,0,0" FontSize="20" Command="{Binding Import}" Content="{Binding ButtonText}" IsEnabled="{Binding !IsImporting}" />
 
 		</StackPanel>
 	</StackPanel>

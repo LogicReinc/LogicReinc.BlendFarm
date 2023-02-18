@@ -72,7 +72,7 @@ namespace LogicReinc.BlendFarm.Server
         {
             return new ImportSettingsResponse()
             {
-                Settings = _blender.ImportSettings(req.Settings, req.Version, req.File)
+            Settings = _blender.ImportSettings(req.Settings, req.Version, SessionData.GetFilePath(req.sessionID))
             };
         }
         /// <summary>

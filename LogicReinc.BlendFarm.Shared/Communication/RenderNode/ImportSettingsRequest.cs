@@ -14,6 +14,7 @@ namespace LogicReinc.BlendFarm.Shared.Communication.RenderNode
         public BlenderImportSettings Settings { get; set; }
         public string Version { get; set; }
         public string File { get; set; }
+        public string sessionID { get; set; }
     }
     [BlendFarmHeader("importSettingsResp")]
     public class ImportSettingsResponse : BlendFarmMessage

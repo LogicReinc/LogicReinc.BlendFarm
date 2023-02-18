@@ -10,13 +10,20 @@ using System.Threading.Tasks;
 using System.ComponentModel;
 using System.Collections.Generic;
 using System;
+using Avalonia.Threading;
 
 namespace LogicReinc.BlendFarm.Windows
 {
-    public class ImportBlenderSettingsWindow : Window
+    public class ImportBlenderSettingsWindow : Window, INotifyPropertyChanged
     {
 
         public BlenderImportSettings Settings { get; private set; } = new();
+
+        public string ButtonText { get; set; } = "Import";
+
+        public bool IsImporting => ButtonText != "Import";
+
+        public event PropertyChangedEventHandler PropertyChanged;
 
         public ImportBlenderSettingsWindow()
         {
@@ -46,8 +53,13 @@ namespace LogicReinc.BlendFarm.Windows
 
         public async void Import()
         {
+            ButtonText = "Importing";
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ButtonText)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsImporting)));
+            });
             RenderWindow renderer = ((RenderWindow)this.Owner);
-            await renderer.SyncAll();
             List<RenderNode> conNodes = renderer.Manager.Nodes.Where((x) => x.Connected).ToList();
             renderer.Manager.DisconnectAll();
             RenderNode node = renderer.Manager.Nodes[0];
@@ -70,13 +82,14 @@ namespace LogicReinc.BlendFarm.Windows
                 return;
             }
             await renderer.Manager.Sync(renderer.CurrentProject.BlendFile);
-
+            BlendFarmFileSession session = renderer.Manager.GetOrCreateSession(renderer.CurrentProject.BlendFile);
+            Console.WriteLine(session.LocalBlendFile);
             ImportSettingsResponse result = await node.ImportSettings(new ImportSettingsRequest()
             {
                 Settings = this.Settings,
                 Version = renderer.Manager.Version,
-                File = renderer.CurrentProject.BlendFile
-            });
+                sessionID = session.SessionID
+            }) ;
             OpenBlenderProject project = renderer.CurrentProject;
 
             //Is there a better way to do this? I don't have enough experience to know...
