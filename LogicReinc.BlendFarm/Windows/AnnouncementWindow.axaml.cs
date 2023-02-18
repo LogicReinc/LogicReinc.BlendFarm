@@ -84,7 +84,6 @@ namespace LogicReinc.BlendFarm.Windows
         private void InitializeComponent()
         {
             AvaloniaXamlLoader.Load(this);
-            this.AttachDevTools(new Avalonia.Input.KeyGesture(Avalonia.Input.Key.K));
             int width = 600;
             int height = 700;
             MinWidth = width;

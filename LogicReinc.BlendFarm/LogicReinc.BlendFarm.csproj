@@ -79,9 +79,6 @@
     <Compile Update="Windows\BitmapViewer.axaml.cs">
       <DependentUpon>BitmapViewer.axaml</DependentUpon>
     </Compile>
-    <Compile Update="Windows\AnnouncementWindowNew.axaml.cs">
-      <DependentUpon>AnnouncementWindowNew.axaml</DependentUpon>
-    </Compile>
     <Compile Update="Windows\YesNoNeverWindow.axaml.cs">
       <DependentUpon>YesNoNeverWindow.axaml</DependentUpon>
     </Compile>
