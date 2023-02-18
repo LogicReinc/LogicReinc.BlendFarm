@@ -425,7 +425,7 @@ namespace LogicReinc.BlendFarm.Windows
                 _scenesAvailableBox.Items = CurrentProject.ScenesAvailable;
             }
         }
-        public async Task ImportBlenderSettings()
+        public async void ImportBlenderSettings()
         {
             await ImportBlenderSettingsWindow.Show(this);
             RaisePropertyChanged(CameraOptionsProperty, null, CameraOptions);
