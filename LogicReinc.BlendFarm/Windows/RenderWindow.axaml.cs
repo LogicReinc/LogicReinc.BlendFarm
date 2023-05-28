@@ -13,6 +13,7 @@ using LogicReinc.BlendFarm.Client.Tasks;
 using LogicReinc.BlendFarm.Objects;
 using LogicReinc.BlendFarm.Server;
 using LogicReinc.BlendFarm.Shared;
+using LogicReinc.BlendFarm.Shared.Communication.RenderNode;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -417,6 +418,45 @@ namespace LogicReinc.BlendFarm.Windows
                 CurrentProject.ScenesAvailable.Add(scene);
                 _scenesAvailableBox.Items = CurrentProject.ScenesAvailable;
             }
+        }
+
+        public async Task ImportSettings()
+        {
+            OpenBlenderProject currentProject = CurrentProject;
+
+            //Check if any unsynced nodes
+            if (!Manager.Nodes.Any(x => x.Connected && x.IsSessionSynced(currentProject.SessionID)))//!x.IsSynced))
+            {
+                if (await YesNoWindow.Show(this, "No Synced Node", "Require atleast one synced node to import settings, would you like to sync?"))
+                {
+                    if (!CurrentProject.UseNetworkedPath)
+                        await Manager?.Sync(CurrentProject.BlendFile, UseSyncCompression);
+                    else
+                        await Manager?.Sync(CurrentProject.BlendFile, CurrentProject.NetworkPathWindows, CurrentProject.NetworkPathLinux, CurrentProject.NetworkPathMacOS);
+                }
+            }
+
+            //Start rendering thread
+            await Task.Run(async () =>
+            {
+                try
+                {
+                    BlenderPeekResponse peekInfo = await Manager.Peek(CurrentProject.BlendFile);
+
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        //TODO: Import settings
+                    });
+
+                }
+                catch (Exception ex)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
+                        MessageWindow.Show(this, "Failed Import", "Failed import due to:" + ex.Message);
+                    });
+                }
+            });
         }
 
         //Singular

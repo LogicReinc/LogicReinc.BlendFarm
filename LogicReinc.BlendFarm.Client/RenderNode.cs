@@ -576,6 +576,52 @@ namespace LogicReinc.BlendFarm.Client
             return resp;
         }
         
+        public async Task<BlenderPeekResponse> Peek(BlenderPeekRequest req)
+        {
+            if (Client == null)
+                throw new InvalidOperationException("Client not connected");
+            BlenderPeekResponse resp = null;
+            _taskCancelToken = new CancellationTokenSource();
+            try
+            {
+                UpdateActivity("Peeking...");
+
+                int recoverAtts = 0;
+                while (true)
+                {
+                    try
+                    {
+                        resp = await Client.Send<BlenderPeekResponse>(req, _taskCancelToken.Token);
+                        break;
+                    }
+                    catch (BlendFarmDisconnectedException ex)
+                    {
+                        recoverAtts++;
+                        if (recoverAtts > 3)
+                            throw new RecoverException($"Failed to recover too many times, connection too unstable");
+
+                        RecoverResponse r = await ConnectRecover(3, 1000, new string[] { req.SessionID });
+                        if (!r.Success)
+                            throw new RecoverException(r.Message);
+                    }
+                    catch (Exception exOther)
+                    {
+                        throw;
+                    }
+                }
+
+            }
+            finally
+            {
+                UpdateActivity("");
+                CurrentTask = null;
+                _taskCancelToken = null;
+            }
+
+            return resp;
+        }
+
+
         /// <summary>
         /// Cancels an ongoing render with SesionID
         /// </summary>

@@ -368,6 +368,40 @@ namespace LogicReinc.BlendFarm.Server
             };
         }
 
+        [BlendFarmHeader("peek")]
+        public BlenderPeekResponse Packet_Peek(BlenderPeekRequest req)
+        {
+            if(!_blender.IsVersionAvailable(req.Version))
+                return new BlenderPeekResponse()
+                {
+                    Success = false,
+                    Message = "Version not prepared.."
+                };
+
+            try
+            {
+                _isRendering = true;
+                //Validate Settings
+                string filePath = SessionData.GetFilePath(req.SessionID);
+                if (filePath == null)
+                    return new BlenderPeekResponse()
+                    {
+                        Success = false,
+                        Message = "Blend file was not available"
+                    };
+
+                return _blender.Peek(req.Version, filePath, req.FileID);
+            }
+            catch (Exception ex)
+            {
+                return new BlenderPeekResponse()
+                {
+                    Success = false,
+                    Message = "Exception:" + ex.Message
+                };
+            }
+        }
+
         /// <summary>
         /// Handler renderBatch, render multiple requests using a single Blender instance
         /// </summary>

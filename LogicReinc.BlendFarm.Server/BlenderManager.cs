@@ -1,4 +1,5 @@
 ﻿using LogicReinc.BlendFarm.Shared;
+using LogicReinc.BlendFarm.Shared.Communication.RenderNode;
 using SharpCompress.Readers;
 using System;
 using System.Collections.Generic;
@@ -19,7 +20,8 @@ namespace LogicReinc.BlendFarm.Server
     /// </summary>
     public class BlenderManager
     {
-        private static string _scripts = null;
+        private static string _scriptRender = null;
+        private static string _scriptPeek = null;
         public const int CONTINUE_TIMEOUT = 60000;
         public const bool USE_CONTINUATION = true;
 
@@ -82,10 +84,24 @@ namespace LogicReinc.BlendFarm.Server
         public string GetRenderScriptPath()
         {
             string path = Path.Combine(GetBlenderDataPath(), $"render.py");
-            if (!File.Exists(path) || (!ServerSettings.Instance.BypassScriptUpdate && File.ReadAllText(path) != _scripts))
+            if (!File.Exists(path) || (!ServerSettings.Instance.BypassScriptUpdate && File.ReadAllText(path) != _scriptRender))
             {
                 Directory.CreateDirectory(GetBlenderDataPath());
                 File.WriteAllText(path, GetRenderScript());
+            }
+            return path;
+        }
+        /// <summary>
+        /// Returns formatted path to the peek script, if it doesn't exist or is outdated, write it.
+        /// Changed script is ignored if Settings.BypassScriptUpdate is true
+        /// </summary>
+        public string GetPeekScriptPath()
+        {
+            string path = Path.Combine(GetBlenderDataPath(), $"peek.py");
+            if (!File.Exists(path) || (!ServerSettings.Instance.BypassScriptUpdate && File.ReadAllText(path) != _scriptRender))
+            {
+                Directory.CreateDirectory(GetBlenderDataPath());
+                File.WriteAllText(path, GetPeekScript());
             }
             return path;
         }
@@ -405,6 +421,26 @@ namespace LogicReinc.BlendFarm.Server
         }
 
 
+        public string GetVersionCommand(string version)
+        {
+            string os = SystemInfo.GetOSName();
+            string blenderDir = GetVersionPath(version, os);
+            string cmd = $"{blenderDir}/blender";
+
+            //MacOS has to be special.
+            if (SystemInfo.IsOS(SystemInfo.OS_MACOS))
+                cmd = $"{blenderDir}/Contents/MacOS/Blender";
+
+            return cmd;
+        }
+
+        /// <summary>
+        /// Render a single render settings (calls batch underneath with single entry)
+        /// </summary>
+        public string Render(string version, string file, BlenderRenderSettings settings, long fileId = -1, Action<BlenderProcess> beforeStart = null, Action<BlenderProcess> beforeEnd = null)
+        {
+            return RenderBatch(version, file, new[] { settings }, fileId, beforeStart, beforeEnd).FirstOrDefault();
+        }
         /// <summary>
         /// Renders a batch of render settings in a single Blender instance.
         /// </summary>
@@ -430,8 +466,6 @@ namespace LogicReinc.BlendFarm.Server
             {
 
                 Directory.CreateDirectory(Path.GetFullPath(RenderData));
-                string os = SystemInfo.GetOSName();
-                string blenderDir = GetVersionPath(version, os);
 
                 try
                 {
@@ -446,12 +480,7 @@ namespace LogicReinc.BlendFarm.Server
                 UseTemporaryFile(json, (path) =>
                 {
 
-                    string cmd = $"{blenderDir}/blender";
-
-                    //MacOS has to be special.
-                    if (SystemInfo.IsOS(SystemInfo.OS_MACOS))
-                        cmd = $"{blenderDir}/Contents/MacOS/Blender";
-
+                    string cmd = GetVersionCommand(version);
                     string arg = $"--factory-startup -noaudio -b \"{Path.GetFullPath(file)}\" -P \"{GetRenderScriptPath()}\" -- \"{path}\" {USE_CONTINUATION}";
 
                     //If an continueing process is ongoing, continue instead.
@@ -488,6 +517,23 @@ namespace LogicReinc.BlendFarm.Server
                 Busy = false;
             }
         }
+
+        public BlenderPeekResponse Peek(string version, string file, long fileId = -1)
+        {
+            string cmd = GetVersionCommand(version);
+            string arg = $"--factory-startup -noaudio -b \"{Path.GetFullPath(file)}\" -P \"{GetPeekScriptPath()}\"";
+
+            BlenderProcess process = new BlenderProcess(cmd, arg, version, file, fileId);
+
+            BlenderProcess.Result result = process.Run();
+            if (result.Exceptions.Length > 0)
+                throw new Exception("Failed: " + string.Join(", ", result.Exceptions));
+            if (result.Results.Length == 0)
+                throw new Exception("Exception extracting Blender info");
+
+            return JsonSerializer.Deserialize<BlenderPeekResponse>(result.Results[0]);
+        }
+
 
         /// <summary>
         /// Checks settings and fills in missing data
@@ -553,16 +599,6 @@ namespace LogicReinc.BlendFarm.Server
             }
         }
 
-
-
-        /// <summary>
-        /// Render a single render settings (calls batch underneath with single entry)
-        /// </summary>
-        public string Render(string version, string file, BlenderRenderSettings settings, long fileId = -1, Action<BlenderProcess> beforeStart = null, Action<BlenderProcess> beforeEnd = null)
-        {
-            return RenderBatch(version, file, new[] { settings }, fileId, beforeStart, beforeEnd).FirstOrDefault();
-        }
-
         /// <summary>
         /// Cancel ongoing render
         /// </summary>
@@ -577,7 +613,7 @@ namespace LogicReinc.BlendFarm.Server
         /// <returns></returns>
         private static string GetRenderScript()
         {
-            if (_scripts == null)
+            if (_scriptRender == null)
             {
                 var assembly = Assembly.GetExecutingAssembly();
                 var resourceName = "LogicReinc.BlendFarm.Server.render.py";
@@ -585,10 +621,29 @@ namespace LogicReinc.BlendFarm.Server
                 using (Stream stream = assembly.GetManifestResourceStream(resourceName))
                 using (StreamReader reader = new StreamReader(stream))
                 {
-                    _scripts = reader.ReadToEnd();
+                    _scriptRender = reader.ReadToEnd();
                 }
             }
-            return _scripts;
+            return _scriptRender;
+        }
+        /// <summary>
+        /// Reads peek script from assembly 
+        /// </summary>
+        /// <returns></returns>
+        private static string GetPeekScript()
+        {
+            if (_scriptRender == null)
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+                var resourceName = "LogicReinc.BlendFarm.Server.peek.py";
+
+                using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+                using (StreamReader reader = new StreamReader(stream))
+                {
+                    _scriptRender = reader.ReadToEnd();
+                }
+            }
+            return _scriptRender;
         }
         /// <summary>
         /// Creates a temporary text file with data

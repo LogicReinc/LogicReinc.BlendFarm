@@ -8,6 +8,7 @@ using System.Drawing;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Runtime;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -575,6 +576,26 @@ namespace LogicReinc.BlendFarm.Client
             finally
             {
                 CurrentTask = null;
+            }
+        }
+
+        public async Task<BlenderPeekResponse> Peek(string file)
+        {
+            try
+            {
+                RenderNode anyNode = Nodes.FirstOrDefault(x => x.IsSynced && x.IsPrepared);
+
+                string fileSessionId = GetFileSessionID(file);
+                BlenderPeekResponse resp = await anyNode.Peek(new BlenderPeekRequest()
+                {
+                    Version = Version,
+                    SessionID = fileSessionId
+                });
+                return resp;
+            }
+            finally
+            {
+
             }
         }
     }

@@ -14,10 +14,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="peek.py" />
     <None Remove="render.py" />
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="peek.py" />
     <EmbeddedResource Include="render.py" />
   </ItemGroup>
 
