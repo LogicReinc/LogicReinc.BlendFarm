@@ -14,12 +14,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="extract_dependencies.py" />
     <None Remove="peek.py" />
     <None Remove="render.py" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="peek.py" />
+    <EmbeddedResource Include="extract_dependencies.py" />
+    <EmbeddedResource Include="peek.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="render.py" />
   </ItemGroup>
 

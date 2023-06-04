@@ -102,7 +102,7 @@
                 <Image Source="/Icons/patreon.png" Width="150"></Image>
               </Button>
             </StackPanel>
-            <StackPanel Margin="20,0,40,10" Orientation="Vertical">
+            <StackPanel Margin="20,0,20,10" Orientation="Vertical">
               <Button Height="25" Padding="0,5,0,5" BorderThickness="0" Background="#111111" Command="{Binding Help}">
                 Help!
               </Button>
@@ -217,8 +217,8 @@
 
 
                     <StackPanel Orientation="Horizontal">
-                      <Button Width="175" Command="{Binding ConnectAll}">Connect All</Button>
-                      <Button Width="175" Command="{Binding SyncAll}">Sync All</Button>
+                      <Button Width="165" Command="{Binding ConnectAll}">Connect All</Button>
+                      <Button Width="165" Command="{Binding SyncAll}">Sync All</Button>
                     </StackPanel>
 
 
@@ -227,10 +227,10 @@
 
                       <StackPanel Orientation="Horizontal">
                         <TextBox Width="130" Watermark="Name" x:Name="inputClientName" Text="{Binding InputClientName}"></TextBox>
-                        <TextBox Width="230" Watermark="Address (eg. 192.168.1.53:1234)" x:Name="inputClientAddress" Text="{Binding InputClientAddress}"></TextBox>
+                        <TextBox Width="200" Watermark="Address (eg. 192.168.1.53:1234)" x:Name="inputClientAddress" Text="{Binding InputClientAddress}"></TextBox>
                       </StackPanel>
 
-                      <Button Margin="0,10,0,0"
+                      <Button Margin="0,10,10, 0"
                           Command="{Binding AddNewNode}"
                           IsEnabled="{Binding ElementName=inputClientAddress, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">Connect New</Button>
                     </StackPanel>
@@ -244,7 +244,7 @@
                     </StackPanel>
                   </StackPanel>
                   <StackPanel DockPanel.Dock="Bottom">
-                    <TabControl SelectedIndex="0">
+                    <TabControl SelectedIndex="0" Margin="0,10,0,0">
                       <TabItem Header="Image" Margin="10,0,0,0">
                         <StackPanel Background="#1F1F1F">
                           <StackPanel Margin="10,20,10,10">
@@ -290,12 +290,23 @@
                               Add to Queue (New)
                             </Button>
                           </StackPanel>
-                          <Button Margin="10,0,10,10" Command="{Binding SaveImage}" Background="#400083" BorderBrush="#200041">
-                            Save Image
+                          <Button Margin="10,0,10,5" Command="{Binding SaveImage}" Background="#400083" BorderBrush="#200041">
+                                Save Image
                           </Button>
-                          <Button Margin="10,-5,10,5" Command="{Binding SaveAsDefault}" Background="#400083" BorderBrush="#200041">
+							<StackPanel Orientation="Horizontal">
+								<Button Margin="10,0,1,5" Width="160" Command="{Binding ImportSettings}" Background="#400083" BorderBrush="#200041">
+									Import Settings
+								</Button>
+								<Button Margin="1,0,10,5" Width="160" Command="{Binding ImportMeta}" Background="#400083" BorderBrush="#200041">
+									Import Scenes
+								</Button>
+							</StackPanel>
+                          <Button Margin="10,0,10,5" Command="{Binding SaveAsDefault}" Background="#400083" BorderBrush="#200041">
                             Save Current Settings as Default
                           </Button>
+						  <Button Margin="10,0,10,5" Command="{Binding Test}" Background="#400083" BorderBrush="#200041" IsVisible="true">
+							Test
+					      </Button>
                         </StackPanel>
                       </TabItem>
                       <TabItem Header="Animation">

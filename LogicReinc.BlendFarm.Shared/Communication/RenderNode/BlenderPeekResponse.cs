@@ -25,8 +25,10 @@ namespace LogicReinc.BlendFarm.Shared.Communication.RenderNode
         public int FrameEnd { get; set; }
         public int Samples { get; set; }
 
-        public string[] Cameras { get; set; }
+        public string[] Cameras { get; set; } = new string[0];
         public string SelectedCamera { get; set; }
+        public string[] Scenes { get; set; } = new string[0];
+        public string SelectedScene { get; set; }
 
     }
 }

@@ -1,5 +1,6 @@
 ﻿using LogicReinc.BlendFarm.Shared;
 using LogicReinc.BlendFarm.Shared.Communication.RenderNode;
+using LogicReinc.BlendFarm.Shared.Models;
 using SharpCompress.Readers;
 using System;
 using System.Collections.Generic;
@@ -102,6 +103,20 @@ namespace LogicReinc.BlendFarm.Server
             {
                 Directory.CreateDirectory(GetBlenderDataPath());
                 File.WriteAllText(path, GetPeekScript());
+            }
+            return path;
+        }
+        /// <summary>
+        /// Returns formatted path to the rewrite script, if it doesn't exist or is outdated, write it.
+        /// Changed script is ignored if Settings.BypassScriptUpdate is true
+        /// </summary>
+        public string GetExtractDependenciesScriptPath()
+        {
+            string path = Path.Combine(GetBlenderDataPath(), $"rewrite.py");
+            if (!File.Exists(path) || (!ServerSettings.Instance.BypassScriptUpdate && File.ReadAllText(path) != _scriptRender))
+            {
+                Directory.CreateDirectory(GetBlenderDataPath());
+                File.WriteAllText(path, GetExtractDependenciesScript());
             }
             return path;
         }
@@ -531,7 +546,27 @@ namespace LogicReinc.BlendFarm.Server
             if (result.Results.Length == 0)
                 throw new Exception("Exception extracting Blender info");
 
-            return JsonSerializer.Deserialize<BlenderPeekResponse>(result.Results[0]);
+            BlenderPeekResponse resp = JsonSerializer.Deserialize<BlenderPeekResponse>(result.Results[0]);
+            resp.Success = true;
+            return resp;
+        }
+
+        public List<FileDependency> ExtractDependencies(string version, string file, long fileId = -1)
+        {
+            string cmd = GetVersionCommand(version);
+            string arg = $"--factory-startup -noaudio -b \"{Path.GetFullPath(file)}\" -P \"{GetExtractDependenciesScriptPath()}\"";
+
+            BlenderProcess process = new BlenderProcess(cmd, arg, version, file, fileId);
+
+            BlenderProcess.Result result = process.Run();
+            if (result.Exceptions.Length > 0)
+                throw new Exception("Failed: " + string.Join(", ", result.Exceptions));
+
+            List<FileDependency> deps = new List<FileDependency>();
+            foreach(string res in result.Results)
+                deps.Add(JsonSerializer.Deserialize<FileDependency>(res));
+
+            return deps;
         }
 
 
@@ -636,6 +671,25 @@ namespace LogicReinc.BlendFarm.Server
             {
                 var assembly = Assembly.GetExecutingAssembly();
                 var resourceName = "LogicReinc.BlendFarm.Server.peek.py";
+
+                using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+                using (StreamReader reader = new StreamReader(stream))
+                {
+                    _scriptRender = reader.ReadToEnd();
+                }
+            }
+            return _scriptRender;
+        }
+        /// <summary>
+        /// Reads rewrite script from assembly 
+        /// </summary>
+        /// <returns></returns>
+        private static string GetExtractDependenciesScript()
+        {
+            if (_scriptRender == null)
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+                var resourceName = "LogicReinc.BlendFarm.Server.extract_dependencies.py";
 
                 using (Stream stream = assembly.GetManifestResourceStream(resourceName))
                 using (StreamReader reader = new StreamReader(stream))

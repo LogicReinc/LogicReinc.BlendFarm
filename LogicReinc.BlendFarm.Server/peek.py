@@ -8,29 +8,28 @@ import json
 import time
 from multiprocessing import cpu_count
 
-argv = sys.argv
-argv = argv[argv.index("--") + 1:]
-
 scn = bpy.context.scene
 
 try:
-    peekObj = {};
-
-    peekObj.RenderWidth = scn.render.resolution_x;
-    peekObj.RenderHeight = scn.render.resolution_y;
-    peekObj.FrameStart = scn.frame_start;
-    peekObj.FrameEnd = scn.frame_end;
-    peekObj.Samples = scn.cycles.samples;
-
-    peekObj.Cameras = [];
-    peekObj.SelectedCamera = peekObj.camera.name;
+    peekObj = dict(
+        RenderWidth = scn.render.resolution_x,
+        RenderHeight = scn.render.resolution_y,
+        FrameStart = scn.frame_start,
+        FrameEnd = scn.frame_end,
+        Samples = scn.cycles.samples,
+        Cameras = [],
+        SelectedCamera = scn.camera.name,
+        Scenes = [],
+        SelectedScene = scn.name
+    )
     for obj in scn.objects:
         if(obj.type == "CAMERAS:"):
             peekObj.Cameras.append(obj.name);
 
+    for scene in bpy.data.scenes:
+        peekObj.Scenes.append(scene.name);
 
-
-    print("SUCCESS:" + json.dumps(peekObj, indent = 4) + "\n");
+    print("SUCCESS:" + json.dumps(peekObj) + "\n");
 
 except Exception as e:
     print("EXCEPTION:" + str(e));

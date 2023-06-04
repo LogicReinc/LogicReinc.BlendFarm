@@ -24,6 +24,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -56,6 +57,7 @@ namespace LogicReinc.BlendFarm.Windows
 
         //public string File { get; set; }
         public BlenderVersion Version { get; set; }
+        public bool WithAssetSync { get; set; }
 
         public ObservableCollection<OpenBlenderProject> Projects { get; set; } = new ObservableCollection<OpenBlenderProject>();
 
@@ -174,12 +176,13 @@ namespace LogicReinc.BlendFarm.Windows
             };
             Init();
         }
-        public RenderWindow(BlendFarmManager manager, BlenderVersion version, string blenderFile, string sessionID = null)
+        public RenderWindow(BlendFarmManager manager, BlenderVersion version, string blenderFile, string sessionID = null, bool runWithAssetSync = false)
         {
             Manager = manager;
             //File = blenderFile;
             CurrentProject = LoadProject(blenderFile);
             Version = version;
+            WithAssetSync = runWithAssetSync;
 
             using (Stream icoStream = Program.GetIconStream())
             {
@@ -420,13 +423,18 @@ namespace LogicReinc.BlendFarm.Windows
             }
         }
 
-        public async Task ImportSettings()
+        public async Task<BlenderPeekResponse> RequestPeek(OpenBlenderProject currentProject)
         {
-            OpenBlenderProject currentProject = CurrentProject;
 
             //Check if any unsynced nodes
             if (!Manager.Nodes.Any(x => x.Connected && x.IsSessionSynced(currentProject.SessionID)))//!x.IsSynced))
             {
+                if (!Manager.Nodes.Any(x => x.Connected))
+                {
+                    MessageWindow.Show(this, "No Nodes", "Need at least one connected node to import");
+                    return null;
+                }
+
                 if (await YesNoWindow.Show(this, "No Synced Node", "Require atleast one synced node to import settings, would you like to sync?"))
                 {
                     if (!CurrentProject.UseNetworkedPath)
@@ -434,29 +442,85 @@ namespace LogicReinc.BlendFarm.Windows
                     else
                         await Manager?.Sync(CurrentProject.BlendFile, CurrentProject.NetworkPathWindows, CurrentProject.NetworkPathLinux, CurrentProject.NetworkPathMacOS);
                 }
+                else return null;
             }
 
             //Start rendering thread
-            await Task.Run(async () =>
+            return await Task.Run<BlenderPeekResponse>(async () =>
             {
                 try
                 {
                     BlenderPeekResponse peekInfo = await Manager.Peek(CurrentProject.BlendFile);
 
-                    await Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        //TODO: Import settings
-                    });
+                    if (!peekInfo.Success)
+                        throw new Exception(peekInfo.Message);
+
+                    return peekInfo;
 
                 }
                 catch (Exception ex)
                 {
                     await Dispatcher.UIThread.InvokeAsync(async () =>
                     {
-                        MessageWindow.Show(this, "Failed Import", "Failed import due to:" + ex.Message);
+                        MessageWindow.Show(this, "Failed Peek", "Failed peek due to:" + ex.Message);
                     });
+                    return null;
                 }
             });
+        }
+        public async Task ImportSettings()
+        {
+            OpenBlenderProject currentProject = CurrentProject;
+            BlenderPeekResponse peekInfo = await RequestPeek(currentProject);
+            if(peekInfo != null)
+            {
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    _ = MessageWindow.Show(this, "Peek", JsonSerializer.Serialize(peekInfo, new JsonSerializerOptions()
+                    {
+                        WriteIndented = true
+                    }));
+
+                    currentProject.RenderWidth = peekInfo.RenderWidth;
+                    currentProject.RenderHeight = peekInfo.RenderHeight;
+                    currentProject.FrameStart = peekInfo.FrameStart;
+                    currentProject.FrameEnd = peekInfo.FrameEnd;
+                    currentProject.Samples = peekInfo.Samples;
+                    LoadMeta(currentProject, peekInfo);
+                });
+            }
+        }
+        public async Task ImportMeta()
+        {
+            OpenBlenderProject currentProject = CurrentProject;
+            BlenderPeekResponse peekInfo = await RequestPeek(currentProject);
+            if (peekInfo != null)
+            {
+                LoadMeta(currentProject, peekInfo);
+            }
+        }
+
+        public async Task LoadMeta(OpenBlenderProject project, BlenderPeekResponse peekInfo)
+        {
+            project.CamerasAvailable.Clear();
+            project.CamerasAvailable.AddRange(peekInfo.Cameras);
+            project.Camera = peekInfo.SelectedCamera;
+            project.ScenesAvailable.Clear();
+            project.ScenesAvailable.AddRange(peekInfo.Scenes);
+            project.Scene = peekInfo.SelectedScene;
+        }
+
+        public async Task Test()
+        {
+            OpenBlenderProject currentProject = CurrentProject;
+            try
+            {
+                LocalServer.Manager.ExtractDependencies(Version.Name, currentProject.BlendFile, Manager.GetOrCreateSession(currentProject.BlendFile).FileID);
+            }
+            catch(Exception ex)
+            {
+                MessageWindow.Show(this, "Test failed", ex.Message);
+            }
         }
 
         //Singular
