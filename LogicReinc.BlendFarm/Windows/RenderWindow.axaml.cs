@@ -57,7 +57,7 @@ namespace LogicReinc.BlendFarm.Windows
 
         //public string File { get; set; }
         public BlenderVersion Version { get; set; }
-        public bool WithAssetSync { get; set; }
+        public RenderWindowOptions Options { get; private set; }
 
         public ObservableCollection<OpenBlenderProject> Projects { get; set; } = new ObservableCollection<OpenBlenderProject>();
 
@@ -121,7 +121,10 @@ namespace LogicReinc.BlendFarm.Windows
         private ComboBox _selectOrder = null;
         private ComboBox _selectOutputType = null;
         private TextBox _inputAnimationFileFormat = null;
-        private AutoCompleteBox _scenesAvailableBox = null;
+        private ComboBox _scenesAvailableBox = null;
+        private AutoCompleteBox _scenesBox = null;
+        private ComboBox _camerasAvailableBox = null;
+        private AutoCompleteBox _camerasBox = null;
 
 
         //Debug data
@@ -176,13 +179,14 @@ namespace LogicReinc.BlendFarm.Windows
             };
             Init();
         }
-        public RenderWindow(BlendFarmManager manager, BlenderVersion version, string blenderFile, string sessionID = null, bool runWithAssetSync = false)
+        public RenderWindow(BlendFarmManager manager, BlenderVersion version, string blenderFile, string sessionID = null, RenderWindowOptions options = null)
         {
+            options = options ?? new RenderWindowOptions();
             Manager = manager;
             //File = blenderFile;
             CurrentProject = LoadProject(blenderFile);
             Version = version;
-            WithAssetSync = runWithAssetSync;
+            Options = options;
 
             using (Stream icoStream = Program.GetIconStream())
             {
@@ -219,6 +223,35 @@ namespace LogicReinc.BlendFarm.Windows
             };
             Manager?.StartFileWatch();
 
+            RenderNode localNode = Manager.Nodes.FirstOrDefault(x => x.Name == BlendFarmManager.LocalNodeName);
+            if(Options.ConnectLocal)
+            {
+                if (localNode == null)
+                    MessageWindow.Show(this, "No Local Node", "No local server is available..");
+                else
+                {
+                    bool didConnect = false;
+                    localNode.OnConnected += (node) =>
+                    {
+                        if (didConnect)
+                            return;
+                        didConnect = true;
+                        if(Options.ImportSettings)
+                            Task.Run(async () =>
+                            {
+                                await SyncAll();
+                                if (!localNode.IsSynced)
+                                    await MessageWindow.Show(this, "Failed to sync Local Node", "Required synced node for importing but failed..");
+                                else
+                                {
+                                    await ImportSettings();
+                                }
+                            });
+                    };
+                    localNode.ConnectAndPrepare(Version.Name);
+                }
+            }
+
 
             this.InitializeComponent();
         }
@@ -243,7 +276,10 @@ namespace LogicReinc.BlendFarm.Windows
             _selectOrder = this.Find<ComboBox>("selectOrder");
             _selectOutputType = this.Find<ComboBox>("selectOutputType");
             _inputAnimationFileFormat = this.Find<TextBox>("inputAnimationFileFormat");
-            _scenesAvailableBox = this.Find<AutoCompleteBox>("availableScenesBox");
+            _scenesAvailableBox = this.Find<ComboBox>("availableScenesBox");
+            _scenesBox = this.Find<AutoCompleteBox>("sceneBox");
+            _camerasAvailableBox = this.Find<ComboBox>("availableCamerasBox");
+            _camerasBox = this.Find<AutoCompleteBox>("cameraBox");
 
             _selectStrategy.Items = Enum.GetValues(typeof(RenderStrategy));
             _selectStrategy.SelectedIndex = 0;
@@ -509,6 +545,18 @@ namespace LogicReinc.BlendFarm.Windows
             project.ScenesAvailable.Clear();
             project.ScenesAvailable.AddRange(peekInfo.Scenes);
             project.Scene = peekInfo.SelectedScene;
+            if (project.ScenesAvailable.Count > 0)
+            {
+                _scenesAvailableBox.Items = project.ScenesAvailable;
+                _scenesBox.IsVisible = false;
+                _scenesAvailableBox.IsVisible = true;
+            }
+            if(project.CamerasAvailable.Count > 0)
+            {
+                _camerasAvailableBox.Items = project.CamerasAvailable;
+                _camerasBox.IsVisible = false;
+                _camerasAvailableBox.IsVisible = true;
+            }
             project.TriggerPropertyChange(
                 nameof(project.CamerasAvailable),
                 nameof(project.Camera),
@@ -1144,5 +1192,13 @@ namespace LogicReinc.BlendFarm.Windows
             }
         }
 
+
+    }
+
+    public class RenderWindowOptions
+    {
+        public bool WithAssetSync { get; set; }
+        public bool ConnectLocal { get; set; }
+        public bool ImportSettings { get; set; }
     }
 }

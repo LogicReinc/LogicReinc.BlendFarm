@@ -23,8 +23,8 @@ try:
         SelectedScene = scn.name
     )
     for obj in scn.objects:
-        if(obj.type == "CAMERAS:"):
-            peekObj.Cameras.append(obj.name);
+        if(obj.type == "CAMERA"):
+            peekObj["Cameras"].append(obj.name);
             
     for scene in bpy.data.scenes:
         peekObj["Scenes"].append(scene.name);

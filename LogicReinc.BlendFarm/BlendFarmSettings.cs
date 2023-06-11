@@ -44,6 +44,12 @@ namespace LogicReinc.BlendFarm
 
         public DateTime LastAnnouncementDate { get; set; } = DateTime.MinValue;
 
+
+        public bool Option_UseAssetsSync { get; set; }
+        public bool Option_ConnectLocal { get; set; }
+        public bool Option_ImportSettings { get; set; }
+
+
         #region Boilerplate
 
         private static BlendFarmSettings _instance = null;

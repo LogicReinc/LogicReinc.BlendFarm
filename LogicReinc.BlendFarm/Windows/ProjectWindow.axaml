@@ -36,7 +36,13 @@
       <Button Width="150" Command="{Binding ShowCustomWizard}">Add Custom Version</Button>
     </StackPanel>
 	  <StackPanel HorizontalAlignment="Center" Orientation="Horizontal" Margin="10">
-		  <CheckBox x:Name="useAssetSync" IsChecked="false">
+		  <CheckBox x:Name="connectLocal" IsChecked="false" Margin="10">
+			  Connect Local
+		  </CheckBox>
+		  <CheckBox x:Name="importSettings" IsChecked="false" Margin="10">
+			  Import Settings
+		  </CheckBox>
+		  <CheckBox x:Name="useAssetSync" IsChecked="false" Margin="10">
 			  Use Asset Sync (ALPHA WIP)
 		  </CheckBox>
 	  </StackPanel>

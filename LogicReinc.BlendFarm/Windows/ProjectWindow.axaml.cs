@@ -33,6 +33,8 @@ namespace LogicReinc.BlendFarm.Windows
         private TextBlock loadingText = null;
         private StackPanel loadProjectUI = null;
         private CheckBox useAssetSync = null;
+        private CheckBox connectLocal = null;
+        private CheckBox importSettings = null;
 
         private bool _startedNew = false;
 
@@ -153,6 +155,26 @@ This may have to do with the port being in use. Note that to discover other pcs 
             loadingText = this.FindControl<TextBlock>("loadingText");
             loadProjectUI = this.FindControl<StackPanel>("loadProjectUI");
             useAssetSync = this.FindControl<CheckBox>("useAssetSync");
+            connectLocal = this.FindControl<CheckBox>("connectLocal");
+            importSettings = this.FindControl<CheckBox>("importSettings");
+
+            useAssetSync.IsChecked = BlendFarmSettings.Instance.Option_UseAssetsSync;
+            connectLocal.IsChecked = BlendFarmSettings.Instance.Option_ConnectLocal;
+            importSettings.IsChecked = BlendFarmSettings.Instance.Option_ImportSettings;
+            if(_noServer)
+            {
+                connectLocal.IsChecked = false;
+                connectLocal.IsEnabled = false;
+            }
+            if (!(connectLocal.IsChecked ?? false))
+                importSettings.IsEnabled = false;
+
+            connectLocal.Unchecked += (a, b) =>
+            {
+                importSettings.IsChecked = false;
+                importSettings.IsEnabled = false;
+            };
+            connectLocal.Checked += (a, b) => importSettings.IsEnabled = true;
 
             comboVersions = this.FindControl<ComboBox>("versionSelect");
             ReloadVersions();
@@ -298,6 +320,9 @@ This may have to do with the port being in use. Note that to discover other pcs 
             });
             BlendFarmSettings.Instance.LastVersion = version.Name;
             BlendFarmSettings.Instance.History = BlendFarmSettings.Instance.History.OrderByDescending(x => x.Date).Take(10).ToList();
+            BlendFarmSettings.Instance.Option_ConnectLocal = connectLocal.IsChecked ?? false;
+            BlendFarmSettings.Instance.Option_ImportSettings = importSettings.IsChecked ?? false;
+            BlendFarmSettings.Instance.Option_UseAssetsSync = useAssetSync.IsChecked ?? false;
             BlendFarmSettings.Instance.Save();
 
             _startedNew = true;
@@ -336,7 +361,12 @@ This may have to do with the port being in use. Note that to discover other pcs 
                     {
                         Dispatcher.UIThread.InvokeAsync(() =>
                         {
-                            new RenderWindow(_manager, version, path).Show();
+                            new RenderWindow(_manager, version, path, null, new RenderWindowOptions()
+                            {
+                                WithAssetSync = true,
+                                ConnectLocal = connectLocal.IsChecked ?? false,
+                                ImportSettings = (connectLocal.IsChecked ?? false) && (importSettings.IsChecked ?? false)
+                            }).Show();
                             this.Close();
                         });
                     }
@@ -347,7 +377,12 @@ This may have to do with the port being in use. Note that to discover other pcs 
 
                 //Start render window
                 //new RenderWindow();
-                new RenderWindow(_manager, version, path).Show();
+                new RenderWindow(_manager, version, path, null, new RenderWindowOptions()
+                {
+                    WithAssetSync = false,
+                    ConnectLocal = connectLocal.IsChecked ?? false,
+                    ImportSettings = (connectLocal.IsChecked ?? false) && (importSettings.IsChecked ?? false)
+                }).Show();
 
                 this.Close();
             }
