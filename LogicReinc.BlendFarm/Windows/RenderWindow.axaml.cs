@@ -476,16 +476,17 @@ namespace LogicReinc.BlendFarm.Windows
             {
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    _ = MessageWindow.Show(this, "Peek", JsonSerializer.Serialize(peekInfo, new JsonSerializerOptions()
-                    {
-                        WriteIndented = true
-                    }));
-
                     currentProject.RenderWidth = peekInfo.RenderWidth;
                     currentProject.RenderHeight = peekInfo.RenderHeight;
                     currentProject.FrameStart = peekInfo.FrameStart;
                     currentProject.FrameEnd = peekInfo.FrameEnd;
                     currentProject.Samples = peekInfo.Samples;
+                    currentProject.TriggerPropertyChange(
+                        nameof(currentProject.RenderWidth),
+                        nameof(currentProject.RenderHeight),
+                        nameof(currentProject.FrameStart),
+                        nameof(currentProject.FrameEnd),
+                        nameof(currentProject.Samples));
                     LoadMeta(currentProject, peekInfo);
                 });
             }
@@ -500,7 +501,7 @@ namespace LogicReinc.BlendFarm.Windows
             }
         }
 
-        public async Task LoadMeta(OpenBlenderProject project, BlenderPeekResponse peekInfo)
+        public void LoadMeta(OpenBlenderProject project, BlenderPeekResponse peekInfo)
         {
             project.CamerasAvailable.Clear();
             project.CamerasAvailable.AddRange(peekInfo.Cameras);
@@ -508,6 +509,11 @@ namespace LogicReinc.BlendFarm.Windows
             project.ScenesAvailable.Clear();
             project.ScenesAvailable.AddRange(peekInfo.Scenes);
             project.Scene = peekInfo.SelectedScene;
+            project.TriggerPropertyChange(
+                nameof(project.CamerasAvailable),
+                nameof(project.Camera),
+                nameof(project.ScenesAvailable),
+                nameof(project.Scene));
         }
 
         public async Task Test()

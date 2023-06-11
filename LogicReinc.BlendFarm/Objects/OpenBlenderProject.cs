@@ -166,9 +166,10 @@ namespace LogicReinc.BlendFarm.Objects
         }
 
 
-        internal void TriggerPropertyChange(string prop)
+        internal void TriggerPropertyChange(params string[] props)
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
+            foreach(string prop in props)
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
         }
 
         public class UISettings

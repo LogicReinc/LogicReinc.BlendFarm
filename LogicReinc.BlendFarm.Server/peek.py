@@ -25,9 +25,9 @@ try:
     for obj in scn.objects:
         if(obj.type == "CAMERAS:"):
             peekObj.Cameras.append(obj.name);
-
+            
     for scene in bpy.data.scenes:
-        peekObj.Scenes.append(scene.name);
+        peekObj["Scenes"].append(scene.name);
 
     print("SUCCESS:" + json.dumps(peekObj) + "\n");
 
