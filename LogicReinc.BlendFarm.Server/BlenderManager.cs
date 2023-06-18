@@ -23,6 +23,7 @@ namespace LogicReinc.BlendFarm.Server
     {
         private static string _scriptRender = null;
         private static string _scriptPeek = null;
+        private static string _scriptExtract = null;
         public const int CONTINUE_TIMEOUT = 60000;
         public const bool USE_CONTINUATION = true;
 
@@ -667,7 +668,7 @@ namespace LogicReinc.BlendFarm.Server
         /// <returns></returns>
         private static string GetPeekScript()
         {
-            if (_scriptRender == null)
+            if (_scriptPeek == null)
             {
                 var assembly = Assembly.GetExecutingAssembly();
                 var resourceName = "LogicReinc.BlendFarm.Server.peek.py";
@@ -675,10 +676,10 @@ namespace LogicReinc.BlendFarm.Server
                 using (Stream stream = assembly.GetManifestResourceStream(resourceName))
                 using (StreamReader reader = new StreamReader(stream))
                 {
-                    _scriptRender = reader.ReadToEnd();
+                    _scriptPeek = reader.ReadToEnd();
                 }
             }
-            return _scriptRender;
+            return _scriptPeek;
         }
         /// <summary>
         /// Reads rewrite script from assembly 
@@ -686,7 +687,7 @@ namespace LogicReinc.BlendFarm.Server
         /// <returns></returns>
         private static string GetExtractDependenciesScript()
         {
-            if (_scriptRender == null)
+            if (_scriptExtract == null)
             {
                 var assembly = Assembly.GetExecutingAssembly();
                 var resourceName = "LogicReinc.BlendFarm.Server.extract_dependencies.py";
@@ -694,10 +695,10 @@ namespace LogicReinc.BlendFarm.Server
                 using (Stream stream = assembly.GetManifestResourceStream(resourceName))
                 using (StreamReader reader = new StreamReader(stream))
                 {
-                    _scriptRender = reader.ReadToEnd();
+                    _scriptExtract = reader.ReadToEnd();
                 }
             }
-            return _scriptRender;
+            return _scriptExtract;
         }
         /// <summary>
         /// Creates a temporary text file with data

@@ -267,7 +267,7 @@
                               <TextBlock Width="60" TextAlignment="Right" Margin="10">Scene</TextBlock>
                               <AutoCompleteBox Width="240" Height="30" Margin="0" Watermark="Inherit/Main" Text="{Binding CurrentProject.Scene}" 
 											   x:Name="sceneBox" />
-						      <ComboBox IsVisible="false" SelectedIndex="0" Width="240" Items="{Binding CurrentProject.ScenesAvailable}"
+						      <ComboBox IsVisible="false" SelectedIndex="0" Width="240"
 										SelectedItem="{Binding CurrentProject.Scene}"
 									    x:Name="availableScenesBox"></ComboBox>
                             </StackPanel>
@@ -275,7 +275,7 @@
 								  <TextBlock Width="60" TextAlignment="Right" Margin="10">Camera</TextBlock>
 								  <AutoCompleteBox Width="240" Height="30" Margin="0" Watermark="Inherit/Main" Text="{Binding CurrentProject.Camera}"
 												   x:Name="cameraBox" />
-								  <ComboBox IsVisible="false" SelectedIndex="0" Width="240" Items="{Binding CurrentProject.CamerasAvailable}"
+								  <ComboBox IsVisible="false" Width="240"
 											SelectedItem="{Binding CurrentProject.Camera}"
 											x:Name="availableCamerasBox"></ComboBox>
 							  </StackPanel>

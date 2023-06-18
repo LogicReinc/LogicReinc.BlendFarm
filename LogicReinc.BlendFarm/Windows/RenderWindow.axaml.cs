@@ -1121,6 +1121,7 @@ namespace LogicReinc.BlendFarm.Windows
             {
                 Frame = proj.FrameStart,
                 Scene = proj.Scene,
+                Camera = proj.Camera,
                 Strategy = (RenderStrategy)_selectStrategy.SelectedItem,
                 Order = (TaskOrder)_selectOrder?.SelectedItem,
                 OutputHeight = proj.RenderHeight,
