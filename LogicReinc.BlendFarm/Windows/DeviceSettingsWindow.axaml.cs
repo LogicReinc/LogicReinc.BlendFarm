@@ -67,13 +67,15 @@ namespace LogicReinc.BlendFarm.Windows
                     {
                         Name = Node.Name,
                         Address = Node.Address,
-                        RenderType = Node.RenderType
+                        RenderType = Node.RenderType,
+                        Pass = Node.Pass
                     };
                     BlendFarmSettings.Instance.PastClients.Add(Node.Name, entry);
                 }
             }
             Node.RenderType = ((RenderType)selectRenderType.SelectedItem);
             entry.RenderType = Node.RenderType;
+            entry.Pass = Node.Pass;
             BlendFarmSettings.Instance.Save();
         }
 

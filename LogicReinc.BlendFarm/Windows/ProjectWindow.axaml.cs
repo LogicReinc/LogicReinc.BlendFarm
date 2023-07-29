@@ -204,7 +204,9 @@ This may have to do with the port being in use. Note that to discover other pcs 
 
                 string versionCache = SystemInfo.RelativeToApplicationDirectory("VersionCache");
                 if (!new FileInfo(versionCache).FullName.ToLower().StartsWith("c:\\windows\\system32"))
-                    versions = BlenderVersion.GetBlenderVersions(versionCache, SystemInfo.RelativeToApplicationDirectory("VersionCustom"));
+                    versions = BlenderVersion.GetBlenderVersions(versionCache, SystemInfo.RelativeToApplicationDirectory("VersionCustom"))
+                        .OrderByDescending(x => x.Name)
+                        .ToList();
                 else
                     versions = new List<BlenderVersion>()
                     {
@@ -332,10 +334,10 @@ This may have to do with the port being in use. Note that to discover other pcs 
             _manager = new BlendFarmManager(path, version.Name, null, localPath);
 
             if(!_noServer && !BlendFarmSettings.Instance.PastClients.Any(x=>x.Key == BlendFarmManager.LocalNodeName))
-                _manager.AddNode(BlendFarmManager.LocalNodeName, $"localhost:{LocalServer.ServerPort}");
+                _manager.AddNode(BlendFarmManager.LocalNodeName, $"localhost:{LocalServer.ServerPort}", RenderType.CPU, ServerSettings.Instance.BasicSecurityPassword);
 
             foreach (var pair in BlendFarmSettings.Instance.PastClients.ToList())
-                _manager.AddNode(pair.Key, pair.Value.Address, pair.Value.RenderType);
+                _manager.AddNode(pair.Key, pair.Value.Address, pair.Value.RenderType, pair.Value.Pass);
 
             if (useAssetSync.IsChecked.Value)
             {

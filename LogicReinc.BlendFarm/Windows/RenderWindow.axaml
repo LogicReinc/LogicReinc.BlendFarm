@@ -167,46 +167,60 @@
                               </StackPanel>
 
                               <!--RenderNode Buttons -->
-                              <StackPanel Orientation="Horizontal">
-                                <Grid>
-                                  <Button Width="50" Height="30" Grid.Column="0"
-                                      Background="#00000000"
-                                      BorderThickness="0"
-                                      IsVisible="{Binding Connected}}"
-                                      Command="{Binding Disconnect}">
-                                      <!--IsEnabled="{Binding Activity, Converter={x:Static StringConverters.IsNullOrEmpty}}"-->
-                                    <Image Source="/Icons/radioOn.png" Height="30" Width="30" />
-                                  </Button>
-                                  <Button Grid.Column="0"
-                                    Margin="5,0,0,0"
-                                    Background="#00000000"
-                                      BorderThickness="0"
-                                      IsEnabled="{Binding Activity, Converter={x:Static StringConverters.IsNullOrEmpty}}"
-                                      IsVisible="{Binding !Connected}"
-                                      Command="{Binding ConnectAndPrepare}"
-                                      CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=DataContext.Version.Name}">
-                                    <Image Source="/Icons/radioOff.png" Height="30" Width="30" />
-                                  </Button>
-                                </Grid>
-                                <Button
-                                  Margin="5,0,0,0"
-                                  Background="#00000000"
-                                    BorderThickness="0"
-                                    IsVisible="{Binding !Connected}"
-                                    Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=DeleteNode}"
-                                    CommandParameter="{Binding .}">
-                                  <Image Source="/Icons/delete.png" Height="30" Width="30" />
-                                </Button>
-                                <Button
-                                  Margin="5,0,0,0"
-                                  Background="#00000000"
-                                    BorderThickness="0"
-                                    IsVisible="{Binding Connected}"
-                                    Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ConfigureNode}"
-                                    CommandParameter="{Binding .}">
-                                  <Image Source="/Icons/gear.png" Height="30" Width="30" />
-                                </Button>
-                              </StackPanel>
+								<StackPanel Orientation="Vertical">
+									<DockPanel>
+										<Button
+										  Margin="5,0,0,0"
+										  HorizontalAlignment="Right"
+										  Background="#00000000"
+											BorderThickness="0"
+											Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ConfigureNode}"
+											CommandParameter="{Binding .}">
+											<Image Source="/Icons/gear.png" Height="15" Width="15" />
+										</Button>
+									</DockPanel>
+									<StackPanel Orientation="Horizontal">
+										<Grid>
+											<Button Grid.Column="0"
+												Background="#00000000"
+												BorderThickness="0"
+												IsVisible="{Binding Connected}}"
+												Command="{Binding Disconnect}">
+												<!--IsEnabled="{Binding Activity, Converter={x:Static StringConverters.IsNullOrEmpty}}"-->
+												<Image Source="/Icons/radioOn.png" Height="22" Width="22" />
+											</Button>
+											<Button Grid.Column="0"
+											  Background="#00000000"
+												BorderThickness="0"
+												IsEnabled="{Binding Activity, Converter={x:Static StringConverters.IsNullOrEmpty}}"
+												IsVisible="{Binding !Connected}"
+												Command="{Binding ConnectAndPrepare}"
+												CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=DataContext.Version.Name}">
+												<Image Source="/Icons/radioOff.png" Height="22" Width="22" />
+											</Button>
+										</Grid>
+										<Grid>
+											<Button Grid.Column="0"
+											  Margin="5,0,-3,0"
+											  Background="#00000000"
+												BorderThickness="0"
+												IsVisible="{Binding !Connected}"
+												Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=DeleteNode}"
+												CommandParameter="{Binding .}">
+												<Image Source="/Icons/delete.png" Height="22" Width="22" />
+											</Button>
+											<Button Grid.Column="0"
+											  Margin="5,0,-3,0"
+											  Background="#00000000"
+												BorderThickness="0"
+												IsVisible="{Binding Connected}"
+												Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=TerminalNode}"
+												CommandParameter="{Binding .}">
+												<Image Source="/Icons/terminal.png" Height="22" Width="22" />
+											</Button>
+										</Grid>
+									</StackPanel>
+								</StackPanel>
                             </StackPanel>
                             <ProgressBar IsIndeterminate="{Binding !HasActivityProgress}" Value="{Binding ActivityProgress}" Height="1" Margin="0,2,0,0" IsVisible="{Binding !IsIdle}"></ProgressBar>
 
@@ -267,7 +281,7 @@
                               <TextBlock Width="60" TextAlignment="Right" Margin="10">Scene</TextBlock>
                               <AutoCompleteBox Width="240" Height="30" Margin="0" Watermark="Inherit/Main" Text="{Binding CurrentProject.Scene}" 
 											   x:Name="sceneBox" />
-						      <ComboBox IsVisible="false" SelectedIndex="0" Width="240"
+						      <ComboBox IsVisible="false" Width="240"
 										SelectedItem="{Binding CurrentProject.Scene}"
 									    x:Name="availableScenesBox"></ComboBox>
                             </StackPanel>
@@ -286,6 +300,14 @@
                               <CheckBox IsChecked="{Binding CurrentProject.UseWorkaround}" ToolTip.Tip="Workaround for a Blender bug, once fixed, it may cause odd tile order, then disable this">Workaround</CheckBox>
                             </StackPanel>
                           </StackPanel>
+							<StackPanel Orientation="Horizontal">
+								<Button Margin="10,0,1,2" Width="160" Command="{Binding ImportSettings}" Background="#400083" BorderBrush="#200041">
+									Import Settings
+								</Button>
+								<Button Margin="1,0,10,2" Width="160" Command="{Binding ImportMeta}" Background="#400083" BorderBrush="#200041">
+									Import Scenes
+								</Button>
+							</StackPanel>
                           <StackPanel IsVisible="{Binding !IsQueueing}">
                             <Button Margin="10,3,10,5" IsVisible="{Binding !CurrentProject.IsRendering}" Command="{Binding Render}" Background="#400083" BorderBrush="#200041">
                               Render
@@ -305,14 +327,6 @@
                           <Button Margin="10,0,10,5" Command="{Binding SaveImage}" Background="#400083" BorderBrush="#200041">
                                 Save Image
                           </Button>
-							<StackPanel Orientation="Horizontal">
-								<Button Margin="10,0,1,5" Width="160" Command="{Binding ImportSettings}" Background="#400083" BorderBrush="#200041">
-									Import Settings
-								</Button>
-								<Button Margin="1,0,10,5" Width="160" Command="{Binding ImportMeta}" Background="#400083" BorderBrush="#200041">
-									Import Scenes
-								</Button>
-							</StackPanel>
                           <Button Margin="10,0,10,5" Command="{Binding SaveAsDefault}" Background="#400083" BorderBrush="#200041">
                             Save Current Settings as Default
                           </Button>

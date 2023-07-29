@@ -90,6 +90,7 @@ namespace LogicReinc.BlendFarm.Objects
         public List<FileDependency> Dependencies { get; private set; } = null;
 
 
+
         public event Action<OpenBlenderProject, Bitmap> OnBitmapChanged;
         public event Action<OpenBlenderProject, bool> OnNetworkedChanged;
         public event PropertyChangedEventHandler PropertyChanged;
@@ -166,6 +167,18 @@ namespace LogicReinc.BlendFarm.Objects
         }
 
 
+        public BlendFarmSettings.UIProjectSettings GetProjectSettings()
+        {
+            return new BlendFarmSettings.UIProjectSettings()
+            {
+                UseNetworked = UseNetworkedPath,
+                NetworkPathWindows = NetworkPathWindows,
+                NetworkPathLinux = NetworkPathLinux,
+                NetworkPathMacOS = NetworkPathMacOS
+            };
+        }
+
+
         internal void TriggerPropertyChange(params string[] props)
         {
             foreach(string prop in props)
@@ -184,5 +197,6 @@ namespace LogicReinc.BlendFarm.Objects
             public string Denoiser { get; set; }
             public bool UseWorkaround { get; set; }
         }
+
     }
 }

@@ -443,6 +443,11 @@ namespace LogicReinc.BlendFarm.Windows
                 BlendFarmSettings.Instance.Save();
             }
         }
+
+        public void TerminalNode(RenderNode node)
+        {
+            DeviceLogWindow.Show(this, node);
+        }
         public async void ConfigureNode(RenderNode node)
         {
             DeviceSettingsWindow.Show(this, node);
@@ -457,6 +462,8 @@ namespace LogicReinc.BlendFarm.Windows
                 CurrentProject.ScenesAvailable.Add(scene);
                 _scenesAvailableBox.Items = CurrentProject.ScenesAvailable;
             }
+
+            BlendFarmSettings.Instance.ApplyProjectSettings(CurrentProject.BlendFile, CurrentProject.GetProjectSettings());
         }
 
         public async Task<BlenderPeekResponse> RequestPeek(OpenBlenderProject currentProject)

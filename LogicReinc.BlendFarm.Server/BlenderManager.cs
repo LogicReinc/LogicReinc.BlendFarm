@@ -9,9 +9,11 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace LogicReinc.BlendFarm.Server
 {
@@ -171,11 +173,11 @@ namespace LogicReinc.BlendFarm.Server
         /// <summary>
         /// Attempt to provide a version of Blender
         /// </summary>
-        public bool TryPrepare(string version)
+        public bool TryPrepare(string version, Action<string, double> onProgress = null)
         {
             try
             {
-                Prepare(version);
+                Prepare(version, onProgress);
                 return true;
             }
             catch(Exception ex)
@@ -188,7 +190,7 @@ namespace LogicReinc.BlendFarm.Server
         /// Prepare a version of Blender
         /// </summary>
         /// <param name="version"></param>
-        public void Prepare(string version)
+        public void Prepare(string version, Action<string, double> onProgress = null)
         {
             BlenderVersion v = BlenderVersion.FindVersion(version, SystemInfo.RelativeToApplicationDirectory("VersionCache"), SystemInfo.RelativeToApplicationDirectory("VersionCustom"));
 
@@ -202,23 +204,23 @@ namespace LogicReinc.BlendFarm.Server
             else if (v.IsCustom)
                 throw new ArgumentException("Custom version missing");
             else
-                Download(SystemInfo.GetOSName(), v);
+                Download(SystemInfo.GetOSName(), v, onProgress);
         }
         /// <summary>
         /// Download a specific version of Blender for OS
         /// </summary>
-        public void Download(string os, BlenderVersion version)
+        public void Download(string os, BlenderVersion version, Action<string, double> onProgress = null)
         {
             switch (os)
             {
                 case "windows64":
-                    DownloadWindows(version);
+                    DownloadWindows(version, onProgress);
                     break;
                 case "linux64":
-                    DownloadLinux(version);
+                    DownloadLinux(version, onProgress);
                     break;
                 case "macOS":
-                    DownloadMacOS(version);
+                    DownloadMacOS(version, onProgress);
                     break;
                 default:
                     throw new NotImplementedException("Unknown OS");
@@ -229,7 +231,7 @@ namespace LogicReinc.BlendFarm.Server
         /// Downloads windows version of a specific version of Blender (And extract it)
         /// </summary>
         /// <param name="version"></param>
-        public void DownloadWindows(BlenderVersion version)
+        public void DownloadWindows(BlenderVersion version, Action<string, double> onProgress = null)
         {
             string os = "windows64";
             string ext = "zip";
@@ -239,13 +241,18 @@ namespace LogicReinc.BlendFarm.Server
             {
                 Directory.CreateDirectory(GetBlenderDataPath());
 
+                /*
                 using (WebClient client = new WebClient())
                 {
                     Console.WriteLine($"Downloading {version.Name}...");
+                    client.DownloadFile
                     client.DownloadFile(version.UrlWindows64, archivePath);
-                }
+                }*/
+                Console.WriteLine($"Downloading {version.Name}...");
+                DownloadInternal(version.UrlWindows64, archivePath, onProgress);
                 Console.WriteLine($"Extracting {version.Name}...");
 
+                onProgress?.Invoke("Extracting", -1);
                 ZipFile.ExtractToDirectory(archivePath, GetBlenderDataPath(), true);
 
                 EnsureOldDirectoryFormat(version.Name, os);
@@ -265,7 +272,7 @@ namespace LogicReinc.BlendFarm.Server
         /// Downloads a linux version of a specific version of Blender (And extract it)
         /// </summary>
         /// <param name="version"></param>
-        public void DownloadLinux(BlenderVersion version)
+        public void DownloadLinux(BlenderVersion version, Action<string, double> onProgress = null)
         {
             string os = "linux64";
             string ext = "tar.xz";
@@ -277,13 +284,17 @@ namespace LogicReinc.BlendFarm.Server
 
                 Directory.CreateDirectory(blenderDataPath);
 
+                /*
                 using (WebClient client = new WebClient())
                 {
                     Console.WriteLine($"Downloading {version.Name}...");
                     client.DownloadFile(version.UrlLinux64, archivePath);
-                }
+                }*/
+                Console.WriteLine($"Downloading {version.Name}...");
+                DownloadInternal(version.UrlLinux64, archivePath, onProgress);
                 Console.WriteLine($"Extracting {version.Name}...");
 
+                onProgress?.Invoke("Extracting", -1);
                 List<(string, string)> links = new List<(string, string)>();
                 string currentDir = "";
                 using (FileStream str = new FileStream(archivePath, FileMode.Open))
@@ -355,7 +366,7 @@ namespace LogicReinc.BlendFarm.Server
         /// Downloads macos version of a specific version of Blender (And extract it)
         /// </summary>
         /// <param name="version"></param>
-        public void DownloadMacOS(BlenderVersion version)
+        public void DownloadMacOS(BlenderVersion version, Action<string, double> onProgress = null)
         {
             string os = "macOS";
             string ext = "dmg";
@@ -365,11 +376,14 @@ namespace LogicReinc.BlendFarm.Server
             {
                 Directory.CreateDirectory(GetBlenderDataPath());
 
+                /*
                 using (WebClient client = new WebClient())
                 {
                     Console.WriteLine($"Downloading {version.Name}...");
                     client.DownloadFile(version.UrlMacOS, archivePath);
-                }
+                }*/
+                Console.WriteLine($"Downloading {version.Name}...");
+                DownloadInternal(version.UrlMacOS, archivePath, onProgress);
                 Console.WriteLine($"Extracting {version.Name}...");
 
                 string versionPath = GetVersionPath(version.Name, os);
@@ -377,6 +391,7 @@ namespace LogicReinc.BlendFarm.Server
 
                 Directory.CreateDirectory(imagePath);
 
+                onProgress?.Invoke("Extracting", -1);
                 Console.WriteLine($"Mounting [{archivePath}] to [{imagePath}]");
                 Process mountProcess = new Process()
                 {
@@ -425,6 +440,50 @@ namespace LogicReinc.BlendFarm.Server
             }
         }
 
+        private void DownloadInternal(string url, string path, Action<string, double> onProgress = null)
+        {
+            double percentageCom = 0.1;
+            Task.Run(async () =>
+            {
+                using (HttpClient client = new HttpClient())
+                {
+                    HttpResponseMessage resp = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+                    long length = resp.Content.Headers.ContentLength ?? 0L;
+                    long lengthMb = length / 1000 / 1000;
+
+                    if (length == 0)
+                        Console.WriteLine("Unknown size, cannot provide progress..");
+
+                    Stream stream = await resp.Content.ReadAsStreamAsync();
+
+                    byte[] buffer = new byte[4096];
+                    using (FileStream fstr = new FileStream(path, FileMode.Create))
+                    using (Stream str = stream)
+                    {
+                        int written = 0;
+                        double lastCom = 0;
+                        int read = 0;
+                        while ((read = str.Read(buffer, 0, buffer.Length)) != 0)
+                        {
+                            fstr.Write(buffer, 0, read);
+                            written += read;
+
+                            if (length > 0)
+                            {
+                                double progress = ((double)written / length);
+                                if (progress > lastCom + percentageCom)
+                                {
+                                    lastCom = progress;
+                                    Console.WriteLine($"Progress ({Math.Floor(progress * 100)}%, {written / (1000*1000)}MB/{lengthMb}MB)");
+                                    onProgress?.Invoke($"Downloading", progress);
+                                }
+                            }
+                        }
+                    }
+                }
+            }).Wait();
+            Console.WriteLine($"Progress (100%)");
+        }
 
         private void EnsureOldDirectoryFormat(string version, string os)
         {
