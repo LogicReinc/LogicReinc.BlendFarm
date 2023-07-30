@@ -349,6 +349,11 @@ namespace LogicReinc.BlendFarm.Windows
         {
             string sessionID = Manager?.GetFileSessionID(blendFile) ?? Guid.NewGuid().ToString();
             OpenBlenderProject proj = new OpenBlenderProject(blendFile, sessionID);
+
+            var projSettings = BlendFarmSettings.Instance.GetProjectSettings(blendFile);
+            if(projSettings != null)
+                proj.ApplyProjectSettings(projSettings);
+
             proj.OnBitmapChanged += async (proj, bitmap) =>
             {
 

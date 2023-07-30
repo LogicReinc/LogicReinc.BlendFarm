@@ -66,7 +66,7 @@ namespace LogicReinc.BlendFarm.Server
             if (_isInterceptingConsole)
                 Program.OnConsoleOutput -= HandleConsoleOutput;
             //SessionData.CleanUp(sessions.ToArray());
-            SessionData.CleanUpDelayed(10000, sessions.ToArray());
+            _ = SessionData.CleanUpDelayed(10000, sessions.ToArray());
             OnDisconnect?.Invoke(this);
             if (_isRendering)
             {

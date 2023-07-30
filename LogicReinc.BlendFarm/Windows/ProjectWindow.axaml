@@ -43,7 +43,7 @@
 			  Import Settings
 		  </CheckBox>
 		  <CheckBox x:Name="useAssetSync" IsChecked="false" Margin="10">
-			  Use Asset Sync (ALPHA WIP)
+			  Use Asset Sync (Under Construction)
 		  </CheckBox>
 	  </StackPanel>
 

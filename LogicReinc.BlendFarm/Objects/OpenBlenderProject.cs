@@ -177,6 +177,13 @@ namespace LogicReinc.BlendFarm.Objects
                 NetworkPathMacOS = NetworkPathMacOS
             };
         }
+        public void ApplyProjectSettings(BlendFarmSettings.UIProjectSettings sets)
+        {
+            UseNetworkedPath = sets.UseNetworked;
+            NetworkPathWindows = sets.NetworkPathWindows ?? NetworkPathWindows;
+            NetworkPathLinux = sets.NetworkPathLinux ?? NetworkPathLinux;
+            NetworkPathMacOS = sets.NetworkPathMacOS ?? NetworkPathMacOS;
+        }
 
 
         internal void TriggerPropertyChange(params string[] props)

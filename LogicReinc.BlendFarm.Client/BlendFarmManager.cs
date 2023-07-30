@@ -299,14 +299,20 @@ namespace LogicReinc.BlendFarm.Client
             FileInfo info = new FileInfo(session.BlendFile);
             session.FileID = info.LastWriteTime.Ticks;
             session.Networked = shared;
+
+            string sharedPath = SessionUtil.GetSessionNetworkPath(info.FullName, session.SessionID);
             if (oldID != session.FileID)
             {
                 if (!shared)
                     File.Copy(session.BlendFile, session.LocalBlendFile, true);
                 else
-                {
-                    File.Copy(session.BlendFile, SessionUtil.GetSessionNetworkPath(info.FullName, session.SessionID), true);
-                }
+                    File.Copy(session.BlendFile, sharedPath, true);
+                foreach (RenderNode node in Nodes)
+                    node.UpdateSyncedStatus(session.SessionID, false);
+            }
+            else if (shared && !File.Exists(sharedPath))
+            {
+                File.Copy(session.BlendFile, sharedPath, true);
                 foreach (RenderNode node in Nodes)
                     node.UpdateSyncedStatus(session.SessionID, false);
             }

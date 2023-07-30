@@ -158,6 +158,7 @@ This may have to do with the port being in use. Note that to discover other pcs 
             connectLocal = this.FindControl<CheckBox>("connectLocal");
             importSettings = this.FindControl<CheckBox>("importSettings");
 
+            useAssetSync.IsEnabled = false;
             useAssetSync.IsChecked = BlendFarmSettings.Instance.Option_UseAssetsSync;
             connectLocal.IsChecked = BlendFarmSettings.Instance.Option_ConnectLocal;
             importSettings.IsChecked = BlendFarmSettings.Instance.Option_ImportSettings;
