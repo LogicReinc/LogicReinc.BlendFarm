@@ -20,5 +20,6 @@ namespace LogicReinc.BlendFarm.Shared.Communication.RenderNode
         public int ClientVersionMinor { get; set; } = 0;
         public int ClientVersionPatch { get; set; } = 5;
         public int ProtocolVersion { get; set; }
+        public bool RequireAuth { get; set; } = false;
     }
 }

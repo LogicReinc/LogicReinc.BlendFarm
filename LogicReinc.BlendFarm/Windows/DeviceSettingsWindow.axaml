@@ -8,29 +8,35 @@
   <Window.Styles>
     <StyleInclude Source="avares://Avalonia.Themes.Default/Accents/BaseDark.xaml" />
   </Window.Styles>
-  <StackPanel Width="300" Height="300">
+  <StackPanel Width="400" Height="400">
     <TextBlock Text="{Binding Node.Name}" Margin="10,20,10,5" FontSize="20" HorizontalAlignment="Center" />
     <TextBlock Text="{Binding Node.Address}" HorizontalAlignment="Center" />
 
     <StackPanel>
       <StackPanel Orientation="Horizontal" Margin="10,10,10,0">
-          <TextBlock Margin="5" Width="120" TextAlignment="Right" FontSize="15" Text="Cores:" HorizontalAlignment="Right" />
+          <TextBlock Margin="5" Width="160" TextAlignment="Right" FontSize="15" Text="Cores:" HorizontalAlignment="Right" />
           <TextBlock Margin="5" Width="100" FontSize="15" Text="{Binding Node.Cores}" />
       </StackPanel>
       <StackPanel Orientation="Horizontal" Margin="10,0,10,0">
-        <TextBlock Margin="5" Width="120" TextAlignment="Right" FontSize="15" Text="Auto-Performace:" HorizontalAlignment="Right" />
-        <TextBlock Margin="5" FontSize="15" Text="{Binding Node.PerformanceScorePP}"></TextBlock>
+        <TextBlock Margin="5" Width="160" TextAlignment="Right" FontSize="15" Text="Auto-Performace:" HorizontalAlignment="Right" />
+        <TextBlock Margin="5" FontSize="15" Width="150" Text="{Binding Node.PerformanceScorePP}"></TextBlock>
       </StackPanel>
       <StackPanel Orientation="Horizontal" Margin="10,0,10,0">
-        <TextBlock Margin="5" Width="120" TextAlignment="Right" FontSize="15" Text="RenderType:" HorizontalAlignment="Right" />
-        <ComboBox x:Name="selectRenderType" Margin="10,0,0,0" Items="{Binding RenderTypes}" FontSize="15"></ComboBox>
+        <TextBlock Margin="5" Width="160" TextAlignment="Right" FontSize="15" Text="RenderType:" HorizontalAlignment="Right" />
+        <ComboBox x:Name="selectRenderType" Width="150" Margin="10,0,0,0" Items="{Binding RenderTypes}" FontSize="15"></ComboBox>
       </StackPanel>
       <StackPanel Orientation="Horizontal" Margin="10,0,10,0">
-        <TextBlock Margin="5" Width="120" TextAlignment="Right" FontSize="15" Text="Performance:" HorizontalAlignment="Right" ToolTip.Tip="Used when Auto-Performance disabled, use cores when zero or below" />
-        <NumericUpDown Margin="10,0,0,0" FontSize="15" Value="{Binding Node.Performance}" Increment="0.1"></NumericUpDown>
+        <TextBlock Margin="5" Width="160" TextAlignment="Right" FontSize="15" Text="Performance:" HorizontalAlignment="Right" ToolTip.Tip="Used when Auto-Performance disabled, use cores when zero or below" />
+        <NumericUpDown Margin="10,0,0,0" Width="150" FontSize="15" Value="{Binding Node.Performance}" Increment="0.1"></NumericUpDown>
       </StackPanel>
-
-      <Button Margin="0,40,0,0" FontSize="20" Command="{Binding Save}">Save</Button>
+		<StackPanel Orientation="Horizontal" Margin="10,0,10,0">
+			<TextBlock Margin="5" Width="160" TextAlignment="Right" FontSize="15" Text="Password:" HorizontalAlignment="Right" ToolTip.Tip="Used for basic authentication, NOT recommended as it is not very secure" />
+			<TextBox Margin="10,0,0,0" Width="150"  FontSize="15" Text="{Binding Node.Pass}" PasswordChar="•"></TextBox>
+		</StackPanel>
+		<TextBlock Margin="10,0,0,0" Width="280" Foreground="Red" TextWrapping="Wrap" Text="Disclaimer: Password should not be your sole protection, it is not stored or transmitted securely"></TextBlock>
+		
+		
+      <Button Margin="0,20,0,0" FontSize="20" Command="{Binding Save}">Save</Button>
 
     </StackPanel>
   </StackPanel>

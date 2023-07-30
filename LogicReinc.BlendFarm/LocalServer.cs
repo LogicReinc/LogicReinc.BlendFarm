@@ -10,6 +10,8 @@ namespace LogicReinc.BlendFarm
     {
         private static RenderServer _server = null;
 
+        public static BlenderManager Manager => _server?.Blender;
+
         public static bool Available => _server != null;
 
         public static int ServerPort { get; } = ServerSettings.Instance.Port;

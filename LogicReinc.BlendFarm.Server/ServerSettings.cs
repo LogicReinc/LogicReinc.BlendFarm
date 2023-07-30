@@ -39,6 +39,11 @@ namespace LogicReinc.BlendFarm.Server
         public bool BypassScriptUpdate { get; set; } = false;
 
 
+        /// <summary>
+        /// Very basic security password. NOT actually very secure, but by request.
+        /// This is not stored safely, and only prevent basic external access..
+        /// </summary>
+        public string BasicSecurityPassword { get; set; } = null;
 
         #region Boilerplate
         private static ServerSettings _instance = null;

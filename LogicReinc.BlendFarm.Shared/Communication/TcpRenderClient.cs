@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LogicReinc.BlendFarm.Shared.Exceptions;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -25,6 +26,11 @@ namespace LogicReinc.BlendFarm.Shared.Communication
 
         public event Action<TcpRenderClient> OnDisconnected;
         public event Action<TcpRenderClient, BlendFarmMessage> OnMessage;
+
+
+        protected bool _disconnectIsError = false;
+        protected string _disconnectReason = null;
+
 
         public TcpRenderClient(TcpClient client)
         {
@@ -112,9 +118,27 @@ namespace LogicReinc.BlendFarm.Shared.Communication
                     else
                         OnMessage?.Invoke(this, req);
                 }
+                catch(TargetInvocationException ex)
+                {
+                    if(ex.InnerException is ClientStateException)
+                    {
+                        _disconnectIsError = true;
+                        _disconnectReason = ex.InnerException.Message;
+                        SendPacket(new BlendFarmDisconnected()
+                        {
+                            IsError = true,
+                            Reason = ex.InnerException.Message
+                        });
+                        Disconnect();
+                    }
+                    else
+                        Console.WriteLine($"Exception in handling [{header}] due to {ex.Message}");
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Exception in handling [{header}] due to {ex.Message}");
+                    throw;
                 }
             });
         }
@@ -138,8 +162,9 @@ namespace LogicReinc.BlendFarm.Shared.Communication
                     throw new InvalidDataException($"Expected size of length {sizeBytes.Length}, found {read}");
                 int size = (int)BinaryParser.Deserialize(sizeBytes, typeof(int));
 
+                if(header != "consoleActivityResponse")
+                    Console.WriteLine($"Received {header} [{size}] from {Client.Client.RemoteEndPoint}");
 
-                Console.WriteLine($"Received {header} [{size}] from {Client.Client.RemoteEndPoint}");
                 HandlePacket(header, reader);
             }
         }

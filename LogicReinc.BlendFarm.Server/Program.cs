@@ -1,9 +1,13 @@
 ﻿using System;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace LogicReinc.BlendFarm.Server
 {
@@ -17,8 +21,23 @@ namespace LogicReinc.BlendFarm.Server
 
         public static RenderServer Server { get; private set; }
 
+        public static event Action<string> OnConsoleOutput;
+
+        private static ConsoleRedirector _redirector = null;
+
+        public static void StartIntercepting()
+        {
+            if(_redirector == null)
+            {
+                _redirector = new ConsoleRedirector(Console.Out);
+                _redirector.OnWrite += (output) => OnConsoleOutput?.Invoke(output);
+                Console.SetOut(_redirector);
+            }
+        }
+
         static void Main(string[] args)
         {
+            StartIntercepting();
             try
             {
                 //List IP addreses of this machine
@@ -71,6 +90,44 @@ namespace LogicReinc.BlendFarm.Server
             catch { }
         }
 
+
+
+        
+        private class ConsoleRedirector : TextWriter
+        {
+            public override Encoding Encoding => Encoding.UTF8;
+
+            private TextWriter _parent = null;
+
+            public event Action<string> OnWrite;
+
+            public ConsoleRedirector(TextWriter parent)
+            {
+                _parent = parent;
+            }
+
+            public override void Write(string value)
+            {
+                OnWrite?.Invoke(value);
+                _parent?.Write(value);
+            }
+            public override void WriteLine(string value)
+            {
+                OnWrite?.Invoke(value);
+                _parent?.WriteLine(value);
+            }
+
+            public override Task WriteAsync(string value)
+            {
+                OnWrite?.Invoke(value + "\n");
+                return _parent?.WriteAsync(value);
+            }
+            public override Task WriteLineAsync(string value)
+            {
+                OnWrite?.Invoke(value + "\n");
+                return _parent?.WriteLineAsync(value);
+            }
+        }
 
     }
 }

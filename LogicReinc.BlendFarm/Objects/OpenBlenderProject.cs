@@ -1,5 +1,6 @@
 ﻿using Avalonia.Media.Imaging;
 using LogicReinc.BlendFarm.Shared;
+using LogicReinc.BlendFarm.Shared.Models;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -49,6 +50,7 @@ namespace LogicReinc.BlendFarm.Objects
         public bool UseWorkaround { get; set; } = true;
 
         public string Scene { get; set; } = "";
+        public string Camera { get; set; } = "";
         public string AnimationFileFormat { get; set; } = "#.png";
         public int FrameStart { get; set; } = 0;
         public int FrameEnd { get; set; } = 60;
@@ -82,7 +84,11 @@ namespace LogicReinc.BlendFarm.Objects
         public bool IsRendering => CurrentTask != null;
         public RenderTask CurrentTask { get; private set; }
 
+        public List<string> CamerasAvailable { get; private set; } = new List<string>();
         public List<string> ScenesAvailable { get; private set; } = new List<string>();
+
+        public List<FileDependency> Dependencies { get; private set; } = null;
+
 
 
         public event Action<OpenBlenderProject, Bitmap> OnBitmapChanged;
@@ -161,9 +167,29 @@ namespace LogicReinc.BlendFarm.Objects
         }
 
 
-        internal void TriggerPropertyChange(string prop)
+        public BlendFarmSettings.UIProjectSettings GetProjectSettings()
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
+            return new BlendFarmSettings.UIProjectSettings()
+            {
+                UseNetworked = UseNetworkedPath,
+                NetworkPathWindows = NetworkPathWindows,
+                NetworkPathLinux = NetworkPathLinux,
+                NetworkPathMacOS = NetworkPathMacOS
+            };
+        }
+        public void ApplyProjectSettings(BlendFarmSettings.UIProjectSettings sets)
+        {
+            UseNetworkedPath = sets.UseNetworked;
+            NetworkPathWindows = sets.NetworkPathWindows ?? NetworkPathWindows;
+            NetworkPathLinux = sets.NetworkPathLinux ?? NetworkPathLinux;
+            NetworkPathMacOS = sets.NetworkPathMacOS ?? NetworkPathMacOS;
+        }
+
+
+        internal void TriggerPropertyChange(params string[] props)
+        {
+            foreach(string prop in props)
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
         }
 
         public class UISettings
@@ -178,5 +204,6 @@ namespace LogicReinc.BlendFarm.Objects
             public string Denoiser { get; set; }
             public bool UseWorkaround { get; set; }
         }
+
     }
 }
