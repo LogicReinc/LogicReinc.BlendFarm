@@ -13,6 +13,7 @@ using LogicReinc.BlendFarm.Client.Tasks;
 using LogicReinc.BlendFarm.Objects;
 using LogicReinc.BlendFarm.Server;
 using LogicReinc.BlendFarm.Shared;
+using LogicReinc.BlendFarm.Shared.Communication.RenderNode;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -23,6 +24,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -55,6 +57,7 @@ namespace LogicReinc.BlendFarm.Windows
 
         //public string File { get; set; }
         public BlenderVersion Version { get; set; }
+        public RenderWindowOptions Options { get; private set; }
 
         public ObservableCollection<OpenBlenderProject> Projects { get; set; } = new ObservableCollection<OpenBlenderProject>();
 
@@ -118,7 +121,10 @@ namespace LogicReinc.BlendFarm.Windows
         private ComboBox _selectOrder = null;
         private ComboBox _selectOutputType = null;
         private TextBox _inputAnimationFileFormat = null;
-        private AutoCompleteBox _scenesAvailableBox = null;
+        private ComboBox _scenesAvailableBox = null;
+        private AutoCompleteBox _scenesBox = null;
+        private ComboBox _camerasAvailableBox = null;
+        private AutoCompleteBox _camerasBox = null;
 
 
         //Debug data
@@ -173,12 +179,14 @@ namespace LogicReinc.BlendFarm.Windows
             };
             Init();
         }
-        public RenderWindow(BlendFarmManager manager, BlenderVersion version, string blenderFile, string sessionID = null)
+        public RenderWindow(BlendFarmManager manager, BlenderVersion version, string blenderFile, string sessionID = null, RenderWindowOptions options = null)
         {
+            options = options ?? new RenderWindowOptions();
             Manager = manager;
             //File = blenderFile;
             CurrentProject = LoadProject(blenderFile);
             Version = version;
+            Options = options;
 
             using (Stream icoStream = Program.GetIconStream())
             {
@@ -215,6 +223,35 @@ namespace LogicReinc.BlendFarm.Windows
             };
             Manager?.StartFileWatch();
 
+            RenderNode localNode = Manager.Nodes.FirstOrDefault(x => x.Name == BlendFarmManager.LocalNodeName);
+            if(Options.ConnectLocal)
+            {
+                if (localNode == null)
+                    MessageWindow.Show(this, "No Local Node", "No local server is available..");
+                else
+                {
+                    bool didConnect = false;
+                    localNode.OnConnected += (node) =>
+                    {
+                        if (didConnect)
+                            return;
+                        didConnect = true;
+                        if(Options.ImportSettings)
+                            Task.Run(async () =>
+                            {
+                                await SyncAll();
+                                if (!localNode.IsSynced)
+                                    await MessageWindow.Show(this, "Failed to sync Local Node", "Required synced node for importing but failed..");
+                                else
+                                {
+                                    await ImportSettings();
+                                }
+                            });
+                    };
+                    localNode.ConnectAndPrepare(Version.Name);
+                }
+            }
+
 
             this.InitializeComponent();
         }
@@ -239,7 +276,10 @@ namespace LogicReinc.BlendFarm.Windows
             _selectOrder = this.Find<ComboBox>("selectOrder");
             _selectOutputType = this.Find<ComboBox>("selectOutputType");
             _inputAnimationFileFormat = this.Find<TextBox>("inputAnimationFileFormat");
-            _scenesAvailableBox = this.Find<AutoCompleteBox>("availableScenesBox");
+            _scenesAvailableBox = this.Find<ComboBox>("availableScenesBox");
+            _scenesBox = this.Find<AutoCompleteBox>("sceneBox");
+            _camerasAvailableBox = this.Find<ComboBox>("availableCamerasBox");
+            _camerasBox = this.Find<AutoCompleteBox>("cameraBox");
 
             _selectStrategy.Items = Enum.GetValues(typeof(RenderStrategy));
             _selectStrategy.SelectedIndex = 0;
@@ -309,6 +349,11 @@ namespace LogicReinc.BlendFarm.Windows
         {
             string sessionID = Manager?.GetFileSessionID(blendFile) ?? Guid.NewGuid().ToString();
             OpenBlenderProject proj = new OpenBlenderProject(blendFile, sessionID);
+
+            var projSettings = BlendFarmSettings.Instance.GetProjectSettings(blendFile);
+            if(projSettings != null)
+                proj.ApplyProjectSettings(projSettings);
+
             proj.OnBitmapChanged += async (proj, bitmap) =>
             {
 
@@ -403,6 +448,11 @@ namespace LogicReinc.BlendFarm.Windows
                 BlendFarmSettings.Instance.Save();
             }
         }
+
+        public void TerminalNode(RenderNode node)
+        {
+            DeviceLogWindow.Show(this, node);
+        }
         public async void ConfigureNode(RenderNode node)
         {
             DeviceSettingsWindow.Show(this, node);
@@ -416,6 +466,126 @@ namespace LogicReinc.BlendFarm.Windows
             {
                 CurrentProject.ScenesAvailable.Add(scene);
                 _scenesAvailableBox.Items = CurrentProject.ScenesAvailable;
+            }
+
+            BlendFarmSettings.Instance.ApplyProjectSettings(CurrentProject.BlendFile, CurrentProject.GetProjectSettings());
+        }
+
+        public async Task<BlenderPeekResponse> RequestPeek(OpenBlenderProject currentProject)
+        {
+
+            //Check if any unsynced nodes
+            if (!Manager.Nodes.Any(x => x.Connected && x.IsSessionSynced(currentProject.SessionID)))//!x.IsSynced))
+            {
+                if (!Manager.Nodes.Any(x => x.Connected))
+                {
+                    MessageWindow.Show(this, "No Nodes", "Need at least one connected node to import");
+                    return null;
+                }
+
+                if (await YesNoWindow.Show(this, "No Synced Node", "Require atleast one synced node to import settings, would you like to sync?"))
+                {
+                    if (!CurrentProject.UseNetworkedPath)
+                        await Manager?.Sync(CurrentProject.BlendFile, UseSyncCompression);
+                    else
+                        await Manager?.Sync(CurrentProject.BlendFile, CurrentProject.NetworkPathWindows, CurrentProject.NetworkPathLinux, CurrentProject.NetworkPathMacOS);
+                }
+                else return null;
+            }
+
+            //Start rendering thread
+            return await Task.Run<BlenderPeekResponse>(async () =>
+            {
+                try
+                {
+                    BlenderPeekResponse peekInfo = await Manager.Peek(CurrentProject.BlendFile);
+
+                    if (!peekInfo.Success)
+                        throw new Exception(peekInfo.Message);
+
+                    return peekInfo;
+
+                }
+                catch (Exception ex)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
+                        MessageWindow.Show(this, "Failed Peek", "Failed peek due to:" + ex.Message);
+                    });
+                    return null;
+                }
+            });
+        }
+        public async Task ImportSettings()
+        {
+            OpenBlenderProject currentProject = CurrentProject;
+            BlenderPeekResponse peekInfo = await RequestPeek(currentProject);
+            if(peekInfo != null)
+            {
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    currentProject.RenderWidth = peekInfo.RenderWidth;
+                    currentProject.RenderHeight = peekInfo.RenderHeight;
+                    currentProject.FrameStart = peekInfo.FrameStart;
+                    currentProject.FrameEnd = peekInfo.FrameEnd;
+                    currentProject.Samples = peekInfo.Samples;
+                    currentProject.TriggerPropertyChange(
+                        nameof(currentProject.RenderWidth),
+                        nameof(currentProject.RenderHeight),
+                        nameof(currentProject.FrameStart),
+                        nameof(currentProject.FrameEnd),
+                        nameof(currentProject.Samples));
+                    LoadMeta(currentProject, peekInfo);
+                });
+            }
+        }
+        public async Task ImportMeta()
+        {
+            OpenBlenderProject currentProject = CurrentProject;
+            BlenderPeekResponse peekInfo = await RequestPeek(currentProject);
+            if (peekInfo != null)
+            {
+                LoadMeta(currentProject, peekInfo);
+            }
+        }
+
+        public void LoadMeta(OpenBlenderProject project, BlenderPeekResponse peekInfo)
+        {
+            project.CamerasAvailable.Clear();
+            project.CamerasAvailable.AddRange(peekInfo.Cameras);
+            project.Camera = peekInfo.SelectedCamera;
+            project.ScenesAvailable.Clear();
+            project.ScenesAvailable.AddRange(peekInfo.Scenes);
+            project.Scene = peekInfo.SelectedScene;
+            if (project.ScenesAvailable.Count > 0)
+            {
+                _scenesAvailableBox.Items = project.ScenesAvailable;
+                _scenesBox.IsVisible = false;
+                _scenesAvailableBox.IsVisible = true;
+            }
+            if(project.CamerasAvailable.Count > 0)
+            {
+                _camerasAvailableBox.Items = project.CamerasAvailable;
+                _camerasBox.IsVisible = false;
+                _camerasAvailableBox.IsVisible = true;
+            }
+            project.TriggerPropertyChange(
+                nameof(project.CamerasAvailable),
+                nameof(project.Camera),
+                nameof(project.ScenesAvailable),
+                nameof(project.Scene));
+        }
+
+        public async Task Test()
+        {
+            OpenBlenderProject currentProject = CurrentProject;
+            try
+            {
+                LocalServer.Manager.ExtractDependencies(Version.Name, currentProject.BlendFile, Manager.GetOrCreateSession(currentProject.BlendFile).FileID);
+            }
+            catch(Exception ex)
+            {
+                MessageWindow.Show(this, "Test failed", ex.Message);
             }
         }
 
@@ -963,6 +1133,7 @@ namespace LogicReinc.BlendFarm.Windows
             {
                 Frame = proj.FrameStart,
                 Scene = proj.Scene,
+                Camera = proj.Camera,
                 Strategy = (RenderStrategy)_selectStrategy.SelectedItem,
                 Order = (TaskOrder)_selectOrder?.SelectedItem,
                 OutputHeight = proj.RenderHeight,
@@ -1034,5 +1205,13 @@ namespace LogicReinc.BlendFarm.Windows
             }
         }
 
+
+    }
+
+    public class RenderWindowOptions
+    {
+        public bool WithAssetSync { get; set; }
+        public bool ConnectLocal { get; set; }
+        public bool ImportSettings { get; set; }
     }
 }

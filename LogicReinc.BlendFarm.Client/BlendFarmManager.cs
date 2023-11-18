@@ -8,6 +8,7 @@ using System.Drawing;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Runtime;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -193,7 +194,7 @@ namespace LogicReinc.BlendFarm.Client
             return Nodes.FirstOrDefault(x => x.Address == address);
         }
 
-        public RenderNode AddNode(string name, string address, RenderType type = RenderType.CPU) => AddNode(new RenderNode() { Name = name, Address = address, RenderType = type });
+        public RenderNode AddNode(string name, string address, RenderType type = RenderType.CPU, string pass = null) => AddNode(new RenderNode() { Name = name, Address = address, RenderType = type, Pass = pass });
         public RenderNode AddNode(RenderNode node)
         {
             RenderNode existing = GetNodeByName(node.Name);
@@ -298,14 +299,20 @@ namespace LogicReinc.BlendFarm.Client
             FileInfo info = new FileInfo(session.BlendFile);
             session.FileID = info.LastWriteTime.Ticks;
             session.Networked = shared;
+
+            string sharedPath = SessionUtil.GetSessionNetworkPath(info.FullName, session.SessionID);
             if (oldID != session.FileID)
             {
                 if (!shared)
                     File.Copy(session.BlendFile, session.LocalBlendFile, true);
                 else
-                {
-                    File.Copy(session.BlendFile, SessionUtil.GetSessionNetworkPath(info.FullName, session.SessionID), true);
-                }
+                    File.Copy(session.BlendFile, sharedPath, true);
+                foreach (RenderNode node in Nodes)
+                    node.UpdateSyncedStatus(session.SessionID, false);
+            }
+            else if (shared && !File.Exists(sharedPath))
+            {
+                File.Copy(session.BlendFile, sharedPath, true);
                 foreach (RenderNode node in Nodes)
                     node.UpdateSyncedStatus(session.SessionID, false);
             }
@@ -455,14 +462,14 @@ namespace LogicReinc.BlendFarm.Client
                 //Optimize
                 long id = session.FileID;
 
-                byte[] toSend = null;
-                using (MemoryStream mem = new MemoryStream())
-                {
-                    byte[] buffer = new byte[4096];
+                string toSend = file;
 
-                    await Task.Run(() =>
+                if(compress)
+                    using (FileStream mem = new FileStream("compressed.zip", FileMode.Create))
                     {
-                        if (compress)
+                        byte[] buffer = new byte[4096];
+
+                        await Task.Run(() =>
                         {
                             Nodes.ToList().ForEach(x => x.UpdateActivity("Compressing.."));
 
@@ -475,39 +482,26 @@ namespace LogicReinc.BlendFarm.Client
                             }
 
                             Nodes.ToList().ForEach(x => x.UpdateActivity(""));
-                        }
-                        else
-                        {
-                            using (FileStream str = new FileStream(session.BlendFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                            {
-                                int read = 0;
-                                while ((read = str.Read(buffer, 0, buffer.Length)) > 0)
-                                    mem.Write(buffer, 0, buffer.Length);
-                            }
-                        }
-                        mem.Seek(0, SeekOrigin.Begin);
-                        toSend = mem.ToArray();
-                    });
-                }
+                        });
+                        toSend = "compressed.zip";
+                    }
                 await Task.WhenAll(Nodes.ToList().Select(async node =>
                 {
-                    using (MemoryStream mem = new MemoryStream(toSend))
+                    SyncResponse resp = null;
+                    try
                     {
-                        SyncResponse resp = null;
-                        try
-                        {
-                            resp = await node.SyncFile(session.SessionID, id, mem, (compress) ? Compression.GZip : Compression.Raw);
-                        }
-                        catch (Exception ex)
-                        {
-                            node.UpdateException(ex.Message);
-                            return;
-                        }
-                        if (resp == null)
-                            node.LastStatus = $"Sync Failed: No version..";
-                        else
-                            node.LastStatus = $"Ready";
+                        using(FileStream str = new FileStream(toSend, FileMode.Open, FileAccess.Read, FileShare.Read))
+                            resp = await node.SyncFile(session.SessionID, id, str, (compress) ? Compression.GZip : Compression.Raw);
                     }
+                    catch (Exception ex)
+                    {
+                        node.UpdateException(ex.Message);
+                        return;
+                    }
+                    if (resp == null)
+                        node.LastStatus = $"Sync Failed: No version..";
+                    else
+                        node.LastStatus = $"Ready";
                 }).ToArray());
             }
             finally
@@ -575,6 +569,28 @@ namespace LogicReinc.BlendFarm.Client
             finally
             {
                 CurrentTask = null;
+            }
+        }
+
+        public async Task<BlenderPeekResponse> Peek(string file)
+        {
+            try
+            {
+                RenderNode anyNode = Nodes.FirstOrDefault(x => x.IsSynced && x.IsPrepared);
+                if (anyNode == null)
+                    throw new InvalidOperationException("No prepared and synced node\n(Blender might still be installing)");
+
+                string fileSessionId = GetFileSessionID(file);
+                BlenderPeekResponse resp = await anyNode.Peek(new BlenderPeekRequest()
+                {
+                    Version = Version,
+                    SessionID = fileSessionId
+                });
+                return resp;
+            }
+            finally
+            {
+
             }
         }
     }

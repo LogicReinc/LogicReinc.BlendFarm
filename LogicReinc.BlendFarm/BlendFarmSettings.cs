@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using static LogicReinc.BlendFarm.BlendFarmSettings;
 using static LogicReinc.BlendFarm.Windows.RenderWindow;
 
 namespace LogicReinc.BlendFarm
@@ -44,6 +45,30 @@ namespace LogicReinc.BlendFarm
 
         public DateTime LastAnnouncementDate { get; set; } = DateTime.MinValue;
 
+        public Dictionary<string, UIProjectSettings> ProjectSettings { get; set; } = new Dictionary<string, UIProjectSettings>();
+
+
+        public bool Option_UseAssetsSync { get; set; }
+        public bool Option_ConnectLocal { get; set; }
+        public bool Option_ImportSettings { get; set; }
+
+
+        public void ApplyProjectSettings(string fileName, UIProjectSettings settings)
+        {
+            if (ProjectSettings.ContainsKey(fileName))
+                ProjectSettings[fileName] = settings;
+            else
+                ProjectSettings.Add(fileName, settings);
+            Save();
+        }
+        public UIProjectSettings GetProjectSettings(string file)
+        {
+            if (ProjectSettings.ContainsKey(file))
+                return ProjectSettings[file];
+            return null;
+        }
+
+
         #region Boilerplate
 
         private static BlendFarmSettings _instance = null;
@@ -79,6 +104,7 @@ namespace LogicReinc.BlendFarm
 
             public RenderType RenderType { get; set; } = RenderType.CPU;
             public double Performance { get; set; }
+            public string Pass { get; set; }
         }
 
         /// <summary>
@@ -89,6 +115,16 @@ namespace LogicReinc.BlendFarm
             public string Name { get; set; }
             public string Path { get; set; }
             public DateTime Date { get; set; }
+        }
+
+
+
+        public class UIProjectSettings
+        {
+            public bool UseNetworked { get; set; }
+            public string NetworkPathWindows { get; set; }
+            public string NetworkPathLinux { get; set; }
+            public string NetworkPathMacOS { get; set; }
         }
     }
 }

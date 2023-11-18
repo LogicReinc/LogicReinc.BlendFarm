@@ -26,6 +26,8 @@ namespace LogicReinc.BlendFarm.Client
         public const int MinimumVersionMinor = 1;
         public const int MinimumVersionPatch = 3;
 
+        private StringBuilder _currentLog = new StringBuilder();
+
         //Info
         /// <summary>
         /// Name of node
@@ -43,6 +45,8 @@ namespace LogicReinc.BlendFarm.Client
         /// Operating system of node
         /// </summary>
         public string OS { get; set; }
+
+        public string Pass { get; set; }
 
         /// <summary>
         /// Networking client for node
@@ -157,6 +161,8 @@ namespace LogicReinc.BlendFarm.Client
         /// </summary>
         public event Action<RenderNode, RenderBatchResult> OnBatchResult;
 
+        public event Action<RenderNode, string> OnLog;
+
         /// <summary>
         /// Whenever a relevant property changed
         /// </summary>
@@ -175,10 +181,20 @@ namespace LogicReinc.BlendFarm.Client
             };
         }
 
+        public void SetPassword(string pass)
+        {
+            Pass = pass;
+        }
+
         public void UpdatePerformance(int pixelsRendered, int ms)
         {
             decimal msPerPixel = (decimal)((decimal)pixelsRendered / ms);
             PerformanceScorePP = msPerPixel;
+        }
+
+        public string GetCurrentLog()
+        {
+            return _currentLog.ToString();
         }
 
         //Connection
@@ -203,6 +219,7 @@ namespace LogicReinc.BlendFarm.Client
 
                 try
                 {
+                    _currentLog.Clear();
                     Client = await RenderClient.Connect(Address);
                     Client.OnConnected += (a) => OnConnected?.Invoke(this);
                     Client.OnDisconnected += (a) => OnDisconnected?.Invoke(this);
@@ -219,6 +236,24 @@ namespace LogicReinc.BlendFarm.Client
                     }
                     if (protocolResp == null || Protocol.Version != protocolResp.ProtocolVersion)
                         throw new InvalidOperationException($"Outdated protocol, update node before connecting (Protocol: {Protocol.Version}, Found: {protocolResp?.ProtocolVersion})");
+
+                    if(protocolResp.RequireAuth)
+                    {
+                        try
+                        {
+                            AuthResponse resp = await Client.Send<AuthResponse>(new AuthRequest()
+                            {
+                                Pass = Pass
+                            }, CancellationToken.None);
+                            if(!resp.IsAuthenticated)
+                                throw new InvalidDataException("Authentication failed");
+                        }
+                        catch(Exception ex)
+                        {
+                            throw new InvalidDataException($"Authentication failed ({ex.Message})");
+                        }
+                    }
+
 
                     ComputerInfoResponse compData = await GetComputerInfo();
                     OS = compData.OS;
@@ -305,6 +340,20 @@ namespace LogicReinc.BlendFarm.Client
                 OnBatchResult?.Invoke(this, renderBatchResult);
                
             }
+            if(p is BlendFarmDisconnected packDisconnected)
+            {
+                if (packDisconnected.IsError)
+                    UpdateException(packDisconnected.Reason);
+            }
+            if(p is ActivityRequest packAct)
+            {
+                UpdateActivity(packAct.Activity, packAct.Progress);
+            }
+            if(p is ConsoleActivityResponse packConsole)
+            {
+                _currentLog.AppendLine(packConsole.Output);
+                OnLog?.Invoke(this, packConsole.Output);
+            }
         }
 
         //Remote Tasks
@@ -326,6 +375,11 @@ namespace LogicReinc.BlendFarm.Client
                 ClientVersionPatch = patch,
                 ProtocolVersion = version
             }, CancellationToken.None);
+        }
+
+        public void RequestConsoleActivityRedirect()
+        {
+            Client.Send(new ConsoleActivityRequest());
         }
 
 
@@ -437,7 +491,7 @@ namespace LogicReinc.BlendFarm.Client
                 //Transfer file
                 byte[] chunk = new byte[1024 * 1024 * 10];
                 int read = 0;
-                int written = 0;
+                long written = 0;
                 while ((read = file.Read(chunk, 0, chunk.Length)) > 0)
                 {
                     byte[] toSend = (read == chunk.Length) ? chunk : chunk.AsSpan(0, read).ToArray();
@@ -508,7 +562,7 @@ namespace LogicReinc.BlendFarm.Client
                     }
                     catch (BlendFarmDisconnectedException ex)
                     {
-                        RecoverResponse r = await ConnectRecover(3, 1000, new string[] { req.SessionID });
+                        RecoverResponse r = await ConnectRecover(5, 1000, new string[] { req.SessionID });
                         if (!r.Success)
                             throw new RecoverException(r.Message);
                     }
@@ -555,7 +609,7 @@ namespace LogicReinc.BlendFarm.Client
                         if (recoverAtts > 3)
                             throw new RecoverException($"Failed to recover too many times, connection too unstable");
 
-                        RecoverResponse r = await ConnectRecover(3, 1000, new string[] { req.SessionID });
+                        RecoverResponse r = await ConnectRecover(5, 1000, new string[] { req.SessionID });
                         if (!r.Success)
                             throw new RecoverException(r.Message);
                     }
@@ -576,6 +630,52 @@ namespace LogicReinc.BlendFarm.Client
             return resp;
         }
         
+        public async Task<BlenderPeekResponse> Peek(BlenderPeekRequest req)
+        {
+            if (Client == null)
+                throw new InvalidOperationException("Client not connected");
+            BlenderPeekResponse resp = null;
+            _taskCancelToken = new CancellationTokenSource();
+            try
+            {
+                UpdateActivity("Peeking...");
+
+                int recoverAtts = 0;
+                while (true)
+                {
+                    try
+                    {
+                        resp = await Client.Send<BlenderPeekResponse>(req, _taskCancelToken.Token);
+                        break;
+                    }
+                    catch (BlendFarmDisconnectedException ex)
+                    {
+                        recoverAtts++;
+                        if (recoverAtts > 3)
+                            throw new RecoverException($"Failed to recover too many times, connection too unstable");
+
+                        RecoverResponse r = await ConnectRecover(5, 1000, new string[] { req.SessionID });
+                        if (!r.Success)
+                            throw new RecoverException(r.Message);
+                    }
+                    catch (Exception exOther)
+                    {
+                        throw;
+                    }
+                }
+
+            }
+            finally
+            {
+                UpdateActivity("");
+                CurrentTask = null;
+                _taskCancelToken = null;
+            }
+
+            return resp;
+        }
+
+
         /// <summary>
         /// Cancels an ongoing render with SesionID
         /// </summary>

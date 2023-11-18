@@ -123,6 +123,11 @@ def renderWithSettings(renderSettings, id, path):
         scn.render.border_min_y = float(renderSettings["Y"])
         scn.render.border_max_y = float(renderSettings["Y2"])
 
+        #Set Camera
+        camera = renderSettings["Camera"];
+        if(camera != None and camera != "" and bpy.data.objects[camera]):
+            scn.camera = bpy.data.objects[camera];
+
         #Set Resolution
         scn.render.resolution_x = int(renderSettings["Width"]);
         scn.render.resolution_y = int(renderSettings["Height"]);

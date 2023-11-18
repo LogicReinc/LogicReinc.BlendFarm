@@ -27,6 +27,7 @@
     <None Remove="Icons\radioOff.zip" />
     <None Remove="Icons\radioOn.png" />
     <None Remove="Icons\radioOn.zip" />
+    <None Remove="Icons\terminal.png" />
     <None Remove="Images\header.png" />
     <None Remove="Images\icon.png" />
     <None Remove="Images\render.ico" />
@@ -42,6 +43,7 @@
   </ItemGroup>
   <ItemGroup>
     <AvaloniaResource Include="Icons\patreon.png" />
+    <AvaloniaResource Include="Icons\terminal.png" />
     <AvaloniaResource Include="Images\header.png" />
   </ItemGroup>
   <ItemGroup>
@@ -76,6 +78,9 @@
   <ItemGroup>
     <Compile Update="Windows\BitmapViewer.axaml.cs">
       <DependentUpon>BitmapViewer.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Windows\DeviceLogWindow.axaml.cs">
+      <DependentUpon>DeviceLogWindow.axaml</DependentUpon>
     </Compile>
     <Compile Update="Windows\YesNoNeverWindow.axaml.cs">
       <DependentUpon>YesNoNeverWindow.axaml</DependentUpon>

@@ -36,6 +36,9 @@ namespace LogicReinc.BlendFarm.Client
         public event Action<RenderClient> OnDisconnected;
         public event Action<RenderClient, string> OnMessage;
 
+        protected bool _lastDisconnectIsError = false;
+        protected string _lastDisconnectReason = null;
+
 
         public RenderClient(string address)
         {
@@ -54,6 +57,14 @@ namespace LogicReinc.BlendFarm.Client
         public static async Task<RenderClient> Connect(string address)
         {
             RenderClient client = new RenderClient(address);
+            client.OnPacket += (packClient, pack) =>
+            {
+                if(pack is BlendFarmDisconnected packDis)
+                {
+                    client._lastDisconnectIsError = packDis.IsError;
+                    client._lastDisconnectReason = packDis.Reason;
+                }
+            };
 
             if (!await client.Connect())
                 return null;
@@ -102,8 +113,21 @@ namespace LogicReinc.BlendFarm.Client
             await sema.WaitAsync(cancel);
             sema.Dispose();
 
-            if (response is BlendFarmDisconnected)
-                throw new BlendFarmDisconnectedException();
+            if (response is BlendFarmDisconnected respDisc)
+            {
+                if(string.IsNullOrEmpty(respDisc.Reason))
+                    throw new BlendFarmDisconnectedException()
+                    {
+                        IsError = respDisc.IsError,
+                        Reason = respDisc.Reason
+                    };
+                else
+                    throw new BlendFarmDisconnectedException(respDisc.Reason)
+                    {
+                        IsError = respDisc.IsError,
+                        Reason = respDisc.Reason
+                    };
+            }
 
             return (T)response;
         }
@@ -123,7 +147,11 @@ namespace LogicReinc.BlendFarm.Client
             foreach (var handler in _respHandlers.Values.ToList())
                 try
                 {
-                    handler(new BlendFarmDisconnected());
+                    handler(new BlendFarmDisconnected()
+                    {
+                        IsError = _lastDisconnectIsError,
+                        Reason = _lastDisconnectReason
+                    });
                 }
                 catch { }
 
