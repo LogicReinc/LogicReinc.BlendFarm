@@ -216,6 +216,15 @@ namespace LogicReinc.BlendFarm.Server
                 using (WebClient client = new WebClient())
                 {
                     Console.WriteLine($"Downloading {version.Name}...");
+                    int lastPercentage = 0;
+                    client.DownloadProgressChanged += (s, e) =>
+                    {
+                        if (e.ProgressPercentage > lastPercentage)
+                        {
+                            lastPercentage = e.ProgressPercentage;
+                            Console.WriteLine($"Downloading {version.Name} [{lastPercentage}%]...");
+                        }
+                    };
                     client.DownloadFile(version.UrlWindows64, archivePath);
                 }
                 Console.WriteLine($"Extracting {version.Name}...");
@@ -254,6 +263,15 @@ namespace LogicReinc.BlendFarm.Server
                 using (WebClient client = new WebClient())
                 {
                     Console.WriteLine($"Downloading {version.Name}...");
+                    int lastPercentage = 0;
+                    client.DownloadProgressChanged += (s, e) =>
+                    {
+                        if (e.ProgressPercentage > lastPercentage)
+                        {
+                            lastPercentage = e.ProgressPercentage;
+                            Console.WriteLine($"Downloading {version.Name} [{lastPercentage}%]...");
+                        }
+                    };
                     client.DownloadFile(version.UrlLinux64, archivePath);
                 }
                 Console.WriteLine($"Extracting {version.Name}...");
@@ -342,6 +360,15 @@ namespace LogicReinc.BlendFarm.Server
                 using (WebClient client = new WebClient())
                 {
                     Console.WriteLine($"Downloading {version.Name}...");
+                    int lastPercentage = 0;
+                    client.DownloadProgressChanged += (s, e) =>
+                    {
+                        if (e.ProgressPercentage > lastPercentage)
+                        {
+                            lastPercentage = e.ProgressPercentage;
+                            Console.WriteLine($"Downloading {version.Name} [{lastPercentage}%]...");
+                        }
+                    };
                     client.DownloadFile(version.UrlMacOS, archivePath);
                 }
                 Console.WriteLine($"Extracting {version.Name}...");
@@ -415,6 +442,15 @@ namespace LogicReinc.BlendFarm.Server
                 using (WebClient client = new WebClient())
                 {
                     Console.WriteLine($"Downloading {version.Name}...");
+                    int lastPercentage = 0;
+                    client.DownloadProgressChanged += (s, e) =>
+                    {
+                        if (e.ProgressPercentage > lastPercentage)
+                        {
+                            lastPercentage = e.ProgressPercentage;
+                            Console.WriteLine($"Downloading {version.Name} [{lastPercentage}%]...");
+                        }
+                    };
                     client.DownloadFile(version.UrlMacOSARM64, archivePath);
                 }
                 Console.WriteLine($"Extracting {version.Name}...");

@@ -190,6 +190,7 @@ namespace LogicReinc.BlendFarm.Windows
         private void Init()
         {
             OS = SystemInfo.GetOSName();
+            Console.WriteLine("OS: " + OS);
             if(Manager?.Nodes != null)
             {
                 foreach(RenderNode node in Manager.Nodes.ToList())
