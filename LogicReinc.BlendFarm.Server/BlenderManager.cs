@@ -115,6 +115,9 @@ namespace LogicReinc.BlendFarm.Server
                 case SystemInfo.OS_MACOS:
                     executable = $"{blenderDir}/Contents/MacOS/Blender";
                     break;
+                case SystemInfo.OS_MACOSARM64:
+                    executable = $"{blenderDir}/Contents/MacOS/Blender";
+                    break;
             }
             return executable;
         }
@@ -187,6 +190,9 @@ namespace LogicReinc.BlendFarm.Server
                     break;
                 case "macOS":
                     DownloadMacOS(version);
+                    break;
+                case "macOS-arm64":
+                    DownloadMacOSARM64(version);
                     break;
                 default:
                     throw new NotImplementedException("Unknown OS");
@@ -337,6 +343,79 @@ namespace LogicReinc.BlendFarm.Server
                 {
                     Console.WriteLine($"Downloading {version.Name}...");
                     client.DownloadFile(version.UrlMacOS, archivePath);
+                }
+                Console.WriteLine($"Extracting {version.Name}...");
+
+                string versionPath = GetVersionPath(version.Name, os);
+                string imagePath = versionPath + "-image";
+
+                Directory.CreateDirectory(imagePath);
+
+                Console.WriteLine($"Mounting [{archivePath}] to [{imagePath}]");
+                Process mountProcess = new Process()
+                {
+                    StartInfo = new ProcessStartInfo()
+                    {
+                        FileName = "hdiutil",
+                        Arguments = $"attach -mountpoint \"{imagePath}\" \"{archivePath}\"",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        CreateNoWindow = true
+                    }
+                };
+                mountProcess.Start();
+                mountProcess.WaitForExit();
+                Console.WriteLine("Mounted");
+
+                Directory.CreateDirectory(versionPath);
+
+                Console.WriteLine("Copying Blender Files");
+                CopyRecursive(Path.Combine(imagePath, "Blender.app"), versionPath);
+
+                Console.WriteLine("Unmounting");
+                Process unmountProcess = new Process()
+                {
+                    StartInfo = new ProcessStartInfo()
+                    {
+                        FileName = "hdiutil",
+                        Arguments = $"detach \"{imagePath}\"",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        CreateNoWindow = true
+                    }
+                };
+                unmountProcess.Start();
+                unmountProcess.WaitForExit();
+                Console.WriteLine("Unmounted");
+
+                Console.WriteLine($"{version.Name} ready");
+            }
+            catch (Exception ex)
+            {
+                if (Directory.Exists(GetVersionPath(version.Name, os)))
+                    Directory.Delete(GetVersionPath(version.Name, os));
+                if (File.Exists(archivePath))
+                    File.Delete(archivePath);
+            }
+        }
+        /// <summary>
+        /// Downloads macos version of a specific version of Blender (And extract it)
+        /// </summary>
+        /// <param name="version"></param>
+        public void DownloadMacOSARM64(BlenderVersion version)
+        {
+            string os = "macOS-arm64";
+            string ext = "dmg";
+            string archiveName = $"{version.Name}-{os}.{ext}";
+            string archivePath = Path.Combine(GetBlenderDataPath(), archiveName);
+            try
+            {
+                Directory.CreateDirectory(GetBlenderDataPath());
+
+                using (WebClient client = new WebClient())
+                {
+                    Console.WriteLine($"Downloading {version.Name}...");
+                    client.DownloadFile(version.UrlMacOSARM64, archivePath);
                 }
                 Console.WriteLine($"Extracting {version.Name}...");
 

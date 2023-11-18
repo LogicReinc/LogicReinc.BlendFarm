@@ -174,6 +174,7 @@ namespace LogicReinc.BlendFarm.Server
                             path = req.LinuxPath;
                             break;
                         case SystemInfo.OS_MACOS:
+                        case SystemInfo.OS_MACOSARM64:
                             path = req.MacOSPath;
                             break;
                         default:

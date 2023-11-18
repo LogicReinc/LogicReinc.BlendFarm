@@ -21,6 +21,7 @@ namespace LogicReinc.BlendFarm.Shared
         private const string OS_WINDOWS_x64 = "windows-x64";
         private const string OS_MACOS = "macOS";
         private const string OS_MACOS_x64 = "macos-x64";
+        private const string OS_MACOS_ARM64 = "macos-arm64";
 
         private const string VERSIONS_URL = "https://download.blender.org/release/";
         private static Regex REGEX_BLENDERVERSION = new Regex("Blender[0-9]\\.[0-9]*\\/");

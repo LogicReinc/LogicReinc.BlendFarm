@@ -75,7 +75,7 @@ namespace LogicReinc.BlendFarm.Windows
         public string OS { get; set; }
         public bool IsWindows => OS == SystemInfo.OS_WINDOWS64;
         public bool IsLinux => OS == SystemInfo.OS_LINUX64;
-        public bool IsMacOS => OS == SystemInfo.OS_MACOS;
+        public bool IsMacOS => OS == SystemInfo.OS_MACOS || OS == SystemInfo.OS_MACOSARM64;
 
 
         //State
