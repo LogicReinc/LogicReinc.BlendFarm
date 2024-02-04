@@ -17,7 +17,7 @@ rm "BlendFarm-$version-OSX-ARM64.zip"
 cp "_Resources/BlendFarm-___-OSX-ARM64" -R "BlendFarm-$version-OSX-ARM64"
 cp "_Build/osx-arm64/LogicReinc.BlendFarm" "BlendFarm-$version-OSX-ARM64/LogicReinc.BlendFarm.app/Contents/MacOS/LogicReinc.BlendFarm"
 sed -i "s/1.0.3/$version/" "BlendFarm-$version-OSX-ARM64/LogicReinc.BlendFarm.app/Contents/Info.plist"
-find "_Build/osx-x64/" -name \*.dylib -exec cp {}   "BlendFarm-$version-OSX-ARM64/LogicReinc.BlendFarm.app/Contents/MacOS/" \;
+find "_Build/osx-arm64/" -name \*.dylib -exec cp {}   "BlendFarm-$version-OSX-ARM64/LogicReinc.BlendFarm.app/Contents/MacOS/" \;
 zip -r "BlendFarm-$version-OSX-ARM64.zip" "BlendFarm-$version-OSX-ARM64"
 
 cd ../../
