@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -49,6 +50,9 @@ namespace LogicReinc.BlendFarm.Server
 
         public int ContinueCount { get; private set; }
 
+        public List<string> Results { get; private set; } = new List<string>();
+        public List<string> Exceptions { get; private set; } = new List<string>();
+
         public BlenderProcess(string blender, string args, string version = null, string file = null, long fileId = -1)
         {
             this.CMD = blender;
@@ -87,7 +91,7 @@ namespace LogicReinc.BlendFarm.Server
         /// <summary>
         /// Starts the process and handle output
         /// </summary>
-        public void Run()
+        public Result Run()
         {
             Process process = new Process()
             {
@@ -110,10 +114,19 @@ namespace LogicReinc.BlendFarm.Server
             {
                 var line = process.StandardOutput.ReadLine();
                 if (ProcessBlenderLine(line))
-                    return;
+                    return new Result()
+                    {
+                        Results = Results.ToArray(),
+                        Exceptions = Exceptions.ToArray()
+                    };
             }
 
             process.WaitForExit();
+            return new Result()
+            {
+                Results = Results.ToArray(),
+                Exceptions = Exceptions.ToArray()
+            };
         }
 
         public void Continue(string newPath)
@@ -182,9 +195,17 @@ namespace LogicReinc.BlendFarm.Server
                         });
                 }
                 else if (line.StartsWith("EXCEPTION:"))
-                    OnBlenderException?.Invoke(line.Substring("EXCEPTION:".Length));
+                {
+                    string exception = line.Substring("EXCEPTION:".Length);
+                    OnBlenderException?.Invoke(exception);
+                    Exceptions.Add(exception);
+                }
                 else if (line.StartsWith("SUCCESS:"))
-                    OnBlenderCompleteTask?.Invoke(line.Substring("SUCCESS:".Length));
+                {
+                    string result = line.Substring("SUCCESS:".Length);
+                    OnBlenderCompleteTask?.Invoke(result);
+                    Results.Add(result);
+                }
                 else if (line.StartsWith("AWAITING CONTINUE:"))
                 {
                     HandleContinue();
@@ -207,6 +228,12 @@ namespace LogicReinc.BlendFarm.Server
             public int TimeRemaining { get; set; }
             public int TilesFinish { get; set; }
             public int TilesTotal { get; set; }
+        }
+
+        public class Result
+        {
+            public string[] Results { get; set; }
+            public string[] Exceptions { get; set; }
         }
     }
 }

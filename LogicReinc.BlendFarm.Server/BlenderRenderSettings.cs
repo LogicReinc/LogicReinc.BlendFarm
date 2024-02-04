@@ -29,6 +29,11 @@ namespace LogicReinc.BlendFarm.Server
         public string Scene { get; set; } = "";
 
         /// <summary>
+        /// Camera of scene
+        /// </summary>
+        public string Camera { get; set; } = "";
+
+        /// <summary>
         /// Number of CPU cores to use
         /// </summary>
         public int Cores { get; set; } = Environment.ProcessorCount;
@@ -127,6 +132,7 @@ namespace LogicReinc.BlendFarm.Server
                 Cores = settings.Cores,
                 Frame = settings.Frame,
                 Scene = settings.Scene,
+                Camera = settings.Camera,
                 TileHeight = settings.TileHeight,
                 TileWidth = settings.TileWidth,
                 Width = settings.Width,

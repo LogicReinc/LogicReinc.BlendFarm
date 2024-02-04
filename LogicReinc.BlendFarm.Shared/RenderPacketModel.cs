@@ -51,6 +51,11 @@ namespace LogicReinc.BlendFarm.Shared
         /// Scene of Blenderfile to render
         /// </summary>
         public string Scene { get; set; } = "";
+        /// <summary>
+        /// Camera of Blenderfile to render
+        /// </summary>
+        public string Camera { get; set; } = "";
+
 
         //System
 

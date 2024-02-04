@@ -31,6 +31,11 @@ namespace LogicReinc.BlendFarm.Client
         public string Scene { get; set; } = "";
 
         /// <summary>
+        /// Camera to render
+        /// </summary>
+        public string Camera { get; set; } = "";
+
+        /// <summary>
         /// FPS, 0 = inherit
         /// </summary>
         public int FPS { get; set; } = 0;

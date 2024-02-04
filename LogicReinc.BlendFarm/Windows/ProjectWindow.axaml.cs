@@ -29,6 +29,12 @@ namespace LogicReinc.BlendFarm.Windows
         private TextBox fileSelection = null;
         private ComboBox comboVersions = null;
         private ListBox history = null;
+        private StackPanel loadingUI = null;
+        private TextBlock loadingText = null;
+        private StackPanel loadProjectUI = null;
+        private CheckBox useAssetSync = null;
+        private CheckBox connectLocal = null;
+        private CheckBox importSettings = null;
 
         private bool _startedNew = false;
 
@@ -138,14 +144,39 @@ This may have to do with the port being in use. Note that to discover other pcs 
         {
             AvaloniaXamlLoader.Load(this);
             Width = 600;
-            Height = 625;
-            MinHeight = 625;
+            Height = 700;
+            MinHeight = 700;
             MinWidth = 600;
-            MaxHeight = 625;
+            MaxHeight = 700;
             MaxWidth = 600;
 
             fileSelection = this.FindControl<TextBox>("fileSelect");
 
+            loadingUI = this.FindControl<StackPanel>("loadingUI");
+            loadingText = this.FindControl<TextBlock>("loadingText");
+            loadProjectUI = this.FindControl<StackPanel>("loadProjectUI");
+            useAssetSync = this.FindControl<CheckBox>("useAssetSync");
+            connectLocal = this.FindControl<CheckBox>("connectLocal");
+            importSettings = this.FindControl<CheckBox>("importSettings");
+
+            useAssetSync.IsEnabled = false;
+            useAssetSync.IsChecked = BlendFarmSettings.Instance.Option_UseAssetsSync;
+            connectLocal.IsChecked = BlendFarmSettings.Instance.Option_ConnectLocal;
+            importSettings.IsChecked = BlendFarmSettings.Instance.Option_ImportSettings;
+            if(_noServer)
+            {
+                connectLocal.IsChecked = false;
+                connectLocal.IsEnabled = false;
+            }
+            if (!(connectLocal.IsChecked ?? false))
+                importSettings.IsEnabled = false;
+
+            connectLocal.Unchecked += (a, b) =>
+            {
+                importSettings.IsChecked = false;
+                importSettings.IsEnabled = false;
+            };
+            connectLocal.Checked += (a, b) => importSettings.IsEnabled = true;
 
             comboVersions = this.FindControl<ComboBox>("versionSelect");
             ReloadVersions();
@@ -175,7 +206,9 @@ This may have to do with the port being in use. Note that to discover other pcs 
 
                 string versionCache = SystemInfo.RelativeToApplicationDirectory("VersionCache");
                 if (!new FileInfo(versionCache).FullName.ToLower().StartsWith("c:\\windows\\system32"))
-                    versions = BlenderVersion.GetBlenderVersions(versionCache, SystemInfo.RelativeToApplicationDirectory("VersionCustom"));
+                    versions = BlenderVersion.GetBlenderVersions(versionCache, SystemInfo.RelativeToApplicationDirectory("VersionCustom"))
+                        .OrderByDescending(x => x.Name)
+                        .ToList();
                 else
                     versions = new List<BlenderVersion>()
                     {
@@ -246,17 +279,34 @@ This may have to do with the port being in use. Note that to discover other pcs 
             }
         }
 
+        private void ShowLoadProjectUI(bool show)
+        {
+            if(show)
+            {
+                loadProjectUI.IsVisible = true;
+                loadingUI.IsVisible = false;
+            }
+            else
+            {
+                loadProjectUI.IsVisible = false;
+                loadingUI.IsVisible = true;
+            }
+        }
+
         /// <summary>
         /// Assumes only one call
         /// </summary>
-        public void LoadProject()
+        public async Task LoadProject()
         {
+            loadingText.Text = "Loading project";
+            ShowLoadProjectUI(false);
             string file = fileSelection.Text;
             BlenderVersion version = (BlenderVersion)comboVersions.SelectedItem;
 
             if (!File.Exists(file))
             {
                 MessageWindow.Show(this, "File not found", $"{file} does not exist");
+                ShowLoadProjectUI(true);
                 return;
             }
 
@@ -274,6 +324,9 @@ This may have to do with the port being in use. Note that to discover other pcs 
             });
             BlendFarmSettings.Instance.LastVersion = version.Name;
             BlendFarmSettings.Instance.History = BlendFarmSettings.Instance.History.OrderByDescending(x => x.Date).Take(10).ToList();
+            BlendFarmSettings.Instance.Option_ConnectLocal = connectLocal.IsChecked ?? false;
+            BlendFarmSettings.Instance.Option_ImportSettings = importSettings.IsChecked ?? false;
+            BlendFarmSettings.Instance.Option_UseAssetsSync = useAssetSync.IsChecked ?? false;
             BlendFarmSettings.Instance.Save();
 
             _startedNew = true;
@@ -283,16 +336,60 @@ This may have to do with the port being in use. Note that to discover other pcs 
             _manager = new BlendFarmManager(path, version.Name, null, localPath);
 
             if(!_noServer && !BlendFarmSettings.Instance.PastClients.Any(x=>x.Key == BlendFarmManager.LocalNodeName))
-                _manager.AddNode(BlendFarmManager.LocalNodeName, $"localhost:{LocalServer.ServerPort}");
+                _manager.AddNode(BlendFarmManager.LocalNodeName, $"localhost:{LocalServer.ServerPort}", RenderType.CPU, ServerSettings.Instance.BasicSecurityPassword);
 
             foreach (var pair in BlendFarmSettings.Instance.PastClients.ToList())
-                _manager.AddNode(pair.Key, pair.Value.Address, pair.Value.RenderType);
+                _manager.AddNode(pair.Key, pair.Value.Address, pair.Value.RenderType, pair.Value.Pass);
 
-            //Start render window
-            //new RenderWindow();
-            new RenderWindow(_manager, version, path).Show();
+            if (useAssetSync.IsChecked.Value)
+            {
+                if (!await YesNoNeverWindow.Show(this, "Disclaimer", "Asset sync is an work in progress feature.\nWould you like to use it?", "wipAssetSync"))
+                {
+                    ShowLoadProjectUI(true);
+                    return;
+                }
 
-            this.Close();
+                loadingText.Text = "Preparing Blender " + version.Name + "\n(This might take a minute depending on your connection speed, only required once per version)";
+
+                _ = Task.Run(() =>
+                {
+                    if (!LocalServer.Manager.TryPrepare(version.Name))
+                    {
+                        Dispatcher.UIThread.InvokeAsync(() =>
+                        {
+                            MessageWindow.Show(this, "Failed to prepare Blender version", "Asset sync requires local Blender, but failed to download it");
+                            ShowLoadProjectUI(true);
+                        });
+                    }
+                    else
+                    {
+                        Dispatcher.UIThread.InvokeAsync(() =>
+                        {
+                            new RenderWindow(_manager, version, path, null, new RenderWindowOptions()
+                            {
+                                WithAssetSync = true,
+                                ConnectLocal = connectLocal.IsChecked ?? false,
+                                ImportSettings = (connectLocal.IsChecked ?? false) && (importSettings.IsChecked ?? false)
+                            }).Show();
+                            this.Close();
+                        });
+                    }
+                });
+            }
+            else {
+                loadingText.Text = "Starting";
+
+                //Start render window
+                //new RenderWindow();
+                new RenderWindow(_manager, version, path, null, new RenderWindowOptions()
+                {
+                    WithAssetSync = false,
+                    ConnectLocal = connectLocal.IsChecked ?? false,
+                    ImportSettings = (connectLocal.IsChecked ?? false) && (importSettings.IsChecked ?? false)
+                }).Show();
+
+                this.Close();
+            }
         }
 
         public void OpenLastAnnouncement()

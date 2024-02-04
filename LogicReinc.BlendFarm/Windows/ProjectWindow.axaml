@@ -35,32 +35,49 @@
       </ComboBox>
       <Button Width="150" Command="{Binding ShowCustomWizard}">Add Custom Version</Button>
     </StackPanel>
-    
-    <TextBlock TextAlignment="Center" Margin="0,20,0,0">Recent Projects</TextBlock>
-    <ListBox x:Name="history" Margin="10" Background="#333333" Height="200">
-      <ListBox.ItemTemplate>
-        <DataTemplate>
-          <StackPanel Background="#222222">
-            <StackPanel Orientation="Horizontal">
-              <TextBlock Text="{Binding Name}" FontSize="15" Margin="10,10,10,0" Width="400"></TextBlock>
-              <TextBlock Text="{Binding Date}" FontSize="10" Margin="10,10,10,0" Width="50"></TextBlock>
-            </StackPanel>
-            <TextBlock Text="{Binding Path}" FontSize="9" Margin="10,0,10,10"></TextBlock>
-          </StackPanel>
-        </DataTemplate>
-      </ListBox.ItemTemplate>
-    </ListBox>
+	  <StackPanel HorizontalAlignment="Center" Orientation="Horizontal" Margin="10">
+		  <CheckBox x:Name="connectLocal" IsChecked="false" Margin="10">
+			  Connect Local
+		  </CheckBox>
+		  <CheckBox x:Name="importSettings" IsChecked="false" Margin="10">
+			  Import Settings
+		  </CheckBox>
+		  <CheckBox x:Name="useAssetSync" IsChecked="false" Margin="10">
+			  Use Asset Sync (Under Construction)
+		  </CheckBox>
+	  </StackPanel>
 
-    <StackPanel Margin="0,-20,0,0">
-      <Button Margin="10,30,10,30" BorderThickness="0" FontSize="20" Height="50" Background="#400083" Command="{Binding LoadProject}">Load Project</Button>
-    </StackPanel>
+	  <StackPanel x:Name="loadingUI" IsVisible="false">
+	  <ProgressBar x:Name="loading" IsIndeterminate="true"></ProgressBar>
+			<TextBlock x:Name="loadingText"></TextBlock>
+	  </StackPanel>
+	  <StackPanel x:Name="loadProjectUI">
+		  <TextBlock TextAlignment="Center" Margin="0,20,0,0">Recent Projects</TextBlock>
+		  <ListBox x:Name="history" Margin="10" Background="#333333" Height="200">
+			  <ListBox.ItemTemplate>
+				  <DataTemplate>
+					  <StackPanel Background="#222222">
+						  <StackPanel Orientation="Horizontal">
+							  <TextBlock Text="{Binding Name}" FontSize="15" Margin="10,10,10,0" Width="400"></TextBlock>
+							  <TextBlock Text="{Binding Date}" FontSize="10" Margin="10,10,10,0" Width="50"></TextBlock>
+						  </StackPanel>
+						  <TextBlock Text="{Binding Path}" FontSize="9" Margin="10,0,10,10"></TextBlock>
+					  </StackPanel>
+				  </DataTemplate>
+			  </ListBox.ItemTemplate>
+		  </ListBox>
 
-    <TextBlock Margin="10,-20,10,0" TextAlignment="Center">Last Announcement</TextBlock>
-    <Button Background="#111" Margin="10,0,10,0" BorderBrush="Transparent" Height="45" Command="{Binding OpenLastAnnouncement}">
-      <StackPanel Orientation="Horizontal">
-        <TextBlock Text="{Binding LastAnnouncement.DateText}" Margin="10,10,5,10" />
-        <TextBlock Text="{Binding LastAnnouncement.Name}" Margin="5,10,10,10" />
-      </StackPanel>
-    </Button>
+		  <StackPanel Margin="0,-20,0,0">
+			  <Button Margin="10,30,10,30" BorderThickness="0" FontSize="20" Height="50" Background="#400083" Command="{Binding LoadProject}">Load Project</Button>
+		  </StackPanel>
+
+		  <TextBlock Margin="10,-20,10,0" TextAlignment="Center">Last Announcement</TextBlock>
+		  <Button Background="#111" Margin="10,0,10,0" BorderBrush="Transparent" Height="45" Command="{Binding OpenLastAnnouncement}">
+			  <StackPanel Orientation="Horizontal">
+				  <TextBlock Text="{Binding LastAnnouncement.DateText}" Margin="10,10,5,10" />
+				  <TextBlock Text="{Binding LastAnnouncement.Name}" Margin="5,10,10,10" />
+			  </StackPanel>
+		  </Button>
+	  </StackPanel>
   </StackPanel>
 </Window>

@@ -1,5 +1,35 @@
 [
 	{
+		"Date": "2022-07-30",
+		"Name": "Version 1.1.5 is out! Import BlendFile settings, Remote console, Camera/Scene selection, Various fixes",
+		"Segments": [
+			{
+				"Type": "Text",
+				"Text": "V1.1.5 has been long in the waiting, and still does not have everything I want in it. But it adds various convenience features. I recommend checking out the changelog for the full context. Some core improvements are the ability to import settings from a blendfile, seeing the console output of a node inside the client, and camera/scene selection. But also fixes like being able to use blendfiles larger than 3gb."
+			},
+			{
+				"Type": "Image",
+				"Text": "https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/main/.data/v115.JPG"
+			},
+			{
+				"Type": "Text",
+				"Text": "If you find BlendFarm productive, please consider dropping a donation on Patreon!"
+			},
+			{
+				"Type": "Button",
+				"Text": "Open Releases|https://github.com/LogicReinc/LogicReinc.BlendFarm/releases"
+			},
+			{
+				"Type": "Button",
+				"Text": "https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/main/.data/patreon.png|https://www.patreon.com/LogicReinc"
+			},
+			{
+				"Type": "Empty",
+				"Text": ""
+			}
+		]
+	},
+	{
 		"Date": "2022-12-30",
 		"Name": "Version 1.1.4 is out! Blender 3.4 fixes, Scene selection, Per-Node OptiX",
 		"Segments": [

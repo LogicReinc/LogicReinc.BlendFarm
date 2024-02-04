@@ -1,8 +1,10 @@
 ﻿using LogicReinc.BlendFarm.Shared;
 using LogicReinc.BlendFarm.Shared.Communication;
 using LogicReinc.BlendFarm.Shared.Communication.RenderNode;
+using LogicReinc.BlendFarm.Shared.Exceptions;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
@@ -11,6 +13,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace LogicReinc.BlendFarm.Server
 {
@@ -22,12 +25,18 @@ namespace LogicReinc.BlendFarm.Server
     {
         private const int UPDATE_TIMING_MS = 300;
 
+        private static Dictionary<string, int> _failedAuthIps = new Dictionary<string, int>();
+
         private Dictionary<string, FileUpload> _uploads = new Dictionary<string, FileUpload>();
         private BlenderManager _blender = null;
 
         private List<string> sessions = new List<string>();
 
         private bool _isRendering = false;
+        private bool _isInterceptingConsole = false;
+
+
+        public bool IsAuthenticated { get; private set; }
 
         /// <summary>
         /// Event on client disconnected
@@ -37,13 +46,27 @@ namespace LogicReinc.BlendFarm.Server
         public RenderServerClientTcp(BlenderManager manager, TcpClient client) : base(client)
         {
             _blender = manager;
+            IsAuthenticated = string.IsNullOrEmpty(ServerSettings.Instance.BasicSecurityPassword);
+        }
+
+        private void HandleConsoleOutput(string text)
+        {
+            Task.Run(() =>
+            {
+                SendPacket(new ConsoleActivityResponse()
+                {
+                    Output = text
+                });
+            });
         }
 
 
         protected override void HandleDisconnected()
         {
+            if (_isInterceptingConsole)
+                Program.OnConsoleOutput -= HandleConsoleOutput;
             //SessionData.CleanUp(sessions.ToArray());
-            SessionData.CleanUpDelayed(10000, sessions.ToArray());
+            _ = SessionData.CleanUpDelayed(10000, sessions.ToArray());
             OnDisconnect?.Invoke(this);
             if (_isRendering)
             {
@@ -52,6 +75,11 @@ namespace LogicReinc.BlendFarm.Server
             }
         }
 
+        private void EnsureAuthenticated()
+        {
+            if (!IsAuthenticated)
+                throw new ClientStateException("Not authenticated");
+        }
 
         #region Handlers
 
@@ -63,7 +91,21 @@ namespace LogicReinc.BlendFarm.Server
                 ClientVersionMajor = Program.VersionMajor,
                 ClientVersionMinor = Program.VersionMinor,
                 ClientVersionPatch = Program.VersionPatch,
-                ProtocolVersion = Protocol.Version
+                ProtocolVersion = Protocol.Version,
+                RequireAuth = !IsAuthenticated
+            };
+        }
+
+        [BlendFarmHeader("auth")]
+        public AuthResponse Packet_Auth(AuthRequest req)
+        {
+            if (req.Pass != ServerSettings.Instance.BasicSecurityPassword)
+                throw new ClientStateException("Wrong password");
+            IsAuthenticated = true;
+
+            return new AuthResponse()
+            {
+                IsAuthenticated = true
             };
         }
 
@@ -73,6 +115,7 @@ namespace LogicReinc.BlendFarm.Server
         [BlendFarmHeader("computerInfo")]
         public ComputerInfoResponse Packet_ComputerInfo(ComputerInfoRequest req)
         {
+            EnsureAuthenticated();
             return new ComputerInfoResponse()
             {
                 Cores = Environment.ProcessorCount,
@@ -87,10 +130,25 @@ namespace LogicReinc.BlendFarm.Server
         [BlendFarmHeader("isVersionAvailable")]
         public IsVersionAvailableResponse Packet_Available(IsVersionAvailableRequest req)
         {
+            EnsureAuthenticated();
             return new IsVersionAvailableResponse()
             {
                 Success = _blender.IsVersionAvailable(req.Version)
             };
+        }
+
+        /// <summary>
+        /// Handler isVersionAvailable, returns if a specified Blender versions is available
+        /// </summary>
+        [BlendFarmHeader("consoleActivityRequest")]
+        public void Packet_ConsoleActivity(ConsoleActivityRequest req)
+        {
+            EnsureAuthenticated();
+            if (_isInterceptingConsole)
+                return;
+            _isInterceptingConsole = true;
+            Program.StartIntercepting();
+            Program.OnConsoleOutput += HandleConsoleOutput;
         }
 
         /// <summary>
@@ -99,6 +157,7 @@ namespace LogicReinc.BlendFarm.Server
         [BlendFarmHeader("checkSync")]
         public CheckSyncResponse Packet_CheckSync(CheckSyncRequest req)
         {
+            EnsureAuthenticated();
             SessionData session = SessionData.GetOrCreate(req.SessionID);
             session.InUse = true;
             return new CheckSyncResponse()
@@ -110,7 +169,8 @@ namespace LogicReinc.BlendFarm.Server
         [BlendFarmHeader("recover")]
         public RecoverResponse Packet_Recover(RecoverRequest req)
         {
-            if(req.SessionIDs != null)
+            EnsureAuthenticated();
+            if (req.SessionIDs != null)
             {
                 List<SessionData> datas = new List<SessionData>();
                 try
@@ -151,6 +211,7 @@ namespace LogicReinc.BlendFarm.Server
         [BlendFarmHeader("syncNetwork")]
         public SyncResponse Packet_SyncNetwork(SyncNetworkRequest req)
         {
+            EnsureAuthenticated();
             try
             {
                 if (!sessions.Contains(req.SessionID))
@@ -211,6 +272,7 @@ namespace LogicReinc.BlendFarm.Server
         [BlendFarmHeader("sync")]
         public SyncResponse Packet_Sync(SyncRequest req)
         {
+            EnsureAuthenticated();
             try
             {
                 if (!sessions.Contains(req.SessionID))
@@ -250,6 +312,7 @@ namespace LogicReinc.BlendFarm.Server
         [BlendFarmHeader("syncUpload")]
         public SyncUploadResponse Packet_SyncUpload(SyncUploadRequest req)
         {
+            EnsureAuthenticated();
             try
             {
                 FileUpload upload = _uploads.ContainsKey(req.UploadID) ? _uploads[req.UploadID] : null;
@@ -299,6 +362,7 @@ namespace LogicReinc.BlendFarm.Server
         [BlendFarmHeader("syncComplete")]
         public SyncCompleteResponse Packet_Complete(SyncCompleteRequest complete)
         {
+            EnsureAuthenticated();
             try
             {
                 FileUpload upload = _uploads.ContainsKey(complete.UploadID) ? _uploads[complete.UploadID] : null;
@@ -344,6 +408,7 @@ namespace LogicReinc.BlendFarm.Server
         [BlendFarmHeader("isBusy")]
         public IsBusyResponse Packet_IsBusy(IsBusyRequest req)
         {
+            EnsureAuthenticated();
             return new IsBusyResponse()
             {
                 IsBusy = _blender.Busy
@@ -356,7 +421,15 @@ namespace LogicReinc.BlendFarm.Server
         [BlendFarmHeader("prepare")]
         public PrepareResponse Packet_Prepare(PrepareRequest req)
         {
-            if (!_blender.TryPrepare(req.Version))
+            EnsureAuthenticated();
+            if (!_blender.TryPrepare(req.Version, (activity, progress) =>
+            {
+                SendPacket(new ActivityRequest()
+                {
+                    Activity = $"{activity}{((progress > 0) ? $" {Math.Floor(progress * 100).ToString()}%" : "")} [{req.Version}]",
+                    Progress = (progress > 0) ? progress * 100 : -1
+                });
+            }))
                 return new PrepareResponse()
                 {
                     Message = $"Failed to prepare version {req.Version}",
@@ -369,12 +442,48 @@ namespace LogicReinc.BlendFarm.Server
             };
         }
 
+        [BlendFarmHeader("peek")]
+        public BlenderPeekResponse Packet_Peek(BlenderPeekRequest req)
+        {
+            EnsureAuthenticated();
+            if (!_blender.IsVersionAvailable(req.Version))
+                return new BlenderPeekResponse()
+                {
+                    Success = false,
+                    Message = "Version not prepared.."
+                };
+
+            try
+            {
+                _isRendering = true;
+                //Validate Settings
+                string filePath = SessionData.GetFilePath(req.SessionID);
+                if (filePath == null)
+                    return new BlenderPeekResponse()
+                    {
+                        Success = false,
+                        Message = "Blend file was not available"
+                    };
+
+                return _blender.Peek(req.Version, filePath, req.FileID);
+            }
+            catch (Exception ex)
+            {
+                return new BlenderPeekResponse()
+                {
+                    Success = false,
+                    Message = "Exception:" + ex.Message
+                };
+            }
+        }
+
         /// <summary>
         /// Handler renderBatch, render multiple requests using a single Blender instance
         /// </summary>
         [BlendFarmHeader("renderBatch")]
         public RenderBatchResponse Packet_RenderBatch(RenderBatchRequest req)
         {
+            EnsureAuthenticated();
             if (!_blender.IsVersionAvailable(req.Version))
                 return new RenderBatchResponse()
                 {
@@ -528,7 +637,8 @@ namespace LogicReinc.BlendFarm.Server
         [BlendFarmHeader("render")]
         public RenderResponse Packet_Render(RenderRequest req)
         {
-            if(!_blender.IsVersionAvailable(req.Version))
+            EnsureAuthenticated();
+            if (!_blender.IsVersionAvailable(req.Version))
                 return new RenderResponse()
                 {
                     TaskID = req.TaskID,
@@ -644,6 +754,7 @@ namespace LogicReinc.BlendFarm.Server
         [BlendFarmHeader("cancelRender")]
         public void Packet_Cancel_Render(CancelRenderRequest req)
         {
+            EnsureAuthenticated();
             _blender.Cancel();
             _isRendering = false;
         }
