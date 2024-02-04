@@ -11,6 +11,7 @@ namespace LogicReinc.BlendFarm.Server
         public const string OS_LINUX64 = "linux64";
         public const string OS_WINDOWS64 = "windows64";
         public const string OS_MACOS = "macOS";
+        public const string OS_MACOSARM64 = "macOS-arm64";
 
 
         /// <summary>
@@ -32,6 +33,8 @@ namespace LogicReinc.BlendFarm.Server
                 return OS_LINUX64;
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 return OS_WINDOWS64;
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
+                return OS_MACOSARM64;
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                 return OS_MACOS;
             else
@@ -49,6 +52,7 @@ namespace LogicReinc.BlendFarm.Server
                     case OS_LINUX64:
                         return path;
                     case OS_MACOS:
+                    case OS_MACOSARM64:
                         string userDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
                         string appPath = Path.Combine(userDir, "Library/Application Support", "BlendFarm");
                         if (!Directory.Exists(appPath))

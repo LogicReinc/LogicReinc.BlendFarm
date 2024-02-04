@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -12,7 +13,7 @@ namespace LogicReinc.BlendFarm.Shared
     /// </summary>
     public class WebIndex
     {
-        private static Regex REGEX_INDEX = new Regex("^<a href=\"(.*?)\">(.*?)<\\/a>\\s*(.*?)\\s\\s\\s*(.*?)$", RegexOptions.Multiline);
+        private static Regex REGEX_INDEX = new Regex("<a href=\"(.*?)\">(.*?)<\\/a>\\s*(.*?)\\s\\s\\s*(.*?)$", RegexOptions.Multiline);
 
         public string Name { get; set; }
         public string Url { get; set; }
@@ -46,6 +47,14 @@ namespace LogicReinc.BlendFarm.Shared
                         string name = match.Groups[2].Value;
                         string size = match.Groups[4].Value.Trim();
                         string date = match.Groups[3].Value;
+
+                        var mbMatch = Regex.Match(size, "([0-9]*)M");
+                        if (mbMatch != null && mbMatch.Groups.Count == 2)
+                            size = mbMatch.Groups[1].Value + "000000";
+
+                        int temp = 0;
+                        if (size != "-" && !int.TryParse(size, out temp))
+                            continue;
 
                         WebIndex index = new WebIndex()
                         {

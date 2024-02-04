@@ -1,5 +1,4 @@
 echo "Enter Version (x.y.z)"
-
 read version
 
 echo Building version $version

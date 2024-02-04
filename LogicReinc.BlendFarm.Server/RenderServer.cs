@@ -81,6 +81,8 @@ namespace LogicReinc.BlendFarm.Server
             NoBroadcastListen = noBroadcastListen;
             Blender = new BlenderManager();
 
+            Console.WriteLine("Server OS: " + SystemInfo.GetOSName());
+
             //AddWebSocket<RenderServerClient>("", "RenderClients");
         }
 

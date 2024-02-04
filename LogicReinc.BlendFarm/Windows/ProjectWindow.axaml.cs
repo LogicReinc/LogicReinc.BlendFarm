@@ -61,6 +61,7 @@ namespace LogicReinc.BlendFarm.Windows
             try
             {
                 _os = SystemInfo.GetOSName();
+                Console.WriteLine("OS: " + _os);
                 _noServer = false;// _os == SystemInfo.OS_MACOS;
             }
             catch(Exception ex)

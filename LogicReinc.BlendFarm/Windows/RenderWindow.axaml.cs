@@ -78,7 +78,7 @@ namespace LogicReinc.BlendFarm.Windows
         public string OS { get; set; }
         public bool IsWindows => OS == SystemInfo.OS_WINDOWS64;
         public bool IsLinux => OS == SystemInfo.OS_LINUX64;
-        public bool IsMacOS => OS == SystemInfo.OS_MACOS;
+        public bool IsMacOS => OS == SystemInfo.OS_MACOS || OS == SystemInfo.OS_MACOSARM64;
 
 
         //State
@@ -198,6 +198,7 @@ namespace LogicReinc.BlendFarm.Windows
         private void Init()
         {
             OS = SystemInfo.GetOSName();
+            Console.WriteLine("OS: " + OS);
             if(Manager?.Nodes != null)
             {
                 foreach(RenderNode node in Manager.Nodes.ToList())

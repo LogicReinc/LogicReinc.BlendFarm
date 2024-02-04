@@ -21,6 +21,7 @@ namespace LogicReinc.BlendFarm.Shared
         private const string OS_WINDOWS_x64 = "windows-x64";
         private const string OS_MACOS = "macOS";
         private const string OS_MACOS_x64 = "macos-x64";
+        private const string OS_MACOS_ARM64 = "macos-arm64";
 
         private const string VERSIONS_URL = "https://download.blender.org/release/";
         private static Regex REGEX_BLENDERVERSION = new Regex("Blender[0-9]\\.[0-9]*\\/");
@@ -36,6 +37,7 @@ namespace LogicReinc.BlendFarm.Shared
         public string UrlLinux64 { get; set; }
         public string UrlMacOS { get; set; }
         public string UrlWindows64 { get; set; }
+        public string UrlMacOSARM64 { get; set; }
 
 
         public bool HasAll => !string.IsNullOrEmpty(UrlLinux64) && !string.IsNullOrEmpty(UrlWindows64);
@@ -156,7 +158,10 @@ namespace LogicReinc.BlendFarm.Shared
                 case OS_WINDOWS:
                     return UrlWindows64;
                 case OS_MACOS:
+                case OS_MACOS_x64:
                     return UrlMacOS;
+                case OS_MACOS_ARM64:
+                    return UrlMacOSARM64;
                 default:
                     throw new ArgumentException("Invalid operating system");
             }
@@ -185,6 +190,10 @@ namespace LogicReinc.BlendFarm.Shared
                     if (ext == "dmg")
                         valid = true;
                     break;
+                case OS_MACOS_ARM64:
+                    if (ext == "dmg")
+                        valid = true;
+                    break;
             }
             return valid;
         }
@@ -205,6 +214,9 @@ namespace LogicReinc.BlendFarm.Shared
                 case OS_MACOS_x64:
                     UrlMacOS = url;
                     break;
+                case OS_MACOS_ARM64:
+                    UrlMacOSARM64 = url;
+                    break;
                 default:
                     throw new ArgumentException("Invalid operating system");
             }
@@ -223,6 +235,8 @@ namespace LogicReinc.BlendFarm.Shared
                 case OS_MACOS:
                 case OS_MACOS_x64:
                     return OS_MACOS;
+                case OS_MACOS_ARM64:
+                    return OS_MACOS_ARM64;
                 default:
                     return os;
             }
@@ -240,6 +254,8 @@ namespace LogicReinc.BlendFarm.Shared
                 case OS_MACOS:
                 case OS_MACOS_x64:
                     return OS_MACOS_x64;
+                case OS_MACOS_ARM64:
+                    return OS_MACOS_ARM64;
                 default:
                     return os;
             }
