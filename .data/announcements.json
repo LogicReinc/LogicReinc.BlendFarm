@@ -1,4 +1,35 @@
 [
+	
+	{
+		"Date": "2024-02-04",
+		"Name": "Version 1.1.6 is out! Blender 4.0 fix",
+		"Segments": [
+			{
+				"Type": "Text",
+				"Text": "V1.1.6 provides no huge changes, but does solve an issue with Blender 4.0+ not showing up. An MacOS Arm64 version of BlendFarm will likely in the next release if I obtain an M1 Apple device."
+			},
+			{
+				"Type": "Image",
+				"Text": "https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/main/.data/blender4.0-art.jpg"
+			},
+			{
+				"Type": "Text",
+				"Text": "If you find BlendFarm productive, please consider dropping a donation on Patreon!"
+			},
+			{
+				"Type": "Button",
+				"Text": "Open Releases|https://github.com/LogicReinc/LogicReinc.BlendFarm/releases"
+			},
+			{
+				"Type": "Button",
+				"Text": "https://raw.githubusercontent.com/LogicReinc/LogicReinc.BlendFarm/main/.data/patreon.png|https://www.patreon.com/LogicReinc"
+			},
+			{
+				"Type": "Empty",
+				"Text": ""
+			}
+		]
+	},
 	{
 		"Date": "2023-07-30",
 		"Name": "Version 1.1.5 is out! Import BlendFile settings, Remote console, Camera/Scene selection, Various fixes",
