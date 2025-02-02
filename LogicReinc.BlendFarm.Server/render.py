@@ -19,6 +19,7 @@ import time
 from multiprocessing import cpu_count
 
 isPre3 = bpy.app.version < (3,0,0);
+isPreEeveeRename = bpy.app.version < (4, 2, 0);
 
 if(isPre3):
     print('Detected Blender >= 3.0.0\n');
@@ -218,8 +219,12 @@ def renderWithSettings(renderSettings, id, path):
             scn.render.fps = fps;
 
         if(engine == 1): #Eevee
-            print("Using EEVEE");
-            scn.render.engine = "BLENDER_EEVEE";
+            if(isPreEeveeRename):
+                print("Using EEVEE");
+                scn.render.engine = "BLENDER_EEVEE";
+            else:
+                print("Using EEVEE_NEXT");
+                scn.render.engine = "BLENDER_EEVEE_NEXT";
         else:
             scn.render.engine = "CYCLES";
 
