@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ImageConverter = LogicReinc.BlendFarm.Client.ImageTypes.ImageConverter;
 
 namespace LogicReinc.BlendFarm.Client.Tasks
 {
