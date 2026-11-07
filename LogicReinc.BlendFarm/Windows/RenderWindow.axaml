@@ -230,7 +230,7 @@
                 <TextBlock x:Name="statsAverageFrame" FontSize="15">--</TextBlock>
               </StackPanel>
             </Grid>
-            <Button Margin="0,10,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Command="{Binding BenchmarkAll}" Background="Transparent" BorderBrush="{StaticResource BlendFarmSoftBorderBrush}" ToolTip.Tip="Render a small fixed workload on each connected node to score its speed">
+            <Button Margin="0,10,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Command="{Binding BenchmarkAll}" IsEnabled="{Binding !IsRendering}" Background="Transparent" BorderBrush="{StaticResource BlendFarmSoftBorderBrush}" ToolTip.Tip="Render a small fixed workload on each connected node to score its speed">
               Benchmark All Nodes
             </Button>
           </StackPanel>
@@ -673,10 +673,10 @@
 								</Button>
 							</Grid>
                           <Grid ColumnDefinitions="*,*" Margin="14,3,14,5">
-                            <Button Grid.Column="0" Margin="0,0,6,0" Padding="10,9" IsVisible="{Binding !CurrentProject.IsRendering}" Command="{Binding Render}" Background="{StaticResource BlendFarmAccentBrush}" BorderBrush="{StaticResource BlendFarmAccentBorderBrush}">
+                            <Button Grid.Column="0" Margin="0,0,6,0" Padding="10,9" IsVisible="{Binding !CurrentProject.IsRendering}" IsEnabled="{Binding !IsRendering}" Command="{Binding Render}" Background="{StaticResource BlendFarmAccentBrush}" BorderBrush="{StaticResource BlendFarmAccentBorderBrush}">
                               Render Now
                             </Button>
-                            <Button Grid.Column="1" Margin="6,0,0,0" Padding="10,9" IsVisible="{Binding !CurrentProject.IsRendering}" Command="{Binding RenderAnimation}" Background="{StaticResource BlendFarmAccentBrush}" BorderBrush="{StaticResource BlendFarmAccentBorderBrush}">
+                            <Button Grid.Column="1" Margin="6,0,0,0" Padding="10,9" IsVisible="{Binding !CurrentProject.IsRendering}" IsEnabled="{Binding !IsRendering}" Command="{Binding RenderAnimation}" Background="{StaticResource BlendFarmAccentBrush}" BorderBrush="{StaticResource BlendFarmAccentBorderBrush}">
                               Render Animation
                             </Button>
                             <Button Grid.ColumnSpan="2" Padding="10,9" IsVisible="{Binding CurrentProject.IsRendering}" Command="{Binding CancelRender}" Background="#B91C1C" BorderBrush="#EF4444">
@@ -778,7 +778,7 @@
                             </StackPanel>
                             <StackPanel Orientation="Horizontal">
                               <TextBlock Width="90" TextAlignment="Right" Margin="10">Webhook URL</TextBlock>
-                              <TextBox Width="220" Watermark="https://discord.com/api/webhooks/..." Text="{Binding WebhookUrl}" />
+                              <TextBox Width="220" Watermark="https://discord.com/api/webhooks/..." Text="{Binding WebhookUrl}" LostFocus="WebhookUrlLostFocus" />
                             </StackPanel>
                           </StackPanel>
                         </StackPanel>
