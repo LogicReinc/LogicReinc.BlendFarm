@@ -1,5 +1,6 @@
 ﻿using LogicReinc.BlendFarm.Shared.Exceptions;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -15,7 +16,7 @@ namespace LogicReinc.BlendFarm.Shared.Communication
     {
         private const int MAX_HEADER_SIZE = 24;
 
-        private static Dictionary<Type, Dictionary<string, MethodInfo>> _typeHandlers = new Dictionary<Type, Dictionary<string, MethodInfo>>();
+        private static ConcurrentDictionary<Type, Dictionary<string, MethodInfo>> _typeHandlers = new ConcurrentDictionary<Type, Dictionary<string, MethodInfo>>();
         private Dictionary<string, MethodInfo> _handlers = null;
 
         public TcpClient Client { get; private set; }
@@ -163,17 +164,44 @@ namespace LogicReinc.BlendFarm.Shared.Communication
                         Disconnect();
                     }
                     else
-                        Console.WriteLine($"Exception in handling [{header}] due to {ex.Message}");
-                    throw;
+                    {
+                        Console.WriteLine($"Exception in handling [{header}] due to {ex.InnerException?.Message ?? ex.Message}");
+                        SendFailureReply(req, ex.InnerException ?? ex);
+                    }
                 }
                 catch (Exception ex)
                 {
+                    //Includes failing to serialize or send the response
                     Console.WriteLine($"Exception in handling [{header}] due to {ex.Message}");
-                    throw;
+                    SendFailureReply(req, ex);
                 }
             });
         }
 
+
+        /// <summary>
+        /// Replies to a request whose handler (or response) failed, so the requesting side doesn't wait forever.
+        /// A disconnected packet carrying the ResponseID completes the request on any client version,
+        /// newer clients recognise the ResponseID and report it as a failed request rather than a disconnect.
+        /// </summary>
+        private void SendFailureReply(BlendFarmMessage req, Exception ex)
+        {
+            if (req?.RequestID == null || !Listening)
+                return;
+            try
+            {
+                SendPacket(new BlendFarmDisconnected()
+                {
+                    ResponseID = req.RequestID,
+                    IsError = true,
+                    Reason = $"Failed to handle {req.GetType().Name}: {ex.Message}"
+                });
+            }
+            catch (Exception sendEx)
+            {
+                Console.WriteLine($"Failed to send failure reply due to {sendEx.Message}");
+            }
+        }
 
         private async Task Listen()
         {
@@ -282,11 +310,10 @@ namespace LogicReinc.BlendFarm.Shared.Communication
 
         private static Dictionary<string, MethodInfo> GetTypeHandlers(Type type)
         {
-            if (!_typeHandlers.ContainsKey(type))
-                _typeHandlers.Add(type, type.GetMethods(BindingFlags.Public | BindingFlags.Instance)
-                    .Where(x => x.GetCustomAttribute<BlendFarmHeaderAttribute>() != null)
-                    .ToDictionary(x => x.GetCustomAttribute<BlendFarmHeaderAttribute>().Header, y => y));
-            return _typeHandlers[type];
+            //Clients are constructed from several threads, the dictionary is never mutated after creation
+            return _typeHandlers.GetOrAdd(type, t => t.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                .Where(x => x.GetCustomAttribute<BlendFarmHeaderAttribute>() != null)
+                .ToDictionary(x => x.GetCustomAttribute<BlendFarmHeaderAttribute>().Header, y => y));
         }
     }
 }
