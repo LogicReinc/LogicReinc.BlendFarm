@@ -48,6 +48,12 @@ namespace LogicReinc.BlendFarm.Client
         /// </summary>
         public string ProjectKey { get; }
 
+        /// <summary>
+        /// Held while the local copy is updated or a sync hashes, plans and sends it,
+        /// so the file watcher can't replace the snapshot halfway through a sync
+        /// </summary>
+        public SemaphoreSlim SyncLock { get; } = new SemaphoreSlim(1, 1);
+
         public BlendFarmFileSession(string file, string localDir, string sessionID = null)
         {
             BlendFile = file;
@@ -116,7 +122,8 @@ namespace LogicReinc.BlendFarm.Client
         /// <summary>
         /// If currently syncing
         /// </summary>
-        public bool Syncing { get; private set; } = false;
+        public bool Syncing => Volatile.Read(ref _syncCount) > 0;
+        private int _syncCount = 0;
 
         /// <summary>
         /// If currently rendering
@@ -322,11 +329,10 @@ namespace LogicReinc.BlendFarm.Client
                                 if (isNetworking != IsNetworked)
                                     session.FileID = -1;
                                 isNetworking = IsNetworked;
-                                if (!Syncing && (CurrentTask == null || AlwaysUpdateFile))
-                                {
-                                    UpdateFileVersion(session.BlendFile, isNetworking);
+                                //Skipped while a sync holds the session, retried next interval
+                                if (!Syncing && (CurrentTask == null || AlwaysUpdateFile)
+                                    && TryUpdateFileVersion(session, isNetworking, out _))
                                     OnFileChanged?.Invoke(this);
-                                }
                             }
                         }
                         catch(Exception ex)
@@ -347,9 +353,6 @@ namespace LogicReinc.BlendFarm.Client
         }
 
         /// <summary>
-        /// Updates the file version and copy it to a local directory
-        /// </summary>
-        /// <summary>
         /// Blender's "Compress" save option writes zstd (magic 28 B5 2F FD)
         /// </summary>
         private static bool IsZstdCompressed(string path)
@@ -368,7 +371,57 @@ namespace LogicReinc.BlendFarm.Client
             }
         }
 
+        /// <summary>
+        /// Updates the file version and copy it to a local directory.
+        /// While a sync of this session is in progress, nothing is copied and the version being synced is returned.
+        /// </summary>
         public long UpdateFileVersion(BlendFarmFileSession session, bool shared)
+        {
+            TryUpdateFileVersion(session, shared, out long id);
+            return id;
+        }
+        private bool TryUpdateFileVersion(BlendFarmFileSession session, bool shared, out long id)
+        {
+            if (!session.SyncLock.Wait(0))
+            {
+                id = session.FileID;
+                return false;
+            }
+            try
+            {
+                id = UpdateFileVersionLocked(session, shared);
+                return true;
+            }
+            finally
+            {
+                session.SyncLock.Release();
+            }
+        }
+        /// <summary>
+        /// Copies the file to a temporary file first, then renames it over the destination,
+        /// so the destination is never a half written copy
+        /// </summary>
+        private static void CopyAtomic(string source, string destination)
+        {
+            string temp = destination + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
+            {
+                File.Copy(source, temp, true);
+                if (File.Exists(destination))
+                    File.Replace(temp, destination, null);
+                else
+                    File.Move(temp, destination);
+            }
+            finally
+            {
+                if (File.Exists(temp))
+                    File.Delete(temp);
+            }
+        }
+        /// <summary>
+        /// UpdateFileVersion, caller must hold session.SyncLock
+        /// </summary>
+        private long UpdateFileVersionLocked(BlendFarmFileSession session, bool shared)
         {
             long oldID = session.FileID;
             FileInfo info = new FileInfo(session.BlendFile);
@@ -379,9 +432,9 @@ namespace LogicReinc.BlendFarm.Client
             if (oldID != newID)
             {
                 if (!shared)
-                    File.Copy(session.BlendFile, session.LocalBlendFile, true);
+                    CopyAtomic(session.BlendFile, session.LocalBlendFile);
                 else
-                    File.Copy(session.BlendFile, sharedPath, true);
+                    CopyAtomic(session.BlendFile, sharedPath);
                 //Only take the new version once the copy succeeded, so a failed copy is retried
                 session.FileID = newID;
                 foreach (RenderNode node in Nodes)
@@ -389,7 +442,7 @@ namespace LogicReinc.BlendFarm.Client
             }
             else if (shared && !File.Exists(sharedPath))
             {
-                File.Copy(session.BlendFile, sharedPath, true);
+                CopyAtomic(session.BlendFile, sharedPath);
                 foreach (RenderNode node in Nodes)
                     node.UpdateSyncedStatus(session.SessionID, false);
             }
@@ -491,13 +544,12 @@ namespace LogicReinc.BlendFarm.Client
         /// </summary>
         public async Task Sync(string localPath, string windowsPath, string linuxPath, string macOSPath)
         {
+            BlendFarmFileSession session = GetOrCreateSession(localPath);
+            await session.SyncLock.WaitAsync();
+            Interlocked.Increment(ref _syncCount);
             try
             {
-                BlendFarmFileSession session = GetOrCreateSession(localPath);
-
-                UpdateFileVersion(session, true);
-
-                Syncing = true;
+                UpdateFileVersionLocked(session, true);
 
                 long id = session.FileID;
 
@@ -521,7 +573,8 @@ namespace LogicReinc.BlendFarm.Client
             }
             finally
             {
-                Syncing = false;
+                Interlocked.Decrement(ref _syncCount);
+                session.SyncLock.Release();
             }
         }
         /// <summary>
@@ -529,13 +582,14 @@ namespace LogicReinc.BlendFarm.Client
         /// </summary>
         public async Task Sync(string file, bool compress = false)
         {
+            BlendFarmFileSession session = GetOrCreateSession(file);
+            //Held until every node is done, the watcher can't replace the snapshot while it is hashed, planned or sent
+            await session.SyncLock.WaitAsync();
+            Interlocked.Increment(ref _syncCount);
             try
             {
-                BlendFarmFileSession session = GetOrCreateSession(file);
+                UpdateFileVersionLocked(session, false);
 
-                UpdateFileVersion(session, false);
-
-                Syncing = true;
                 long id = session.FileID;
 
                 //Send the snapshot copy, not the live file the user may be saving.
@@ -568,7 +622,8 @@ namespace LogicReinc.BlendFarm.Client
             }
             finally
             {
-                Syncing = false;
+                Interlocked.Decrement(ref _syncCount);
+                session.SyncLock.Release();
             }
         }
 

@@ -65,7 +65,8 @@ namespace LogicReinc.BlendFarm.Client.Tasks
                             catch(RecoverException ex)
                             {
                                 node.UpdateException(ex.Message);
-                                exceptions.Add(ex.Message);
+                                lock (exceptions)
+                                    exceptions.Add(ex.Message);
                                 lastException = ex.Message;
                                 return;
                             }
@@ -87,18 +88,19 @@ namespace LogicReinc.BlendFarm.Client.Tasks
                             using (Image img = ImageConverter.Convert(taskPart.Image, task.Parent.Settings.RenderFormat))
                                 ProcessTile(task, img, ref g, ref result, ref drawLock);
 
-                            ChangeProgress(Progress + task.Value);
+                            AddProgress(task.Value);
 
-                            finished++;
+                            Interlocked.Increment(ref finished);
                             rendered = true;
                             NotifySubTaskFinished(node, task);
                             return;
                         }
                         if (!rendered && lastException != null)
-                            exceptions.Add(lastException);
+                            lock (exceptions)
+                                exceptions.Add(lastException);
                     });
 
-                    if (finished != _usedNodes.Count)
+                    if (Volatile.Read(ref finished) != _usedNodes.Count)
                         throw new AggregateException("Not all tiles rendered", exceptions.Select(x => new Exception(x)));
 
                     return result;
