@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace LogicReinc.BlendFarm.Server
 {
@@ -114,22 +115,39 @@ namespace LogicReinc.BlendFarm.Server
             {
                 try
                 {
-                    Listener = new TcpListener(IPAddress.Any, Port);
-                    Listener.Start();
+                    TcpListener listener = new TcpListener(IPAddress.Any, Port);
+                    Listener = listener;
+                    listener.Start();
                     while (Active)
                     {
-                        TcpClient client = await Listener.AcceptTcpClientAsync();
-
-                        RenderServerClientTcp rClient = new RenderServerClientTcp(Blender, client);
-                        lock (Clients)
-                            Clients.Add(rClient);
-                        rClient.OnDisconnect += (client) =>
+                        //A failure handling one connection must not stop the node from listening
+                        try
                         {
-                            lock (Clients)
-                                Clients.Remove(client);
-                        };
+                            TcpClient client = await listener.AcceptTcpClientAsync();
 
-                        Thread.Sleep(100);
+                            RenderServerClientTcp rClient = new RenderServerClientTcp(Blender, client);
+                            lock (Clients)
+                                Clients.Add(rClient);
+                            rClient.OnDisconnect += (client) =>
+                            {
+                                lock (Clients)
+                                    Clients.Remove(client);
+                            };
+
+                            Thread.Sleep(100);
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                            //Listener was stopped
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            if (!Active)
+                                break;
+                            Console.WriteLine("TCP accept exception (still listening):" + ex.Message);
+                            await Task.Delay(1000);
+                        }
                     }
                 }
                 catch (Exception ex)

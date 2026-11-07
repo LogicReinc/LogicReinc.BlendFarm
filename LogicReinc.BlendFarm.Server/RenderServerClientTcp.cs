@@ -34,7 +34,6 @@ namespace LogicReinc.BlendFarm.Server
 
         private List<string> sessions = new List<string>();
 
-        private bool _isRendering = false;
         private bool _isInterceptingConsole = false;
 
 
@@ -68,7 +67,10 @@ namespace LogicReinc.BlendFarm.Server
             if (_isInterceptingConsole)
                 Program.OnConsoleOutput -= HandleConsoleOutput;
             //SessionData.CleanUp(sessions.ToArray());
-            _ = SessionData.CleanUpDelayed(10000, sessions.ToArray());
+            string[] ownSessions;
+            lock (sessions)
+                ownSessions = sessions.ToArray();
+            _ = SessionData.CleanUpDelayed(10000, ownSessions);
             //Release file handles of interrupted transfers
             lock (_deltaUploads)
             {
@@ -83,10 +85,20 @@ namespace LogicReinc.BlendFarm.Server
                 _uploads.Clear();
             }
             OnDisconnect?.Invoke(this);
-            if (_isRendering)
+            //Only cancels if the ongoing render was started by this connection
+            if (_blender.Cancel(this))
+                Console.WriteLine("Client disconnected during its render, cancelled it");
+        }
+
+        /// <summary>
+        /// Registers a session as used by this connection
+        /// </summary>
+        private void AddSession(string sessionID)
+        {
+            lock (sessions)
             {
-                _blender.Cancel();
-                _isRendering = false;
+                if (!sessions.Contains(sessionID))
+                    sessions.Add(sessionID);
             }
         }
 
@@ -216,10 +228,7 @@ namespace LogicReinc.BlendFarm.Server
                 }
 
                 foreach(SessionData data in datas)
-                {
-                    if (!sessions.Contains(data.SessionID))
-                        sessions.Add(data.SessionID);
-                }
+                    AddSession(data.SessionID);
             }
 
             return new RecoverResponse()
@@ -235,8 +244,7 @@ namespace LogicReinc.BlendFarm.Server
             EnsureAuthenticated();
             try
             {
-                if (!sessions.Contains(req.SessionID))
-                    sessions.Add(req.SessionID);
+                AddSession(req.SessionID);
 
                 SessionData session = SessionData.GetOrCreate(req.SessionID);
                 session.InUse = true;
@@ -297,8 +305,7 @@ namespace LogicReinc.BlendFarm.Server
             EnsureAuthenticated();
             try
             {
-                if (!sessions.Contains(req.SessionID))
-                    sessions.Add(req.SessionID);
+                AddSession(req.SessionID);
 
                 SessionData session = SessionData.GetOrCreate(req.SessionID);
                 session.InUse = true;
@@ -308,7 +315,9 @@ namespace LogicReinc.BlendFarm.Server
                 {
                     Directory.CreateDirectory(SystemInfo.RelativeToApplicationDirectory(ServerSettings.Instance.BlenderFiles));
                     session.CacheHash = null; //Legacy upload writes its own per-session copy
-                    _uploads.Add(uploadID, new FileUpload(session.GetBlendFilePath(), req, req.Compression));
+                    FileUpload newUpload = new FileUpload(session.GetBlendFilePath(), req, req.Compression);
+                    lock (_uploads)
+                        _uploads.Add(uploadID, newUpload);
                     session.UpdatingFile();
                     session.IsNetworked = false;
                 }
@@ -338,7 +347,9 @@ namespace LogicReinc.BlendFarm.Server
             EnsureAuthenticated();
             try
             {
-                FileUpload upload = _uploads.ContainsKey(req.UploadID) ? _uploads[req.UploadID] : null;
+                FileUpload upload = null;
+                lock (_uploads)
+                    _uploads.TryGetValue(req.UploadID ?? "", out upload);
                 if (upload == null)
                     return new SyncUploadResponse()
                     {
@@ -388,13 +399,17 @@ namespace LogicReinc.BlendFarm.Server
             EnsureAuthenticated();
             try
             {
-                FileUpload upload = _uploads.ContainsKey(complete.UploadID) ? _uploads[complete.UploadID] : null;
+                FileUpload upload = null;
+                lock (_uploads)
+                {
+                    if (_uploads.TryGetValue(complete.UploadID ?? "", out upload))
+                        _uploads.Remove(complete.UploadID);
+                }
                 if (upload == null)
                     return new SyncCompleteResponse()
                     {
                         Success = false
                     };
-                _uploads.Remove(complete.UploadID);
                 lock (upload)
                 {
 
@@ -436,8 +451,7 @@ namespace LogicReinc.BlendFarm.Server
             {
                 if (!ContentHash.IsValid(req.Hash))
                     throw new ArgumentException("Invalid content hash");
-                if (!sessions.Contains(req.SessionID))
-                    sessions.Add(req.SessionID);
+                AddSession(req.SessionID);
                 SessionData session = SessionData.GetOrCreate(req.SessionID);
                 session.InUse = true;
 
@@ -485,8 +499,7 @@ namespace LogicReinc.BlendFarm.Server
                     throw new InvalidOperationException("Delta base is no longer cached");
                 if (req.BlockSize <= 0 || req.BlockSize > 16 * 1024 * 1024)
                     throw new ArgumentException("Invalid block size");
-                if (!sessions.Contains(req.SessionID))
-                    sessions.Add(req.SessionID);
+                AddSession(req.SessionID);
                 SessionData.GetOrCreate(req.SessionID).InUse = true;
 
                 string uploadID = Guid.NewGuid().ToString();
@@ -632,7 +645,7 @@ namespace LogicReinc.BlendFarm.Server
         public PrepareResponse Packet_Prepare(PrepareRequest req)
         {
             EnsureAuthenticated();
-            if (!_blender.TryPrepare(req.Version, (activity, progress) =>
+            if (!_blender.TryPrepare(req.Version, out string error, (activity, progress) =>
             {
                 SendPacket(new ActivityRequest()
                 {
@@ -642,7 +655,7 @@ namespace LogicReinc.BlendFarm.Server
             }))
                 return new PrepareResponse()
                 {
-                    Message = $"Failed to prepare version {req.Version}",
+                    Message = $"Failed to prepare version {req.Version}: {error}",
                     Success = false
                 };
 
@@ -665,7 +678,6 @@ namespace LogicReinc.BlendFarm.Server
 
             try
             {
-                _isRendering = true;
                 //Validate Settings
                 string filePath = SessionData.GetFilePath(req.SessionID);
                 if (filePath == null)
@@ -694,6 +706,7 @@ namespace LogicReinc.BlendFarm.Server
         public RenderBatchResponse Packet_RenderBatch(RenderBatchRequest req)
         {
             EnsureAuthenticated();
+            BlenderRenderSettings[] batch = null;
             if (!_blender.IsVersionAvailable(req.Version))
                 return new RenderBatchResponse()
                 {
@@ -704,7 +717,6 @@ namespace LogicReinc.BlendFarm.Server
 
             try
             {
-                _isRendering = true;
                 //Validate Settings
                 string filePath = SessionData.GetFilePath(req.SessionID);
                 if (filePath == null)
@@ -727,7 +739,7 @@ namespace LogicReinc.BlendFarm.Server
                     settings.Cores = Math.Min(Environment.ProcessorCount, settings.Cores);
                 }
 
-                BlenderRenderSettings[] batch = req.Settings.Select(x => BlenderRenderSettings.FromRenderSettings(x)).ToArray();
+                batch = req.Settings.Select(x => BlenderRenderSettings.FromRenderSettings(x)).ToArray();
 
                 DateTime lastUpdate = DateTime.Now;
 
@@ -754,14 +766,23 @@ namespace LogicReinc.BlendFarm.Server
                     BlenderRenderSettings settings = batch.FirstOrDefault(x => x.TaskID == taskID);
                     if (settings != null)
                     {
-                        string output = BlenderManager.FindOutput(settings.Output);
-
-                        SendPacket(new RenderBatchResult()
+                        try
                         {
-                            Data = File.ReadAllBytes(output),
-                            Success = true,
-                            TaskID = settings.TaskID
-                        });
+                            string output = BlenderManager.FindOutput(settings.Output);
+                            if (output == null)
+                                throw new FileNotFoundException("Rendered output not found for " + settings.Output);
+
+                            SendPacket(new RenderBatchResult()
+                            {
+                                Data = File.ReadAllBytes(output),
+                                Success = true,
+                                TaskID = settings.TaskID
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Failed to send render result for task {taskID}: {ex.Message}");
+                        }
                     }
                 };
                 Action<string> onException = (excp) => exceptions.Add(excp);
@@ -779,7 +800,7 @@ namespace LogicReinc.BlendFarm.Server
                         process.OnBlenderStatus -= onStatus;
                         process.OnBlenderCompleteTask -= onCompletion;
                         process.OnBlenderException -= onException;
-                    });
+                    }, this);
 
                 //Handle Result
                 if (files  == null || files.Count != req.Settings.Count)
@@ -801,10 +822,6 @@ namespace LogicReinc.BlendFarm.Server
                 }
                 else
                 {
-                    //Cleanup
-                    //string data = Convert.ToBase64String(File.ReadAllBytes(file));
-                    foreach (string file in files)
-                        File.Delete(file);
                     if (exceptions.Count > 0)
                     {
                         return new RenderBatchResponse()
@@ -837,7 +854,21 @@ namespace LogicReinc.BlendFarm.Server
             }
             finally
             {
-                _isRendering = false;
+                //Results were already sent per task, remove whatever outputs exist (also for partial/failed batches)
+                if (batch != null)
+                    foreach (BlenderRenderSettings settings in batch)
+                    {
+                        try
+                        {
+                            string output = settings?.Output != null ? BlenderManager.FindOutput(settings.Output) : null;
+                            if (output != null)
+                                File.Delete(output);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Failed to delete render output for task {settings?.TaskID}: {ex.Message}");
+                        }
+                    }
             }
         }
 
@@ -858,7 +889,6 @@ namespace LogicReinc.BlendFarm.Server
 
             try
             {
-                _isRendering = true;
                 //Validate Settings
                 string filePath = SessionData.GetFilePath(req.SessionID);
                 if (filePath == null)
@@ -909,7 +939,7 @@ namespace LogicReinc.BlendFarm.Server
                     {
                         process.OnBlenderStatus -= onStatus;
                         process.OnBlenderException -= onException;
-                    });
+                    }, this);
 
                 //Handle Result
                 if (file == null || !File.Exists(file))
@@ -952,10 +982,6 @@ namespace LogicReinc.BlendFarm.Server
                     Message = "Exception:" + ex.Message
                 };
             }
-            finally
-            {
-                _isRendering = false;
-            }
         }
 
         /// <summary>
@@ -965,8 +991,8 @@ namespace LogicReinc.BlendFarm.Server
         public void Packet_Cancel_Render(CancelRenderRequest req)
         {
             EnsureAuthenticated();
-            _blender.Cancel();
-            _isRendering = false;
+            //Only cancel a render this connection started, not another client's
+            _blender.Cancel(this);
         }
         #endregion
 

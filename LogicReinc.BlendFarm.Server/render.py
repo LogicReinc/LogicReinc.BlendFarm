@@ -27,6 +27,41 @@ argv = sys.argv
 argv = argv[argv.index("--") + 1:]
 
 scn = bpy.context.scene
+#The file's own scene, used when a job doesn't specify one (the process may be reused across jobs)
+defaultSceneName = scn.name
+
+#Per scene, the values from the file for settings a job only sometimes overrides.
+#Restored before every job so "inherit" means the file's value, not the previous job's.
+sceneDefaults = {}
+
+def snapshotScene(s):
+    if s.name in sceneDefaults:
+        return;
+    d = dict(
+        camera = s.camera,
+        film_transparent = s.render.film_transparent,
+        fps = s.render.fps
+    );
+    try:
+        d["use_denoising"] = s.cycles.use_denoising;
+        d["denoiser"] = s.cycles.denoiser;
+    except Exception:
+        pass;
+    sceneDefaults[s.name] = d;
+
+def restoreScene(s):
+    d = sceneDefaults.get(s.name);
+    if d is None:
+        snapshotScene(s);
+        return;
+    s.camera = d["camera"];
+    s.render.film_transparent = d["film_transparent"];
+    s.render.fps = d["fps"];
+    if "use_denoising" in d:
+        s.cycles.use_denoising = d["use_denoising"];
+        s.cycles.denoiser = d["denoiser"];
+
+snapshotScene(scn);
 
 jsonPathInitial = argv[0];
 useContinue = len(argv) > 1 and argv[1] == 'True';
@@ -96,12 +131,18 @@ def renderWithSettings(renderSettings, id, path):
             selectedScene = bpy.data.scenes.get(scen);
             if(selectedScene is None):
                 raise Exception("Unknown Scene :" + scen);
+        else:
+            #No scene specified, use the file's scene (not whatever a previous job selected)
+            selectedScene = bpy.data.scenes.get(defaultSceneName) or scn;
+        if(selectedScene != scn):
             scn = selectedScene;
             if(bpy.context.window is not None):
                 bpy.context.window.scene = scn;
             bpy.context.view_layer.update();
-        else:
-            scen = scn.name;
+        scen = scn.name;
+
+        #Undo overrides of previous jobs in this process
+        restoreScene(scn);
 
         print("Using scene " + scn.name + "\n");
 

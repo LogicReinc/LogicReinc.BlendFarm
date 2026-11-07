@@ -1,4 +1,4 @@
-using LogicReinc.BlendFarm.Shared.Sync;
+﻿using LogicReinc.BlendFarm.Shared.Sync;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -101,7 +101,17 @@ namespace LogicReinc.BlendFarm.Server
             if (File.Exists(target))
                 File.Delete(tempPath);
             else
-                File.Move(tempPath, target);
+            {
+                try
+                {
+                    File.Move(tempPath, target);
+                }
+                catch (IOException) when (File.Exists(target))
+                {
+                    //Another transfer of the same content won the race, identical by hash
+                    File.Delete(tempPath);
+                }
+            }
             lock (_lock)
             {
                 CacheIndex index = GetIndex();
