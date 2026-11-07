@@ -3,6 +3,7 @@ using LogicReinc.BlendFarm.Shared.Communication.RenderNode;
 using LogicReinc.BlendFarm.Shared.Models;
 using SharpCompress.Readers;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -186,17 +187,29 @@ namespace LogicReinc.BlendFarm.Server
         /// </summary>
         public bool TryPrepare(string version, Action<string, double> onProgress = null)
         {
+            return TryPrepare(version, out _, onProgress);
+        }
+        /// <summary>
+        /// Attempt to provide a version of Blender, error contains the reason on failure
+        /// </summary>
+        public bool TryPrepare(string version, out string error, Action<string, double> onProgress = null)
+        {
             try
             {
                 Prepare(version, onProgress);
+                error = null;
                 return true;
             }
             catch(Exception ex)
             {
                 Console.WriteLine("TryPrepare failed due to: " + ex.Message);
+                error = ex.Message;
                 return false;
             }
         }
+
+        private static ConcurrentDictionary<string, object> _prepareLocks = new ConcurrentDictionary<string, object>();
+
         /// <summary>
         /// Prepare a version of Blender
         /// </summary>
@@ -210,12 +223,16 @@ namespace LogicReinc.BlendFarm.Server
 
             string targetDir = GetVersionPath(version, SystemInfo.GetOSName());
 
-            if (Directory.Exists(targetDir))
-                Console.WriteLine($"{version} already present");
-            else if (v.IsCustom)
-                throw new ArgumentException("Custom version missing");
-            else
-                Download(SystemInfo.GetOSName(), v, onProgress);
+            //Concurrent prepares of the same version wait for the first one instead of downloading over it
+            lock (_prepareLocks.GetOrAdd(Path.GetFullPath(targetDir), _ => new object()))
+            {
+                if (Directory.Exists(targetDir))
+                    Console.WriteLine($"{version} already present");
+                else if (v.IsCustom)
+                    throw new ArgumentException("Custom version missing");
+                else
+                    Download(SystemInfo.GetOSName(), v, onProgress);
+            }
         }
         /// <summary>
         /// Download a specific version of Blender for OS
@@ -234,11 +251,90 @@ namespace LogicReinc.BlendFarm.Server
                     DownloadMacOS(version, onProgress);
                     break;
                 case "macOS-arm64":
-                    DownloadMacOSARM64(version);
+                    DownloadMacOSARM64(version, onProgress);
                     break;
                 default:
                     throw new NotImplementedException("Unknown OS");
             }
+        }
+
+        /// <summary>
+        /// Downloads an archive and installs it into the version directory.
+        /// install extracts the archive into an empty staging directory and returns the directory to become the version directory,
+        /// which is only moved into place once complete, so a partial install never counts as installed.
+        /// </summary>
+        private void DownloadAndInstall(BlenderVersion version, string os, string ext, string url, Action<string, double> onProgress, Func<string, string, string> install)
+        {
+            string blenderDataPath = GetBlenderDataPath();
+            string archivePath = Path.Combine(blenderDataPath, $"{version.Name}-{os}.{ext}");
+            string targetDir = GetVersionPath(version.Name, os);
+            string stagingDir = Path.Combine(blenderDataPath, $".staging-{version.Name}-{os}-{Guid.NewGuid().ToString("N")}");
+            try
+            {
+                Directory.CreateDirectory(blenderDataPath);
+
+                Console.WriteLine($"Downloading {version.Name}...");
+                DownloadInternal(url, archivePath, onProgress);
+                Console.WriteLine($"Extracting {version.Name}...");
+                onProgress?.Invoke("Extracting", -1);
+
+                Directory.CreateDirectory(stagingDir);
+                string installed = install(archivePath, stagingDir);
+
+                if (Directory.Exists(targetDir))
+                    throw new IOException($"Version directory [{targetDir}] appeared during install");
+                Directory.Move(installed, targetDir);
+
+                Console.WriteLine($"{version.Name} ready");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to install {version.Name}: " + ex.Message);
+                throw;
+            }
+            finally
+            {
+                TryDeleteDirectory(stagingDir);
+                try
+                {
+                    if (File.Exists(archivePath))
+                        File.Delete(archivePath);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to delete archive [{archivePath}]: " + ex.Message);
+                }
+            }
+        }
+
+        private static void TryDeleteDirectory(string dir)
+        {
+            try
+            {
+                if (Directory.Exists(dir))
+                    Directory.Delete(dir, true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to delete [{dir}]: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Finds the extracted Blender directory in staging (either old or new OS naming, or the only directory)
+        /// </summary>
+        private string FindExtractedDirectory(string stagingDir, string version, string os)
+        {
+            foreach (string name in new[] { $"{version}-{BlenderVersion.GetOldOSName(os)}", $"{version}-{BlenderVersion.GetNewOSName(os)}" })
+            {
+                string candidate = Path.Combine(stagingDir, name);
+                if (Directory.Exists(candidate))
+                    return candidate;
+            }
+            string[] dirs = Directory.GetDirectories(stagingDir);
+            if (dirs.Length == 1)
+                return dirs[0];
+            throw new InvalidOperationException($"Could not find extracted Blender directory for {version}");
         }
 
         /// <summary>
@@ -248,48 +344,11 @@ namespace LogicReinc.BlendFarm.Server
         public void DownloadWindows(BlenderVersion version, Action<string, double> onProgress = null)
         {
             string os = "windows64";
-            string ext = "zip";
-            string archiveName = $"{version.Name}-{os}.{ext}";
-            string archivePath = Path.Combine(GetBlenderDataPath(), archiveName);
-            try
+            DownloadAndInstall(version, os, "zip", version.UrlWindows64, onProgress, (archivePath, stagingDir) =>
             {
-                Directory.CreateDirectory(GetBlenderDataPath());
-
-                /*
-                using (WebClient client = new WebClient())
-                {
-                    Console.WriteLine($"Downloading {version.Name}...");
-                    int lastPercentage = 0;
-                    client.DownloadProgressChanged += (s, e) =>
-                    {
-                        if (e.ProgressPercentage > lastPercentage)
-                        {
-                            lastPercentage = e.ProgressPercentage;
-                            Console.WriteLine($"Downloading {version.Name} [{lastPercentage}%]...");
-                        }
-                    };
-                    client.DownloadFile
-                    client.DownloadFile(version.UrlWindows64, archivePath);
-                }*/
-                Console.WriteLine($"Downloading {version.Name}...");
-                DownloadInternal(version.UrlWindows64, archivePath, onProgress);
-                Console.WriteLine($"Extracting {version.Name}...");
-
-                onProgress?.Invoke("Extracting", -1);
-                ZipFile.ExtractToDirectory(archivePath, GetBlenderDataPath(), true);
-
-                EnsureOldDirectoryFormat(version.Name, os);
-
-                Console.WriteLine($"{version.Name} ready");
-            }
-            catch(Exception ex)
-            {
-                Console.WriteLine($"Exception during extraction:" + ex.Message);
-                if (Directory.Exists(GetVersionPath(version.Name, os)))
-                    Directory.Delete(GetVersionPath(version.Name, os));
-                if (File.Exists(archivePath))
-                    File.Delete(archivePath);
-            }
+                ZipFile.ExtractToDirectory(archivePath, stagingDir, true);
+                return FindExtractedDirectory(stagingDir, version.Name, os);
+            });
         }
         /// <summary>
         /// Downloads a linux version of a specific version of Blender (And extract it)
@@ -298,37 +357,9 @@ namespace LogicReinc.BlendFarm.Server
         public void DownloadLinux(BlenderVersion version, Action<string, double> onProgress = null)
         {
             string os = "linux64";
-            string ext = "tar.xz";
-            string archiveName = $"{version.Name}-{os}.{ext}";
-            string archivePath = Path.Combine(GetBlenderDataPath(), archiveName);
-            try
+            DownloadAndInstall(version, os, "tar.xz", version.UrlLinux64, onProgress, (archivePath, stagingDir) =>
             {
-                string blenderDataPath = GetBlenderDataPath();
-
-                Directory.CreateDirectory(blenderDataPath);
-
-                /*
-                using (WebClient client = new WebClient())
-                {
-                    Console.WriteLine($"Downloading {version.Name}...");
-                    int lastPercentage = 0;
-                    client.DownloadProgressChanged += (s, e) =>
-                    {
-                        if (e.ProgressPercentage > lastPercentage)
-                        {
-                            lastPercentage = e.ProgressPercentage;
-                            Console.WriteLine($"Downloading {version.Name} [{lastPercentage}%]...");
-                        }
-                    };
-                    client.DownloadFile(version.UrlLinux64, archivePath);
-                }*/
-                Console.WriteLine($"Downloading {version.Name}...");
-                DownloadInternal(version.UrlLinux64, archivePath, onProgress);
-                Console.WriteLine($"Extracting {version.Name}...");
-
-                onProgress?.Invoke("Extracting", -1);
                 List<(string, string)> links = new List<(string, string)>();
-                string currentDir = "";
                 using (FileStream str = new FileStream(archivePath, FileMode.Open))
                 using (var reader = ReaderFactory.Open(str))
                 {
@@ -344,15 +375,13 @@ namespace LogicReinc.BlendFarm.Server
                             }
                             else
                             {
-                                reader.WriteEntryToDirectory(blenderDataPath, new SharpCompress.Common.ExtractionOptions()
+                                reader.WriteEntryToDirectory(stagingDir, new SharpCompress.Common.ExtractionOptions()
                                 {
                                     ExtractFullPath = true,
                                     Overwrite = true
                                 });
                             }
                         }
-                        else
-                            currentDir = reader.Entry.Key;
                     }
                 }
                 if (links.Count > 0)
@@ -362,7 +391,7 @@ namespace LogicReinc.BlendFarm.Server
                     try
                     {
                         Console.WriteLine($"SymLink by Copy: ({link.Item1}) => ({link.Item2})");
-                        File.Copy(Path.Combine(blenderDataPath, link.Item2), Path.Combine(blenderDataPath, link.Item1));
+                        File.Copy(Path.Combine(stagingDir, link.Item2), Path.Combine(stagingDir, link.Item1));
                     }
                     catch (Exception ex)
                     {
@@ -370,29 +399,22 @@ namespace LogicReinc.BlendFarm.Server
                     }
                 }
 
-                EnsureOldDirectoryFormat(version.Name, os);
-
-                Console.WriteLine($"{version.Name} ready");
-                Console.WriteLine("Calling chmod for required permissions");
+                string extracted = FindExtractedDirectory(stagingDir, version.Name, os);
 
                 //Otherwise can't run blender, not particularily happy with this.
+                //Done before moving into place, so an installed version is always runnable
+                Console.WriteLine("Calling chmod for required permissions");
                 new ProcessStartInfo()
                 {
                     FileName = "chmod",
-                    Arguments = "-R u=rwx " + GetVersionPath(version.Name, os),
+                    Arguments = $"-R u=rwx \"{extracted}\"",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     CreateNoWindow = true
                 }.WaitAndPrint();
 
-            }
-            catch (Exception ex)
-            {
-                if (Directory.Exists(GetVersionPath(version.Name, os)))
-                    Directory.Delete(GetVersionPath(version.Name, os));
-                if (File.Exists(archivePath))
-                    File.Delete(archivePath);
-            }
+                return extracted;
+            });
         }
         /// <summary>
         /// Downloads macos version of a specific version of Blender (And extract it)
@@ -401,120 +423,29 @@ namespace LogicReinc.BlendFarm.Server
         public void DownloadMacOS(BlenderVersion version, Action<string, double> onProgress = null)
         {
             string os = "macOS";
-            string ext = "dmg";
-            string archiveName = $"{version.Name}-{os}.{ext}";
-            string archivePath = Path.Combine(GetBlenderDataPath(), archiveName);
-            try
-            {
-                Directory.CreateDirectory(GetBlenderDataPath());
-
-                /*
-                using (WebClient client = new WebClient())
-                {
-                    Console.WriteLine($"Downloading {version.Name}...");
-                    int lastPercentage = 0;
-                    client.DownloadProgressChanged += (s, e) =>
-                    {
-                        if (e.ProgressPercentage > lastPercentage)
-                        {
-                            lastPercentage = e.ProgressPercentage;
-                            Console.WriteLine($"Downloading {version.Name} [{lastPercentage}%]...");
-                        }
-                    };
-                    client.DownloadFile(version.UrlMacOS, archivePath);
-                }*/
-                Console.WriteLine($"Downloading {version.Name}...");
-                DownloadInternal(version.UrlMacOS, archivePath, onProgress);
-                Console.WriteLine($"Extracting {version.Name}...");
-
-                string versionPath = GetVersionPath(version.Name, os);
-                string imagePath = versionPath + "-image";
-
-                Directory.CreateDirectory(imagePath);
-
-                onProgress?.Invoke("Extracting", -1);
-                Console.WriteLine($"Mounting [{archivePath}] to [{imagePath}]");
-                Process mountProcess = new Process()
-                {
-                    StartInfo = new ProcessStartInfo()
-                    {
-                        FileName = "hdiutil",
-                        Arguments = $"attach -mountpoint \"{imagePath}\" \"{archivePath}\"",
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        CreateNoWindow = true
-                    }
-                };
-                mountProcess.Start();
-                mountProcess.WaitForExit();
-                Console.WriteLine("Mounted");
-
-                Directory.CreateDirectory(versionPath);
-
-                Console.WriteLine("Copying Blender Files");
-                CopyRecursive(Path.Combine(imagePath, "Blender.app"), versionPath);
-
-                Console.WriteLine("Unmounting");
-                Process unmountProcess = new Process()
-                {
-                    StartInfo = new ProcessStartInfo()
-                    {
-                        FileName = "hdiutil",
-                        Arguments = $"detach \"{imagePath}\"",
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        CreateNoWindow = true
-                    }
-                };
-                unmountProcess.Start();
-                unmountProcess.WaitForExit();
-                Console.WriteLine("Unmounted");
-
-                Console.WriteLine($"{version.Name} ready");
-            }
-            catch (Exception ex)
-            {
-                if (Directory.Exists(GetVersionPath(version.Name, os)))
-                    Directory.Delete(GetVersionPath(version.Name, os));
-                if (File.Exists(archivePath))
-                    File.Delete(archivePath);
-            }
+            DownloadAndInstall(version, os, "dmg", version.UrlMacOS, onProgress, (archivePath, stagingDir) => InstallDmg(archivePath, stagingDir));
         }
         /// <summary>
         /// Downloads macos version of a specific version of Blender (And extract it)
         /// </summary>
         /// <param name="version"></param>
-        public void DownloadMacOSARM64(BlenderVersion version)
+        public void DownloadMacOSARM64(BlenderVersion version, Action<string, double> onProgress = null)
         {
             string os = "macOS-arm64";
-            string ext = "dmg";
-            string archiveName = $"{version.Name}-{os}.{ext}";
-            string archivePath = Path.Combine(GetBlenderDataPath(), archiveName);
+            DownloadAndInstall(version, os, "dmg", version.UrlMacOSARM64, onProgress, (archivePath, stagingDir) => InstallDmg(archivePath, stagingDir));
+        }
+
+        /// <summary>
+        /// Mounts a Blender dmg, copies Blender.app into staging and always detaches the image
+        /// </summary>
+        private static string InstallDmg(string archivePath, string stagingDir)
+        {
+            string imagePath = stagingDir + "-image";
+            string appPath = Path.Combine(stagingDir, "Blender.app");
+            Directory.CreateDirectory(imagePath);
+            bool mounted = false;
             try
             {
-                Directory.CreateDirectory(GetBlenderDataPath());
-
-                using (WebClient client = new WebClient())
-                {
-                    Console.WriteLine($"Downloading {version.Name}...");
-                    int lastPercentage = 0;
-                    client.DownloadProgressChanged += (s, e) =>
-                    {
-                        if (e.ProgressPercentage > lastPercentage)
-                        {
-                            lastPercentage = e.ProgressPercentage;
-                            Console.WriteLine($"Downloading {version.Name} [{lastPercentage}%]...");
-                        }
-                    };
-                    client.DownloadFile(version.UrlMacOSARM64, archivePath);
-                }
-                Console.WriteLine($"Extracting {version.Name}...");
-
-                string versionPath = GetVersionPath(version.Name, os);
-                string imagePath = versionPath + "-image";
-
-                Directory.CreateDirectory(imagePath);
-
                 Console.WriteLine($"Mounting [{archivePath}] to [{imagePath}]");
                 Process mountProcess = new Process()
                 {
@@ -528,49 +459,71 @@ namespace LogicReinc.BlendFarm.Server
                     }
                 };
                 mountProcess.Start();
+                mountProcess.StandardOutput.ReadToEnd();
                 mountProcess.WaitForExit();
+                mounted = true;
+                if (mountProcess.ExitCode != 0)
+                    throw new InvalidOperationException($"Failed to mount [{archivePath}] (hdiutil exit code {mountProcess.ExitCode})");
                 Console.WriteLine("Mounted");
 
-                Directory.CreateDirectory(versionPath);
-
                 Console.WriteLine("Copying Blender Files");
-                CopyRecursive(Path.Combine(imagePath, "Blender.app"), versionPath);
-
-                Console.WriteLine("Unmounting");
-                Process unmountProcess = new Process()
-                {
-                    StartInfo = new ProcessStartInfo()
-                    {
-                        FileName = "hdiutil",
-                        Arguments = $"detach \"{imagePath}\"",
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        CreateNoWindow = true
-                    }
-                };
-                unmountProcess.Start();
-                unmountProcess.WaitForExit();
-                Console.WriteLine("Unmounted");
-
-                Console.WriteLine($"{version.Name} ready");
+                CopyRecursive(Path.Combine(imagePath, "Blender.app"), appPath);
+                return appPath;
             }
-            catch (Exception ex)
+            finally
             {
-                if (Directory.Exists(GetVersionPath(version.Name, os)))
-                    Directory.Delete(GetVersionPath(version.Name, os));
-                if (File.Exists(archivePath))
-                    File.Delete(archivePath);
+                if (mounted)
+                {
+                    try
+                    {
+                        Console.WriteLine("Unmounting");
+                        Process unmountProcess = new Process()
+                        {
+                            StartInfo = new ProcessStartInfo()
+                            {
+                                FileName = "hdiutil",
+                                Arguments = $"detach \"{imagePath}\"",
+                                UseShellExecute = false,
+                                RedirectStandardOutput = true,
+                                CreateNoWindow = true
+                            }
+                        };
+                        unmountProcess.Start();
+                        unmountProcess.StandardOutput.ReadToEnd();
+                        unmountProcess.WaitForExit();
+                        Console.WriteLine("Unmounted");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Failed to detach image: " + ex.Message);
+                    }
+                }
+                //Only removes the (now empty) mountpoint, a still-mounted image fails to delete instead of being emptied
+                try
+                {
+                    if (Directory.Exists(imagePath))
+                        Directory.Delete(imagePath, false);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to remove mountpoint [{imagePath}]: " + ex.Message);
+                }
             }
         }
 
         private void DownloadInternal(string url, string path, Action<string, double> onProgress = null)
         {
+            if (string.IsNullOrEmpty(url))
+                throw new InvalidOperationException("No download available for this OS");
             double percentageCom = 0.1;
             Task.Run(async () =>
             {
                 using (HttpClient client = new HttpClient())
+                using (HttpResponseMessage resp = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
                 {
-                    HttpResponseMessage resp = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+                    if (!resp.IsSuccessStatusCode)
+                        throw new HttpRequestException($"Download of [{url}] failed: {(int)resp.StatusCode} {resp.ReasonPhrase}");
+
                     long length = resp.Content.Headers.ContentLength ?? 0L;
                     long lengthMb = length / 1000 / 1000;
 
@@ -583,7 +536,7 @@ namespace LogicReinc.BlendFarm.Server
                     using (FileStream fstr = new FileStream(path, FileMode.Create))
                     using (Stream str = stream)
                     {
-                        int written = 0;
+                        long written = 0;
                         double lastCom = 0;
                         int read = 0;
                         while ((read = str.Read(buffer, 0, buffer.Length)) != 0)
@@ -602,20 +555,12 @@ namespace LogicReinc.BlendFarm.Server
                                 }
                             }
                         }
+                        if (length > 0 && written != length)
+                            throw new IOException($"Download of [{url}] incomplete ({written}/{length} bytes)");
                     }
                 }
-            }).Wait();
+            }).GetAwaiter().GetResult();
             Console.WriteLine($"Progress (100%)");
-        }
-
-        private void EnsureOldDirectoryFormat(string version, string os)
-        {
-            string expectedOld = GetVersionPath(version, BlenderVersion.GetOldOSName(os));
-            string expectedNew = GetVersionPath(version, BlenderVersion.GetNewOSName(os));
-
-            //For newer builds, return to old format
-            if (Directory.Exists(expectedNew) && !Directory.Exists(expectedOld))
-                Directory.Move(expectedNew, expectedOld);
         }
 
 

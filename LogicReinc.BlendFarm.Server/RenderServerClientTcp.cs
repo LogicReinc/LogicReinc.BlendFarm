@@ -645,7 +645,7 @@ namespace LogicReinc.BlendFarm.Server
         public PrepareResponse Packet_Prepare(PrepareRequest req)
         {
             EnsureAuthenticated();
-            if (!_blender.TryPrepare(req.Version, (activity, progress) =>
+            if (!_blender.TryPrepare(req.Version, out string error, (activity, progress) =>
             {
                 SendPacket(new ActivityRequest()
                 {
@@ -655,7 +655,7 @@ namespace LogicReinc.BlendFarm.Server
             }))
                 return new PrepareResponse()
                 {
-                    Message = $"Failed to prepare version {req.Version}",
+                    Message = $"Failed to prepare version {req.Version}: {error}",
                     Success = false
                 };
 
