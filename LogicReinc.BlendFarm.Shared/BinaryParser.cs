@@ -251,6 +251,13 @@ namespace LogicReinc.BlendFarm.Shared
         {
             IList list = (IList)obj;
 
+            //Null is sent as an empty list, there's no null marker for lists (deserializes as empty)
+            if (list == null)
+            {
+                writer.Write(0);
+                return;
+            }
+
             writer.Write(list.Count);
 
             for (int i = 0; i < list.Count; i++)
@@ -268,6 +275,13 @@ namespace LogicReinc.BlendFarm.Shared
         public static void SerializeArray(BinaryWriter writer, object obj)
         {
             Array list = (Array)obj;
+
+            //Null is sent as an empty array, there's no null marker for arrays (deserializes as empty)
+            if (list == null)
+            {
+                writer.Write(0);
+                return;
+            }
 
             writer.Write(list.Length);
 

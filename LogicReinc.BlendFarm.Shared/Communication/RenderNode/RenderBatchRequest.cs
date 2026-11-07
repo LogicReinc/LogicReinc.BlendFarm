@@ -23,7 +23,7 @@ namespace LogicReinc.BlendFarm.Shared.Communication.RenderNode
         public bool Success { get; set; }
         public string Message { get; set; }
         public string TaskID { get; set; }
-        public List<string> SubTaskIDs { get; set; }
+        public List<string> SubTaskIDs { get; set; } = new List<string>();
     }
 
     [BlendFarmHeader("renderBatchResult")]
