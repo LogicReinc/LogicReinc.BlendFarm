@@ -113,10 +113,62 @@ namespace LogicReinc.BlendFarm.Windows
         public ObservableCollection<RenderNode> Nodes { get; private set; } = new ObservableCollection<RenderNode>();
         public BlendFarmManager Manager { get; set; } = null;
 
-        public bool IsRendering => CurrentTask != null;
-        public RenderTask CurrentTask = null;
+        /// <summary>
+        /// True from the moment a render, animation, benchmark or queue item claims the nodes (before the
+        /// pre-render sync) until it has fully unwound. Guards against a second render on the same nodes.
+        /// </summary>
+        public bool IsRendering => Volatile.Read(ref _renderBusy) != 0;
+        private int _renderBusy = 0;
+        //Project that owns the active render (may differ from the visible tab)
+        private OpenBlenderProject _renderingProject = null;
+        //Set by CancelRender, so a render that is still syncing doesn't start afterwards
+        private volatile bool _renderCancelRequested = false;
 
-        private Thread _queueThread = null;
+        //Live render: a file change during a render queues a re-render instead of being dropped
+        private readonly object _liveRenderLock = new object();
+        private bool _liveRenderLoopRunning = false;
+        private bool _liveRenderRequested = false;
+        private volatile bool _liveRenderActive = false;
+
+        private readonly object _queueLoopLock = new object();
+        private Task _queueTask = null;
+        private CancellationTokenSource _queueCts = null;
+
+        private bool TryBeginRender(OpenBlenderProject project)
+        {
+            if (Interlocked.CompareExchange(ref _renderBusy, 1, 0) != 0)
+                return false;
+            _renderingProject = project;
+            _renderCancelRequested = false;
+            RaiseIsRenderingChanged();
+            return true;
+        }
+        private void EndRender()
+        {
+            _renderingProject = null;
+            Interlocked.Exchange(ref _renderBusy, 0);
+            RaiseIsRenderingChanged();
+        }
+        private void RaiseIsRenderingChanged()
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                bool value = IsRendering;
+                RaisePropertyChanged(IsRenderingProperty, !value, value);
+            });
+        }
+
+        //Clears the project's task only if it is still the given task (a newer render may own it by now)
+        private static async Task ClearProjectTask(OpenBlenderProject project, RenderTask task)
+        {
+            if (project == null || task == null)
+                return;
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                if (project.CurrentTask == task)
+                    project.SetRenderTask(null);
+            });
+        }
 
         //Options
         protected string[] DenoiserOptions { get; } = new string[] { "Inherit", "None", "NLM", "OPTIX", "OPENIMAGEDENOISE" };
@@ -286,6 +338,10 @@ namespace LogicReinc.BlendFarm.Windows
 
             this.Closed += (a, b) =>
             {
+                lock (_queueLoopLock)
+                    _queueCts?.Cancel();
+                //Persist a webhook URL that was typed but never lost focus
+                BlendFarmSettings.Instance.TrySave();
                 if (_discoveredServerHandler != null)
                     LocalServer.OnDiscoveredServer -= _discoveredServerHandler;
                 LocalServer.Stop();
@@ -402,7 +458,8 @@ namespace LogicReinc.BlendFarm.Windows
             {
                 if (b.Key == Avalonia.Input.Key.Delete)
                 {
-                    CurrentProject.LastImage = new System.Drawing.Bitmap(1, 1).ToAvaloniaBitmap();
+                    using (System.Drawing.Bitmap empty = new System.Drawing.Bitmap(1, 1))
+                        CurrentProject.LastImage = empty.ToAvaloniaBitmap();
                     RefreshCurrentProject();
                     _lastRenderTime.Text = "";
                     if (_estimatedRenderTime != null)
@@ -601,8 +658,12 @@ namespace LogicReinc.BlendFarm.Windows
             proj.OnBitmapChanged += async (proj, bitmap) =>
             {
 
-                if (proj == CurrentProject)
-                    await Dispatcher.UIThread.InvokeAsync(() => _image.Source = bitmap); ;
+                //Read the latest image when the job runs: an older one may already be queued for disposal
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (proj == CurrentProject)
+                        _image.Source = proj.LastImage;
+                });
             };
             proj.OnNetworkedChanged += async (proj, networked) =>
             {
@@ -652,23 +713,34 @@ namespace LogicReinc.BlendFarm.Windows
             if (Manager?.Nodes == null || !Manager.Nodes.Any())
                 return;
 
-            await ConnectAndPrepareNodes();
+            try
+            {
+                //"Connect Local" unchecked: leave the local node alone on startup (it can still be connected manually)
+                bool connectLocal = Options?.ConnectLocal ?? true;
+                await ConnectAndPrepareNodes(connectLocal);
 
-            if (!Manager.Nodes.Any(x => x.Connected))
-                return;
+                if (!Manager.Nodes.Any(x => x.Connected))
+                    return;
 
-            await SyncAll();
+                await SyncAll();
 
-            if (Manager.Nodes.Any(x => x.Connected && x.IsSessionSynced(CurrentProject.SessionID)))
-                await ImportSettings();
+                if ((Options?.ImportSettings ?? true) && Manager.Nodes.Any(x => x.Connected && x.IsSessionSynced(CurrentProject.SessionID)))
+                    await ImportSettings();
+            }
+            catch (Exception ex)
+            {
+                await Dispatcher.UIThread.InvokeAsync(() => AddActivityLog($"Automatic node setup failed: {ex.Message}", ActivityLogType.Error));
+            }
         }
 
-        private async Task ConnectAndPrepareNodes()
+        private async Task ConnectAndPrepareNodes(bool includeLocal = true)
         {
             if (Manager?.Nodes == null)
                 return;
 
-            await Task.WhenAll(Manager.Nodes.ToList().Select(async node =>
+            await Task.WhenAll(Manager.Nodes.ToList()
+                .Where(node => includeLocal || !string.Equals(node.Name, BlendFarmManager.LocalNodeName, StringComparison.OrdinalIgnoreCase))
+                .Select(async node =>
             {
                 try
                 {
@@ -706,7 +778,23 @@ namespace LogicReinc.BlendFarm.Windows
                     return;
                 }
 
-                RenderNode node = Manager.AddNode(InputClientName, InputClientAddress, NewNodeRenderType);
+                //A discovered (unsaved) node isn't in PastClients but would make AddNode throw
+                if (Manager.GetNodeByName(InputClientName) != null)
+                {
+                    MessageWindow.Show(this, "Node already exists", $"A node named \"{InputClientName}\" already exists, use a different name");
+                    return;
+                }
+
+                RenderNode node;
+                try
+                {
+                    node = Manager.AddNode(InputClientName, InputClientAddress, NewNodeRenderType);
+                }
+                catch (Exception ex)
+                {
+                    MessageWindow.Show(this, "Failed to add node", ex.Message);
+                    return;
+                }
 
                 BlendFarmSettings.Instance.PastClients.Add(InputClientName, new BlendFarmSettings.HistoryClient()
                 {
@@ -714,7 +802,7 @@ namespace LogicReinc.BlendFarm.Windows
                     Name = InputClientName,
                     RenderType = NewNodeRenderType
                 });
-                BlendFarmSettings.Instance.Save();
+                BlendFarmSettings.Instance.TrySave();
 
                 try
                 {
@@ -934,10 +1022,10 @@ namespace LogicReinc.BlendFarm.Windows
 
                 if (await YesNoWindow.Show(this, "No Synced Node", "Require atleast one synced node to import settings, would you like to sync?"))
                 {
-                    if (!CurrentProject.UseNetworkedPath)
-                        await Manager?.Sync(CurrentProject.BlendFile, UseSyncCompression);
+                    if (!currentProject.UseNetworkedPath)
+                        await Manager.Sync(currentProject.BlendFile, UseSyncCompression);
                     else
-                        await Manager?.Sync(CurrentProject.BlendFile, CurrentProject.NetworkPathWindows, CurrentProject.NetworkPathLinux, CurrentProject.NetworkPathMacOS);
+                        await Manager.Sync(currentProject.BlendFile, currentProject.NetworkPathWindows, currentProject.NetworkPathLinux, currentProject.NetworkPathMacOS);
                 }
                 else return null;
             }
@@ -947,7 +1035,7 @@ namespace LogicReinc.BlendFarm.Windows
             {
                 try
                 {
-                    BlenderPeekResponse peekInfo = await Manager.Peek(CurrentProject.BlendFile);
+                    BlenderPeekResponse peekInfo = await Manager.Peek(currentProject.BlendFile);
 
                     if (!peekInfo.Success)
                         throw new Exception(peekInfo.Message);
@@ -1248,17 +1336,40 @@ namespace LogicReinc.BlendFarm.Windows
 
         public async Task Render(bool noSync, bool noExcep = false)
         {
+            await TryRender(noSync, noExcep);
+        }
+
+        /// <summary>
+        /// Returns false if nothing was started because another render already owns the nodes
+        /// </summary>
+        private async Task<bool> TryRender(bool noSync, bool noExcep)
+        {
             if (!noSync && HasActiveQueueItems())
             {
                 StartQueueingProcess();
-                return;
+                return true;
             }
 
             OpenBlenderProject currentProject = CurrentProject;
+            if (currentProject == null)
+                return true;
 
-            if (currentProject.CurrentTask != null)
-                return;
+            //Claim the nodes before syncing, so a second click during the sync can't start another render
+            if (!TryBeginRender(currentProject))
+                return false;
+            try
+            {
+                await RenderImage(currentProject, noSync, noExcep);
+            }
+            finally
+            {
+                EndRender();
+            }
+            return true;
+        }
 
+        private async Task RenderImage(OpenBlenderProject currentProject, bool noSync, bool noExcep)
+        {
             //Show Progressbar
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
@@ -1267,39 +1378,63 @@ namespace LogicReinc.BlendFarm.Windows
                 ResetRenderTiming();
             });
 
-            if (!noSync)
-                await SyncProjectBeforeRender(currentProject);
-
-            RenderManagerSettings settings = GetSettingsFromUI(currentProject);
-
-            //Start rendering thread
-            await Task.Run(async () =>
+            RenderManagerSettings settings = null;
+            Stopwatch watch = new Stopwatch();
+            RenderTask task = null;
+            try
             {
-                Stopwatch watch = new Stopwatch();
-                try
+                if (!noSync)
+                    await SyncProjectBeforeRender(currentProject);
+
+                //Reads UI controls, so it has to run on the UI thread (live render calls this from a worker)
+                settings = await Dispatcher.UIThread.InvokeAsync(() => GetSettingsFromUI(currentProject));
+
+                if (_renderCancelRequested)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(() => this._imageProgress.IsVisible = false);
+                    return;
+                }
+
+                //Render on a worker thread
+                await Task.Run(async () =>
                 {
                     watch.Start();
 
+                    //Coalesce tile previews: skip a conversion while the previous one hasn't been shown yet
+                    int previewPending = 0;
 
                     //Create Task
-
-                    RenderTask task = Manager.GetImageTask(currentProject.BlendFile, settings, async (task, updated) =>
+                    task = Manager.GetImageTask(currentProject.BlendFile, settings, (subTask, updated) =>
                     {
+                        if (Interlocked.CompareExchange(ref previewPending, 1, 0) != 0)
+                            return;
                         //Apply image to canvas
-                        await Dispatcher.UIThread.InvokeAsync(() =>
+                        Dispatcher.UIThread.InvokeAsync(() =>
                         {
-                            currentProject.LastImage = updated.ToAvaloniaBitmap();
-                            if (CurrentProject == currentProject)
-                                RaisePropertyChanged(CurrentProjectProperty, null, CurrentProject);
+                            try
+                            {
+                                currentProject.LastImage = updated.ToAvaloniaBitmap();
+                                if (CurrentProject == currentProject)
+                                    RaisePropertyChanged(CurrentProjectProperty, null, CurrentProject);
 
-                            UpdateRenderTiming(watch, currentProject.CurrentTask?.Progress ?? 0);
+                                UpdateRenderTiming(watch, task?.Progress ?? 0);
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine("Failed to update render preview: " + ex.Message);
+                            }
+                            finally
+                            {
+                                Interlocked.Exchange(ref previewPending, 0);
+                            }
                         });
                     });
-                    currentProject.SetRenderTask(task);
+                    RenderTask localTask = task;
+                    await Dispatcher.UIThread.InvokeAsync(() => currentProject.SetRenderTask(localTask));
                     AttachRenderTaskActivityLogging(task);
 
                     //Progress Updating
-                    currentProject.CurrentTask.OnProgress += async (task, progress) =>
+                    task.OnProgress += async (t, progress) =>
                     {
                         await Dispatcher.UIThread.InvokeAsync(() =>
                         {
@@ -1310,18 +1445,18 @@ namespace LogicReinc.BlendFarm.Windows
                                 AddActivityLog("Render processing complete", ActivityLogType.Success);
                         });
                     };
-                    Dispatcher.UIThread.InvokeAsync(async () => {
-                        StartingRender(task);
-                    });
+                    _ = Dispatcher.UIThread.InvokeAsync(() => StartingRender(localTask));
 
-                    //Update view
-                    await Dispatcher.UIThread.InvokeAsync(() => RaisePropertyChanged(IsRenderingProperty, false, true));
+                    //Cancelled while the task was being set up
+                    if (_renderCancelRequested)
+                        await task.Cancel();
 
                     //Render
-                    bool rendered = await currentProject.CurrentTask.Render();
-                    var finalImage = ((currentProject.CurrentTask is IImageTask) ? (IImageTask)currentProject.CurrentTask : null)?.FinalImage;
+                    bool rendered = !task.Cancelled && await task.Render();
+                    var finalImage = (task as IImageTask)?.FinalImage;
                     //A cancelled render still returns, don't report it as completed
-                    bool completed = rendered && !currentProject.CurrentTask.Cancelled && finalImage != null;
+                    bool cancelled = task.Cancelled || _renderCancelRequested;
+                    bool completed = rendered && !cancelled && finalImage != null;
 
                     //Finalize
                     await Dispatcher.UIThread.InvokeAsync(() =>
@@ -1329,10 +1464,8 @@ namespace LogicReinc.BlendFarm.Windows
                         if (finalImage != null)
                         {
                             currentProject.LastImage = finalImage.ToAvaloniaBitmap();
-                            if(currentProject == CurrentProject)
+                            if (currentProject == CurrentProject)
                                 RaisePropertyChanged(CurrentProjectProperty, null, CurrentProject);
-
-                            finalImage.Save("lastRender.png");
                         }
                         this._imageProgress.IsVisible = false;
                         if (completed)
@@ -1342,49 +1475,48 @@ namespace LogicReinc.BlendFarm.Windows
                             AddActivityLog($"Render completed in {FormatDuration(watch.Elapsed)}", ActivityLogType.Success);
                             NotifyRenderCompleted(BuildCompletionInfo(currentProject, settings, true, false, watch.Elapsed, null));
                         }
-                        else
+                        else if (!cancelled)
                             AddActivityLog("Render stopped before completion", ActivityLogType.Warning);
                     });
                     watch.Stop();
-
-                }
-                catch (Exception ex)
+                });
+            }
+            catch (Exception ex)
+            {
+                //Cancelling tears down the render, the resulting exception is not a failure
+                bool cancelled = (task?.Cancelled ?? false) || _renderCancelRequested;
+                await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    await Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        this._imageProgress.IsVisible = false;
-                        if (_estimatedRenderTime != null)
-                            _estimatedRenderTime.Text = "Failed";
-                        AddActivityLog($"Render failed: {ex.Message}", ActivityLogType.Error);
-                        if (_animationEstimatedRemaining != null && _animationProgressPanel?.IsVisible == true)
-                            _animationEstimatedRemaining.Text = "Failed";
-                        NotifyRenderCompleted(BuildCompletionInfo(currentProject, settings, false, false, watch.Elapsed, ex.Message));
-                    });
+                    this._imageProgress.IsVisible = false;
+                    if (cancelled)
+                        return;
+                    if (_estimatedRenderTime != null)
+                        _estimatedRenderTime.Text = "Failed";
+                    AddActivityLog($"Render failed: {ex.Message}", ActivityLogType.Error);
+                    if (_animationEstimatedRemaining != null && _animationProgressPanel?.IsVisible == true)
+                        _animationEstimatedRemaining.Text = "Failed";
+                    NotifyRenderCompleted(BuildCompletionInfo(currentProject, settings, false, false, watch.Elapsed, ex.Message));
+                });
 
-                    if(!noExcep)
-                        await Dispatcher.UIThread.InvokeAsync(async () =>
-                        {
-                            MessageWindow.Show(this, "Failed Render", "Failed render due to:" + ex.Message);
-                        });
-                }
-                finally
-                {
-                    Manager.ClearLastTask();
-                    DetachRenderTaskActivityLogging(currentProject.CurrentTask);
-                    currentProject.SetRenderTask(null);
-                    Dispatcher.UIThread.InvokeAsync(() => RaisePropertyChanged(IsRenderingProperty, true, false));
-                }
-            });
+                if (!noExcep && !cancelled)
+                    await MessageWindow.ShowOnUIThread(this, "Failed Render", "Failed render due to:" + ex.Message);
+            }
+            finally
+            {
+                Manager.ClearLastTask();
+                DetachRenderTaskActivityLogging(task);
+                await ClearProjectTask(currentProject, task);
+            }
         }
+
         public async void RenderAnimation()
         {
-            if (CurrentTask != null)
+            OpenBlenderProject currentProject = CurrentProject;
+            if (currentProject == null || IsRendering)
                 return;
 
-            OpenBlenderProject currentProject = CurrentProject;
-
             //Validate provided fileformat
-            if(!currentProject.AnimationFileFormat.Contains("#"))
+            if(string.IsNullOrEmpty(currentProject.AnimationFileFormat) || !currentProject.AnimationFileFormat.Contains("#"))
             {
                 await MessageWindow.Show(this, "Invalid file format", "File format should contain a '#' for frame number");
                 return;
@@ -1396,14 +1528,32 @@ namespace LogicReinc.BlendFarm.Windows
             }
             string animationFileFormat = currentProject.AnimationFileFormat;
 
-
-
             string outputDir = await OpenFolderDialog("Select a directory to save frames to");
             if (string.IsNullOrEmpty(outputDir))
                 return;
 
             _lastAnimationDirectory = outputDir;
 
+            //Claim the nodes before syncing, so a second click during the sync can't start another render
+            if (!TryBeginRender(currentProject))
+                return;
+            try
+            {
+                await RenderAnimationInternal(currentProject, animationFileFormat, outputDir);
+            }
+            catch (Exception ex)
+            {
+                //async void: never let an exception escape and crash the app
+                Console.WriteLine("Animation render failed: " + ex.Message);
+            }
+            finally
+            {
+                EndRender();
+            }
+        }
+
+        private async Task RenderAnimationInternal(OpenBlenderProject currentProject, string animationFileFormat, string outputDir)
+        {
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 this._imageProgress.IsVisible = true;
@@ -1412,14 +1562,22 @@ namespace LogicReinc.BlendFarm.Windows
                 ResetAnimationProgress(currentProject.FrameStart, currentProject.FrameEnd);
             });
 
-            await SyncProjectBeforeRender(currentProject);
-
-            RenderManagerSettings settings = GetSettingsFromUI(currentProject);
-
-            await Task.Run(async () =>
+            RenderManagerSettings settings = null;
+            Stopwatch watch = new Stopwatch();
+            RenderTask rtask = null;
+            try
             {
-                Stopwatch watch = new Stopwatch();
-                try
+                await SyncProjectBeforeRender(currentProject);
+
+                settings = await Dispatcher.UIThread.InvokeAsync(() => GetSettingsFromUI(currentProject));
+
+                if (_renderCancelRequested)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(() => this._imageProgress.IsVisible = false);
+                    return;
+                }
+
+                await Task.Run(async () =>
                 {
                     watch.Start();
                     int completedFrames = 0;
@@ -1446,7 +1604,7 @@ namespace LogicReinc.BlendFarm.Windows
                     }
 
                     //Create Task
-                    RenderTask rtask = Manager.GetAnimationTask(currentProject.BlendFile, currentProject.FrameStart, currentProject.FrameEnd, settings, (task, frame) =>
+                    rtask = Manager.GetAnimationTask(currentProject.BlendFile, currentProject.FrameStart, currentProject.FrameEnd, settings, (task, frame) =>
                     {
                         int renderedFrame = task.Frame;
                         string fileName = OutputNaming.FormatOutputFileName(animationFileFormat, BuildOutputContext(currentProject, settings, task.Frame, renderStartTime));
@@ -1467,13 +1625,15 @@ namespace LogicReinc.BlendFarm.Windows
                         DateTime now = DateTime.UtcNow;
                         TimeSpan frameDuration = now - lastFrameFinishedAt;
                         lastFrameFinishedAt = now;
+                        byte[] frameBytes = frame.Image;
+                        string renderFormat = task.Parent.Settings.RenderFormat;
 
                         //Apply image to canvas
                         _ = Dispatcher.UIThread.InvokeAsync(() =>
                         {
                             try
                             {
-                                using (System.Drawing.Image img = ImageConverter.Convert(frame.Image, task.Parent.Settings.RenderFormat))
+                                using (System.Drawing.Image img = ImageConverter.Convert(frameBytes, renderFormat))
                                 {
                                     if (img != null)
                                         currentProject.LastImage = img.ToAvaloniaBitmap();
@@ -1487,18 +1647,19 @@ namespace LogicReinc.BlendFarm.Windows
                             {
                                 _ = MessageWindow.Show(this, "GUI Exception", "An error occured trying to load animation Bitmap in GUI.\n(Animation frame should still be saved)");
                             }
-                            double progress = currentProject.CurrentTask?.Progress ?? ((double)renderedCount / totalFrames);
+                            double progress = rtask?.Progress ?? ((double)renderedCount / totalFrames);
                             UpdateRenderTiming(watch, progress);
                             UpdateAnimationProgress(watch.Elapsed, currentProject.FrameStart, currentProject.FrameEnd, renderedCount, renderedFrame + 1);
                             RecordRenderedFrames(1, frameDuration);
                             AddActivityLog($"Saved frame {task.Frame} as {fileName} ({renderedCount}/{totalFrames})");
                         });
                     }, skipFrames);
-                    currentProject.SetRenderTask(rtask);
+                    RenderTask localTask = rtask;
+                    await Dispatcher.UIThread.InvokeAsync(() => currentProject.SetRenderTask(localTask));
                     AttachRenderTaskActivityLogging(rtask);
 
                     //Progress Updating
-                    currentProject.CurrentTask.OnProgress += async (task, progress) =>
+                    rtask.OnProgress += async (task, progress) =>
                     {
                         await Dispatcher.UIThread.InvokeAsync(() =>
                         {
@@ -1508,69 +1669,85 @@ namespace LogicReinc.BlendFarm.Windows
                             UpdateAnimationProgress(watch.Elapsed, currentProject.FrameStart, currentProject.FrameEnd, completedFrames, currentProject.FrameStart + completedFrames);
                         });
                     };
-                    Dispatcher.UIThread.InvokeAsync(async () =>
-                    {
-                        StartingRender(rtask);
-                    });
+                    _ = Dispatcher.UIThread.InvokeAsync(() => StartingRender(localTask));
 
-                    await Dispatcher.UIThread.InvokeAsync(() => RaisePropertyChanged(IsRenderingProperty, false, true));
+                    //Cancelled while the task was being set up
+                    if (_renderCancelRequested)
+                        await rtask.Cancel();
 
                     //Render
-                    var success = await currentProject.CurrentTask.Render();
+                    bool success = !rtask.Cancelled && await rtask.Render();
+                    bool cancelled = rtask.Cancelled || _renderCancelRequested;
+                    success = success && !cancelled;
+                    double finalProgress = rtask.Progress;
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        UpdateRenderTiming(watch, success ? 1 : currentProject.CurrentTask.Progress);
+                        UpdateRenderTiming(watch, success ? 1 : finalProgress);
                         UpdateAnimationProgress(watch.Elapsed, currentProject.FrameStart, currentProject.FrameEnd, completedFrames, success ? currentProject.FrameEnd : currentProject.FrameStart + completedFrames);
                         this._imageProgress.IsVisible = false;
                         if (success)
-                            AddActivityLog($"Animation render completed in {FormatDuration(watch.Elapsed)}", ActivityLogType.Success);
-                        else
-                            AddActivityLog("Animation render stopped before completion", ActivityLogType.Warning);
-                        if (success)
                         {
+                            AddActivityLog($"Animation render completed in {FormatDuration(watch.Elapsed)}", ActivityLogType.Success);
                             RenderCompletionInfo info = BuildCompletionInfo(currentProject, settings, true, true, watch.Elapsed, null);
                             info.OutputDirectory = outputDir;
                             NotifyRenderCompleted(info);
                         }
+                        else if (!cancelled)
+                            AddActivityLog("Animation render stopped before completion", ActivityLogType.Warning);
                     });
                     if (success)
                         _ = MessageWindow.ShowOnUIThread(this, "Animation Rendered", $"Frames {currentProject.FrameStart} to {currentProject.FrameEnd} rendered.\nLocated at {outputDir}.");
 
                     watch.Stop();
-
-                }
-                catch (Exception ex)
+                });
+            }
+            catch (Exception ex)
+            {
+                //Cancelling tears down the render, the resulting exception is not a failure
+                bool cancelled = (rtask?.Cancelled ?? false) || _renderCancelRequested;
+                await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    await Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        this._imageProgress.IsVisible = false;
-                        if (_estimatedRenderTime != null)
-                            _estimatedRenderTime.Text = "Failed";
-                        AddActivityLog($"Animation render failed: {ex.Message}", ActivityLogType.Error);
-                        if (_animationEstimatedRemaining != null && _animationProgressPanel?.IsVisible == true)
-                            _animationEstimatedRemaining.Text = "Failed";
-                        NotifyRenderCompleted(BuildCompletionInfo(currentProject, settings, false, true, watch.Elapsed, ex.Message));
-                    });
+                    this._imageProgress.IsVisible = false;
+                    if (cancelled)
+                        return;
+                    if (_estimatedRenderTime != null)
+                        _estimatedRenderTime.Text = "Failed";
+                    AddActivityLog($"Animation render failed: {ex.Message}", ActivityLogType.Error);
+                    if (_animationEstimatedRemaining != null && _animationProgressPanel?.IsVisible == true)
+                        _animationEstimatedRemaining.Text = "Failed";
+                    NotifyRenderCompleted(BuildCompletionInfo(currentProject, settings, false, true, watch.Elapsed, ex.Message));
+                });
 
+                if (!cancelled)
                     await MessageWindow.ShowOnUIThread(this, "Failed Render", "Failed render due to:" + ex.Message);
-                }
-                finally
-                {
-                    Manager.ClearLastTask();
-                    DetachRenderTaskActivityLogging(currentProject.CurrentTask);
-                    currentProject.SetRenderTask(null);
-                    await Dispatcher.UIThread.InvokeAsync(() => RaisePropertyChanged(IsRenderingProperty, true, false));
-                }
-            });
+            }
+            finally
+            {
+                Manager.ClearLastTask();
+                DetachRenderTaskActivityLogging(rtask);
+                await ClearProjectTask(currentProject, rtask);
+            }
         }
 
         public async Task CancelRender()
         {
-            RenderTask task = CurrentProject.CurrentTask;
+            //Target the project that is actually rendering, not just the visible tab
+            OpenBlenderProject project = _renderingProject ?? CurrentProject;
+            RenderTask task = project?.CurrentTask;
+            if (IsRendering)
+                _renderCancelRequested = true;
             if (task != null)
-                await task.Cancel();
-            DetachRenderTaskActivityLogging(task);
-            CurrentProject.SetRenderTask(null);
+            {
+                try
+                {
+                    await task.Cancel();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Failed to cancel render: " + ex.Message);
+                }
+            }
+            //The render unwinds on its own and clears the project's task when it's done
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 this._imageProgress.IsVisible = false;
@@ -1591,58 +1768,87 @@ namespace LogicReinc.BlendFarm.Windows
         //Queue
         public void StartQueueingProcess()
         {
-            if (_queueThread != null)
-                return;
-
-            bool oldQueueing = IsQueueing;
-            IsQueueing = true;
-            Dispatcher.UIThread.InvokeAsync(() => RaisePropertyChanged(IsQueueingProperty, oldQueueing, true));
-
-            _queueThread = new Thread(async () =>
+            lock (_queueLoopLock)
             {
-                QueueItem currentItem = null;
-                try
-                {
-                    while (IsQueueing)
-                    {
-                        Thread.Sleep(500);
-                        if (currentItem == null)
-                        {
-                            QueueItem item = GetNextQueueItem();
-                            if (item == null)
-                            {
-                                IsQueueing = false;
-                                break;
-                            }
+                if (_queueTask != null)
+                    return;
 
-                            currentItem = item;
+                SetQueueing(true);
+                _queueCts = new CancellationTokenSource();
+                CancellationToken token = _queueCts.Token;
+                _queueTask = Task.Run(() => RunQueueLoop(token));
+            }
+        }
+
+        private void SetQueueing(bool value)
+        {
+            bool old = IsQueueing;
+            IsQueueing = value;
+            if (old != value)
+                Dispatcher.UIThread.Post(() => RaisePropertyChanged(IsQueueingProperty, old, value));
+        }
+
+        private async Task RunQueueLoop(CancellationToken token)
+        {
+            try
+            {
+                while (IsQueueing && !token.IsCancellationRequested)
+                {
+                    //Exceptions are handled per iteration, so "continue" really continues the queue
+                    try
+                    {
+                        await Task.Delay(500, token);
+
+                        QueueItem item = GetNextQueueItem();
+                        if (item == null)
+                            break;
+
+                        //Wait for a manual render or benchmark to release the nodes
+                        if (!TryBeginRender(item.Project))
+                            continue;
+                        try
+                        {
                             await item.Execute(this, Manager);
                         }
-                        else
+                        finally
                         {
-                            if (!currentItem.Active)
-                            {
-                                currentItem = null;
-                                Thread.Sleep(1500);
-                            }
+                            EndRender();
                         }
 
+                        //Don't pick the same item again while it is still settling
+                        while (item.Active && IsQueueing && !token.IsCancellationRequested)
+                            await Task.Delay(500, token);
+
+                        RefreshQueueName();
+                        await Task.Delay(1500, token);
+                    }
+                    catch (OperationCanceledException) when (token.IsCancellationRequested)
+                    {
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!await YesNoWindow.ShowOnUIThread(this, "Exception in Queue", $"Exception \"{ex.Message}\" occured in queue. Continue queue process?"))
+                            break;
+                    }
+                    finally
+                    {
                         RefreshQueueName();
                     }
                 }
-                catch (Exception ex)
+            }
+            finally
+            {
+                lock (_queueLoopLock)
                 {
-                    if (!await YesNoWindow.ShowOnUIThread(this, "Exception in Queue", $"Exception \"{ex.Message}\" occured in queue. Continue queue process?"))
-                        IsQueueing = false;
+                    _queueTask = null;
+                    _queueCts?.Dispose();
+                    _queueCts = null;
+                    //The loop is gone, so the queue is no longer processing
+                    SetQueueing(false);
                 }
-                finally
-                {
-                    RefreshQueueName();
-                    _queueThread = null;
-                    Dispatcher.UIThread.InvokeAsync(() => RaisePropertyChanged(IsQueueingProperty, true, false));
-                }
-            });
-            _queueThread.Start();
+                RefreshQueueName();
+            }
         }
         
         public async Task AddToQueueReplace()
@@ -1813,8 +2019,6 @@ namespace LogicReinc.BlendFarm.Windows
             RefreshQueueName();
         }
 
-        private bool _isBenchmarking = false;
-
         public async void BenchmarkNode(RenderNode node)
         {
             if (node == null)
@@ -1834,8 +2038,6 @@ namespace LogicReinc.BlendFarm.Windows
         //sequentially so they don't contend and skew each other's timing.
         private async Task BenchmarkNodesInternal(List<RenderNode> nodes)
         {
-            if (_isBenchmarking)
-                return;
             if (IsRendering || HasActiveQueueItems())
             {
                 await MessageWindow.Show(this, "Benchmark", "Cannot benchmark while a render or queue is active.");
@@ -1856,7 +2058,8 @@ namespace LogicReinc.BlendFarm.Windows
                 return;
             }
 
-            _isBenchmarking = true;
+            if (!TryBeginRender(project))
+                return;
             try
             {
                 AddActivityLog($"Benchmark started for {targets.Count} node(s)", ActivityLogType.Info);
@@ -1913,9 +2116,13 @@ namespace LogicReinc.BlendFarm.Windows
 
                 await Dispatcher.UIThread.InvokeAsync(() => UpdateRenderStats());
             }
+            catch (Exception ex)
+            {
+                AddActivityLog($"Benchmark failed: {ex.Message}", ActivityLogType.Error);
+            }
             finally
             {
-                _isBenchmarking = false;
+                EndRender();
             }
         }
 
@@ -1934,15 +2141,25 @@ namespace LogicReinc.BlendFarm.Windows
                 };
             }
             settings.PastClients[node.Name].PerformanceScorePP = node.PerformanceScorePP;
-            settings.Save();
+            settings.TrySave();
         }
 
 
         public async Task SaveImage()
         {
             string result = await OpenSaveFileDialog("Save current BlendFarm render", GetDefaultSaveFileName(CurrentProject));
-            if (result != null && CurrentProject.LastImage != null)
-                CurrentProject.LastImage.Save(result);
+            Bitmap image = CurrentProject?.LastImage;
+            if (result != null && image != null)
+            {
+                try
+                {
+                    Statics.SaveImage(image, result);
+                }
+                catch (Exception ex)
+                {
+                    await MessageWindow.Show(this, "Failed to save", $"Failed to save image: {ex.Message}");
+                }
+            }
         }
 
         //Expands the project's output template into a default filename for the save dialog.
@@ -2061,9 +2278,6 @@ namespace LogicReinc.BlendFarm.Windows
 
                 outputDir = await dialog.ShowAsync(this);
                 outputDir = Statics.SanitizePath(outputDir);
-
-                this._imageProgress.IsVisible = true;
-                this._imageProgress.IsIndeterminate = true;
             });
 
             if (string.IsNullOrEmpty(outputDir))
@@ -2213,17 +2427,22 @@ namespace LogicReinc.BlendFarm.Windows
         public bool NotificationsEnabled
         {
             get => BlendFarmSettings.Instance.NotificationsEnabled;
-            set { BlendFarmSettings.Instance.NotificationsEnabled = value; BlendFarmSettings.Instance.Save(); }
+            set { BlendFarmSettings.Instance.NotificationsEnabled = value; BlendFarmSettings.Instance.TrySave(); }
         }
         public bool WebhookEnabled
         {
             get => BlendFarmSettings.Instance.WebhookEnabled;
-            set { BlendFarmSettings.Instance.WebhookEnabled = value; BlendFarmSettings.Instance.Save(); }
+            set { BlendFarmSettings.Instance.WebhookEnabled = value; BlendFarmSettings.Instance.TrySave(); }
         }
+        //Updated on every keystroke; persisted when the box loses focus (and on close), not per keystroke
         public string WebhookUrl
         {
             get => BlendFarmSettings.Instance.WebhookUrl;
-            set { BlendFarmSettings.Instance.WebhookUrl = value ?? ""; BlendFarmSettings.Instance.Save(); }
+            set { BlendFarmSettings.Instance.WebhookUrl = value ?? ""; }
+        }
+        public void WebhookUrlLostFocus(object sender, RoutedEventArgs args)
+        {
+            BlendFarmSettings.Instance.TrySave();
         }
 
         //Single funnel for render-completion notifications (toast + optional webhook).
@@ -2337,20 +2556,66 @@ namespace LogicReinc.BlendFarm.Windows
 
         private void RenderOnFileChange(BlendFarmManager manager)
         {
-            if (CurrentTask?.Progress <= 0)
-                return;
-            Task.Run(async () =>
+            bool cancelActive;
+            lock (_liveRenderLock)
             {
-                if (IsRendering)
+                _liveRenderRequested = true;
+                if (!_liveRenderLoopRunning)
                 {
-                    await CancelRender();
+                    _liveRenderLoopRunning = true;
+                    _ = Task.Run(LiveRenderLoop);
+                    return;
                 }
-                if (!IsRendering)
+                //A live render is running on the old file: cancel it, the loop restarts with the new one
+                cancelActive = _liveRenderActive;
+            }
+            if (cancelActive)
+                _ = CancelRender();
+        }
+
+        //Renders until no file change is pending. Changes arriving mid-render are queued, not dropped.
+        private async Task LiveRenderLoop()
+        {
+            while (true)
+            {
+                lock (_liveRenderLock)
                 {
+                    if (!_liveRenderRequested || !IsLiveChanging)
+                    {
+                        _liveRenderRequested = false;
+                        _liveRenderLoopRunning = false;
+                        return;
+                    }
+                    _liveRenderRequested = false;
+                }
+
+                try
+                {
+                    //Let a running (manual or cancelled) render unwind first
+                    while (IsRendering)
+                        await Task.Delay(250);
+
                     await SyncAll();
-                    await Render(true, true);
+                    _liveRenderActive = true;
+                    bool started;
+                    try
+                    {
+                        started = await TryRender(true, true);
+                    }
+                    finally
+                    {
+                        _liveRenderActive = false;
+                    }
+                    //Something else claimed the nodes in the meantime, try again once it's done
+                    if (!started)
+                        lock (_liveRenderLock)
+                            _liveRenderRequested = true;
                 }
-            });
+                catch (Exception ex)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(() => AddActivityLog($"Live render failed: {ex.Message}", ActivityLogType.Error));
+                }
+            }
         }
 
 
@@ -2396,8 +2661,8 @@ namespace LogicReinc.BlendFarm.Windows
     public class RenderWindowOptions
     {
         public bool WithAssetSync { get; set; }
-        public bool ConnectLocal { get; set; }
-        public bool ImportSettings { get; set; }
+        public bool ConnectLocal { get; set; } = true;
+        public bool ImportSettings { get; set; } = true;
     }
 
     public enum ActivityLogType

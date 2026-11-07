@@ -97,18 +97,35 @@ namespace LogicReinc.BlendFarm
         private static readonly object _saveLock = new object();
         public void Save()
         {
-            string path = SystemInfo.RelativeToApplicationDirectory(FILE_NAME);
-            string json = JsonSerializer.Serialize(this);
+            string path = AppPaths.Resolve(FILE_NAME);
             //Write to a temp file first so an interrupted save can't leave a corrupt settings file
             lock (_saveLock)
             {
+                //Serialize inside the lock so concurrent saves can't interleave a half-updated snapshot
+                string json = JsonSerializer.Serialize(this);
                 File.WriteAllText(path + ".tmp", json);
                 File.Move(path + ".tmp", path, true);
             }
         }
+        /// <summary>
+        /// Save that never throws (logs instead), for callers where a failed save must not break the UI
+        /// </summary>
+        public bool TrySave()
+        {
+            try
+            {
+                Save();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to save {FILE_NAME}: {ex.Message}");
+                return false;
+            }
+        }
         public static BlendFarmSettings Load()
         {
-            string path = SystemInfo.RelativeToApplicationDirectory(FILE_NAME);
+            string path = AppPaths.Resolve(FILE_NAME);
             if (!File.Exists(path))
                 return new BlendFarmSettings();
             try

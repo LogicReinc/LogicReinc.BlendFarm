@@ -28,20 +28,37 @@ namespace LogicReinc.BlendFarm
         public static void Main(string[] args)
         {
             Console.WriteLine($"LogicReinc.BlendFarm v{typeof(Program).Assembly.GetName().Version.ToString()}");
+            //Relative data paths (settings, caches, blender versions) live next to the executable
+            AppPaths.UseApplicationDirectoryAsWorkingDirectory();
             Server.Program.CleanupOldSessions();
 
             Console.WriteLine("Saving current setting states");
-            BlendFarmSettings.Instance.Save();
-            ServerSettings.Instance.Save();
+            //A read-only application folder must not prevent the app from starting
+            BlendFarmSettings.Instance.TrySave();
+            try
+            {
+                ServerSettings.Instance.Save();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to save server settings: {ex.Message}");
+            }
 
-            string localPath = SystemInfo.RelativeToApplicationDirectory(BlendFarmSettings.Instance.LocalBlendFiles);
+            string localPath = AppPaths.Resolve(BlendFarmSettings.Instance.LocalBlendFiles);
             try
             {
                 if (Directory.Exists(localPath))
                     Directory.Delete(localPath, true);
             }
             catch { }
-            Directory.CreateDirectory(localPath);
+            try
+            {
+                Directory.CreateDirectory(localPath);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to create local blend file directory {localPath}: {ex.Message}");
+            }
 
             BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);

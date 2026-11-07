@@ -83,8 +83,11 @@ namespace LogicReinc.BlendFarm.Objects
             }
             set
             {
-                _lastImage = value;
+                //Swap first, then dispose the replaced bitmap once the UI no longer shows it
+                Bitmap old = System.Threading.Interlocked.Exchange(ref _lastImage, value);
                 OnBitmapChanged?.Invoke(this, value);
+                if (old != null && !ReferenceEquals(old, value))
+                    Statics.DisposeReplacedBitmap(old);
             }
         }
 
