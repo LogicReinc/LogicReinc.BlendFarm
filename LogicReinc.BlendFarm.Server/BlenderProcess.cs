@@ -34,6 +34,12 @@ namespace LogicReinc.BlendFarm.Server
         public bool IsContinueing { get; private set; }
 
         /// <summary>
+        /// Set once Cancel is called, a cancelled process is never (re)started or continued
+        /// </summary>
+        public bool IsCancelled => _cancelled;
+        private volatile bool _cancelled = false;
+
+        /// <summary>
         /// Called when a task is complete with ID
         /// </summary>
         public event Action<string> OnBlenderCompleteTask;
@@ -70,25 +76,29 @@ namespace LogicReinc.BlendFarm.Server
 
         private void HandleContinue()
         {
-            IsContinueing = true;
-            OnBlenderContinue?.Invoke(this);
             int currentCount = 0;
 
             lock (_continueLock)
             {
+                IsContinueing = !_cancelled;
                 currentCount = ContinueCount + 1;
                 ContinueCount = currentCount;
             }
+            OnBlenderContinue?.Invoke(this);
             if (CONTINUE_TIMEOUT == 0)
                 Cancel();
             else
             {
                 Task.Delay(CONTINUE_TIMEOUT).ContinueWith((x) =>
                 {
-                    if (ContinueCount == currentCount && IsContinueing)
+                    //Same lock as Continue, so a continuation can't start between the check and the kill
+                    lock (_continueLock)
                     {
-                        Console.WriteLine($"Continuation timeout, ending process..");
-                        Cancel();
+                        if (ContinueCount == currentCount && IsContinueing)
+                        {
+                            Console.WriteLine($"Continuation timeout, ending process..");
+                            Cancel();
+                        }
                     }
                 });
             }
@@ -113,9 +123,18 @@ namespace LogicReinc.BlendFarm.Server
             };
             process.EnableRaisingEvents = true;
             process.Exited += (a, b) => Active = false;
+            if (_cancelled)
+                return new Result()
+                {
+                    Results = Results.ToArray(),
+                    Exceptions = Exceptions.ToArray()
+                };
             Process = process;
             process.Start();
             Active = true;
+            //A cancel that raced with the start could not kill the process yet
+            if (_cancelled)
+                Cancel();
             LastOutput = DateTime.Now;
             StartWatchdog();
 
@@ -144,7 +163,7 @@ namespace LogicReinc.BlendFarm.Server
         {
             lock (_continueLock)
             {
-                if (!IsContinueing)
+                if (!IsContinueing || _cancelled)
                     throw new InvalidOperationException("Attempting to continue a process that is not in continue state");
                 IsContinueing = false;
             }
@@ -167,6 +186,7 @@ namespace LogicReinc.BlendFarm.Server
         /// </summary>
         public void Cancel()
         {
+            _cancelled = true;
             IsContinueing = false;
             Active = false;
             _watchdog?.Dispose();
@@ -260,7 +280,11 @@ namespace LogicReinc.BlendFarm.Server
 
                 OnBlenderOutput?.Invoke(line);
             }
-            catch (Exception ex) { }
+            catch (Exception ex)
+            {
+                //Handlers (eg. sending results) run on the output thread, don't let them stop output processing
+                Console.WriteLine("Exception handling Blender output: " + ex.Message);
+            }
             return false;
         }
 

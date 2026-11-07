@@ -26,10 +26,19 @@ namespace LogicReinc.BlendFarm.Server
         private static string _scriptRender = null;
         private static string _scriptPeek = null;
         private static string _scriptExtract = null;
-        public const int CONTINUE_TIMEOUT = 60000;
         public const bool USE_CONTINUATION = true;
 
         private object _renderLock = new object();
+        private static object _scriptLock = new object();
+
+        /// <summary>
+        /// Who started the current render (eg. a connection), only they may cancel it
+        /// </summary>
+        private object _renderOwner = null;
+        /// <summary>
+        /// Set by Cancel during a render, checked before a Blender process is started or continued
+        /// </summary>
+        private bool _cancelRequested = false;
 
         public BlenderProcess RenderProcess { get; private set; }
         public string RenderSession { get; private set; }
@@ -87,13 +96,7 @@ namespace LogicReinc.BlendFarm.Server
         /// </summary>
         public string GetRenderScriptPath()
         {
-            string path = Path.Combine(GetBlenderDataPath(), $"render.py");
-            if (!File.Exists(path) || (!ServerSettings.Instance.BypassScriptUpdate && File.ReadAllText(path) != _scriptRender))
-            {
-                Directory.CreateDirectory(GetBlenderDataPath());
-                File.WriteAllText(path, GetRenderScript());
-            }
-            return path;
+            return EnsureScript("render.py", GetRenderScript());
         }
         /// <summary>
         /// Returns formatted path to the peek script, if it doesn't exist or is outdated, write it.
@@ -101,13 +104,7 @@ namespace LogicReinc.BlendFarm.Server
         /// </summary>
         public string GetPeekScriptPath()
         {
-            string path = Path.Combine(GetBlenderDataPath(), $"peek.py");
-            if (!File.Exists(path) || (!ServerSettings.Instance.BypassScriptUpdate && File.ReadAllText(path) != _scriptRender))
-            {
-                Directory.CreateDirectory(GetBlenderDataPath());
-                File.WriteAllText(path, GetPeekScript());
-            }
-            return path;
+            return EnsureScript("peek.py", GetPeekScript());
         }
         /// <summary>
         /// Returns formatted path to the rewrite script, if it doesn't exist or is outdated, write it.
@@ -115,11 +112,22 @@ namespace LogicReinc.BlendFarm.Server
         /// </summary>
         public string GetExtractDependenciesScriptPath()
         {
-            string path = Path.Combine(GetBlenderDataPath(), $"rewrite.py");
-            if (!File.Exists(path) || (!ServerSettings.Instance.BypassScriptUpdate && File.ReadAllText(path) != _scriptRender))
+            return EnsureScript("rewrite.py", GetExtractDependenciesScript());
+        }
+
+        /// <summary>
+        /// Writes a script to BlenderData if it is missing or differs from the embedded one
+        /// </summary>
+        private string EnsureScript(string name, string script)
+        {
+            string path = Path.Combine(GetBlenderDataPath(), name);
+            lock (_scriptLock)
             {
-                Directory.CreateDirectory(GetBlenderDataPath());
-                File.WriteAllText(path, GetExtractDependenciesScript());
+                if (!File.Exists(path) || (!ServerSettings.Instance.BypassScriptUpdate && File.ReadAllText(path) != script))
+                {
+                    Directory.CreateDirectory(GetBlenderDataPath());
+                    File.WriteAllText(path, script);
+                }
             }
             return path;
         }
@@ -627,20 +635,23 @@ namespace LogicReinc.BlendFarm.Server
         /// <summary>
         /// Render a single render settings (calls batch underneath with single entry)
         /// </summary>
-        public string Render(string version, string file, BlenderRenderSettings settings, long fileId = -1, Action<BlenderProcess> beforeStart = null, Action<BlenderProcess> beforeEnd = null)
+        public string Render(string version, string file, BlenderRenderSettings settings, long fileId = -1, Action<BlenderProcess> beforeStart = null, Action<BlenderProcess> beforeEnd = null, object owner = null)
         {
-            return RenderBatch(version, file, new[] { settings }, fileId, beforeStart, beforeEnd).FirstOrDefault();
+            return RenderBatch(version, file, new[] { settings }, fileId, beforeStart, beforeEnd, owner).FirstOrDefault();
         }
         /// <summary>
         /// Renders a batch of render settings in a single Blender instance.
         /// </summary>
-        public List<string> RenderBatch(string version, string file, BlenderRenderSettings[] batch, long fileId = -1, Action<BlenderProcess> beforeStart = null, Action<BlenderProcess> beforeEnd = null)
+        /// <param name="owner">Identifies who started the render, only Cancel(owner) with the same owner cancels it</param>
+        public List<string> RenderBatch(string version, string file, BlenderRenderSettings[] batch, long fileId = -1, Action<BlenderProcess> beforeStart = null, Action<BlenderProcess> beforeEnd = null, object owner = null)
         {
             lock (_renderLock)
             {
                 if (Busy)
                     throw new InvalidOperationException("Currently already rendering");
                 Busy = true;
+                _renderOwner = owner;
+                _cancelRequested = false;
             }
 
             bool useContinuation = USE_CONTINUATION && !batch.Any(x => x.FreshProcess);
@@ -675,24 +686,42 @@ namespace LogicReinc.BlendFarm.Server
                     string arg = $"--factory-startup -noaudio -b \"{Path.GetFullPath(file)}\" -P \"{GetRenderScriptPath()}\" -- \"{path}\" {useContinuation}";
 
                     //If an continueing process is ongoing, continue instead.
-                    if (RenderProcess == null || !RenderProcess.Active || !RenderProcess.IsContinueing)
+                    if (RenderProcess != null && RenderProcess.Active && RenderProcess.IsContinueing)
                     {
-                        RenderProcess = new BlenderProcess(cmd, arg, version, file, fileId);
-
-
-                        if (beforeStart != null)
-                            beforeStart(RenderProcess);
-                        RenderProcess.Run();
-                        if (beforeEnd != null)
-                            beforeEnd(RenderProcess);
+                        BlenderProcess reused = SetRenderProcess(RenderProcess);
+                        int outputsBefore = reused.Results.Count + reused.Exceptions.Count;
+                        bool continued = false;
+                        beforeStart?.Invoke(reused);
+                        try
+                        {
+                            reused.Continue(path);
+                            //Blender exiting without reporting anything means the continuation failed
+                            continued = reused.IsContinueing || reused.Results.Count + reused.Exceptions.Count > outputsBefore;
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine("Continuing Blender process failed, starting a fresh one: " + ex.Message);
+                        }
+                        finally
+                        {
+                            beforeEnd?.Invoke(reused);
+                        }
+                        if (continued)
+                            return;
+                        reused.Cancel();
+                        lock (_renderLock)
+                            RenderProcess = null;
                     }
-                    else
+
+                    BlenderProcess fresh = SetRenderProcess(new BlenderProcess(cmd, arg, version, file, fileId));
+                    beforeStart?.Invoke(fresh);
+                    try
                     {
-                        if (beforeStart != null)
-                            beforeStart(RenderProcess);
-                        RenderProcess.Continue(path);
-                        if (beforeEnd != null)
-                            beforeEnd(RenderProcess);
+                        fresh.Run();
+                    }
+                    finally
+                    {
+                        beforeEnd?.Invoke(fresh);
                     }
 
                 });
@@ -701,12 +730,31 @@ namespace LogicReinc.BlendFarm.Server
             finally
             {
                 //RenderProcess is null if the render failed before Blender was started
-                if (!useContinuation || RenderProcess?.Active != true)
+                lock (_renderLock)
                 {
-                    RenderSession = null;
-                    RenderProcess = null;
+                    if (!useContinuation || RenderProcess?.Active != true || RenderProcess.IsCancelled)
+                    {
+                        RenderSession = null;
+                        RenderProcess = null;
+                    }
+                    _renderOwner = null;
+                    _cancelRequested = false;
+                    Busy = false;
                 }
-                Busy = false;
+            }
+        }
+
+        /// <summary>
+        /// Makes process the current render process, unless the render was cancelled in the meantime
+        /// </summary>
+        private BlenderProcess SetRenderProcess(BlenderProcess process)
+        {
+            lock (_renderLock)
+            {
+                if (_cancelRequested)
+                    throw new OperationCanceledException("Render was cancelled");
+                RenderProcess = process;
+                return process;
             }
         }
 
@@ -812,11 +860,33 @@ namespace LogicReinc.BlendFarm.Server
         }
 
         /// <summary>
-        /// Cancel ongoing render
+        /// Cancel ongoing render, regardless of who started it
         /// </summary>
         public void Cancel()
         {
-            RenderProcess?.Cancel();
+            lock (_renderLock)
+            {
+                if (Busy)
+                    _cancelRequested = true;
+                RenderProcess?.Cancel();
+            }
+        }
+        /// <summary>
+        /// Cancel the ongoing render only if it was started by owner
+        /// </summary>
+        /// <returns>If a render was cancelled</returns>
+        public bool Cancel(object owner)
+        {
+            if (owner == null)
+                return false;
+            lock (_renderLock)
+            {
+                if (!Busy || _renderOwner != owner)
+                    return false;
+                _cancelRequested = true;
+                RenderProcess?.Cancel();
+                return true;
+            }
         }
 
         /// <summary>
