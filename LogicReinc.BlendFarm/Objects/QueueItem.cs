@@ -58,7 +58,30 @@ namespace LogicReinc.BlendFarm.Objects
 
         public bool FinishedAllFrames { get; set; }
 
-        public System.Drawing.Image LastImage { get; set; }
+        private readonly object _lastImageLock = new object();
+        private System.Drawing.Image _lastImage = null;
+        /// <summary>
+        /// Last rendered image; setting it disposes the previous one
+        /// </summary>
+        public System.Drawing.Image LastImage
+        {
+            get
+            {
+                lock (_lastImageLock)
+                    return _lastImage;
+            }
+            set
+            {
+                System.Drawing.Image old;
+                lock (_lastImageLock)
+                {
+                    old = _lastImage;
+                    _lastImage = value;
+                    if (old != null && !ReferenceEquals(old, value))
+                        old.Dispose();
+                }
+            }
+        }
 
         //Captured once per run so every frame shares the same {date}/{time} tokens.
         private DateTime _runTimestamp = DateTime.Now;
@@ -220,7 +243,7 @@ namespace LogicReinc.BlendFarm.Objects
                         await manager.Sync(Project.BlendFile, window.UseSyncCompression);
                     else
                         await manager.Sync(Project.BlendFile, Project.NetworkPathWindows, Project.NetworkPathLinux, Project.NetworkPathMacOS);
-                    Thread.Sleep(500);
+                    await System.Threading.Tasks.Task.Delay(500);
 
                     bool rendered = await Task.Render();
                     System.Drawing.Image final = ((Task is IImageTask) ? (IImageTask)Task : null)?.FinalImage;
@@ -230,8 +253,9 @@ namespace LogicReinc.BlendFarm.Objects
                         StoppedEarly(window);
                         return;
                     }
-                    Thread.Sleep(500);
-                    LastImage = final;
+                    await System.Threading.Tasks.Task.Delay(500);
+                    //Keep an own copy, the task owns the final image
+                    LastImage = (System.Drawing.Image)final.Clone();
                     FinishedAllFrames = true;
 
                     if (!string.IsNullOrEmpty(SaveTo))
@@ -246,7 +270,7 @@ namespace LogicReinc.BlendFarm.Objects
                                 name = name + "." + (ImageFormats.GetExtension(Settings.RenderFormat) ?? "png");
                             target = Path.Combine(SaveTo, name);
                         }
-                        final.Save(target);
+                        Statics.SaveImage(final, target);
                     }
 
                     //Apply final to canvas
@@ -290,16 +314,25 @@ namespace LogicReinc.BlendFarm.Objects
                             throw;
                         }
 
-                        using (System.Drawing.Image image = ImageConverter.Convert(frame.Image, task.Parent.Settings.RenderFormat))
+                        try
                         {
-                            if (image != null)
+                            using (System.Drawing.Image image = ImageConverter.Convert(frame.Image, task.Parent.Settings.RenderFormat))
                             {
-                                Project.LastImage = image.ToAvaloniaBitmap();
-                                //Clone, image is disposed when leaving the using block
-                                LastImage = (System.Drawing.Image)image.Clone();
+                                if (image != null)
+                                {
+                                    Avalonia.Media.Imaging.Bitmap preview = image.ToAvaloniaBitmap();
+                                    Dispatcher.UIThread.Post(() => Project.LastImage = preview);
+                                    //Clone, image is disposed when leaving the using block (previous clone is disposed by the setter)
+                                    LastImage = (System.Drawing.Image)image.Clone();
+                                }
+                                else
+                                    Dispatcher.UIThread.Post(() => Project.LastImage = Statics.NoPreviewImage);
                             }
-                            else
-                                Project.LastImage = Statics.NoPreviewImage;
+                        }
+                        catch (Exception ex)
+                        {
+                            //The frame is already saved, a failed preview must not fail (and retry) it
+                            Console.WriteLine($"Failed to preview queue frame {task.Frame}: {ex.Message}");
                         }
 
                         //Remove bytes
@@ -324,7 +357,7 @@ namespace LogicReinc.BlendFarm.Objects
                     else
                         await manager.Sync(Project.BlendFile, Project.NetworkPathWindows, Project.NetworkPathLinux, Project.NetworkPathMacOS);
 
-                    Thread.Sleep(500);
+                    await System.Threading.Tasks.Task.Delay(500);
 
                     bool renderedAnim = await Task.Render();
                     //await Task.RenderAnimation(Settings.Frame, Settings.Frame + Frames);
@@ -397,10 +430,15 @@ namespace LogicReinc.BlendFarm.Objects
             {
                 if (Completed)
                 {
-                    if (!string.IsNullOrEmpty(SaveTo))
-                        BitmapViewer.Show(_owner, Project.BlendFile, LastImage.ToAvaloniaBitmap());
-                    else
-                        BitmapViewer.Show(_owner, Project.BlendFile, LastImage.ToAvaloniaBitmap());
+                    Avalonia.Media.Imaging.Bitmap bitmap;
+                    //Convert under the lock so a new frame can't dispose the image mid-conversion
+                    lock (_lastImageLock)
+                    {
+                        if (_lastImage == null)
+                            return;
+                        bitmap = _lastImage.ToAvaloniaBitmap();
+                    }
+                    BitmapViewer.Show(_owner, Project.BlendFile, bitmap);
                 }
             }
             catch (Exception ex)
