@@ -72,7 +72,7 @@ namespace LogicReinc.BlendFarm.Windows
 
             if (!_noServer)
             {
-                LocalServer.OnServerException += (a, b) =>
+                Action<RenderServer, Exception> onServerException = (a, b) =>
                 {
                     Dispatcher.UIThread.InvokeAsync(() =>
                     {
@@ -82,7 +82,7 @@ Or if you're running this program twice, ignore I guess.
 (TCP: {ServerSettings.Instance.Port}, UDP: {ServerSettings.Instance.BroadcastPort})");
                     });
                 };
-                LocalServer.OnBroadcastException += (a, b) =>
+                Action<RenderServer, Exception> onBroadcastException = (a, b) =>
                 {
                     Dispatcher.UIThread.InvokeAsync(() =>
                     {
@@ -92,14 +92,28 @@ This may have to do with the port being in use. Note that to discover other pcs 
 (TCP: {ServerSettings.Instance.Port}, UDP: {ServerSettings.Instance.BroadcastPort})");
                     });
                 };
-                LocalServer.OnDiscoveredServer += (name, address, port) =>
+                Action<string, string, int> onDiscoveredServer = (name, address, port) =>
                 {
-                    if (_manager != null)
-                        _manager.TryAddDiscoveryNode(name, address, port);
+                    try
+                    {
+                        if (_manager != null)
+                            _manager.TryAddDiscoveryNode(name, address, port);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Failed to add discovered node {name}: {ex.Message}");
+                    }
                 };
+                LocalServer.OnServerException += onServerException;
+                LocalServer.OnBroadcastException += onBroadcastException;
+                LocalServer.OnDiscoveredServer += onDiscoveredServer;
                 LocalServer.Start();
                 Closed += (a, b) =>
                 {
+                    //LocalServer is static and outlives this window: don't keep it (and this window) referenced
+                    LocalServer.OnServerException -= onServerException;
+                    LocalServer.OnBroadcastException -= onBroadcastException;
+                    LocalServer.OnDiscoveredServer -= onDiscoveredServer;
                     if (!_startedNew)
                         LocalServer.Stop();
                 };
