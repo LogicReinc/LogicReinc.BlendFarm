@@ -29,6 +29,10 @@ namespace LogicReinc.BlendFarm.Shared
         /// Consecutive failures after which a node stops taking subtasks in this render
         /// </summary>
         protected const int MAX_NODE_FAILURES = 3;
+        /// <summary>
+        /// How long to wait for batch results still being processed after the batch response arrived
+        /// </summary>
+        protected const int RESULT_GRACE_PERIOD_MS = 10000;
 
         /// <summary>
         /// Used to identify the task
@@ -124,30 +128,14 @@ namespace LogicReinc.BlendFarm.Shared
 
             await Task.WhenAll(pool.Select(async x =>
             {
-                bool hasVersion = await x.CheckVersion(Version);
-                if (!hasVersion)
+                try
                 {
-                    x.UpdateException($"Skipped: Blender version {Version} is not available");
-                    return;
+                    await CheckNodeReady(x, validNodes);
                 }
-
-                bool hasFile = await x.CheckSyncFile(SessionID, FileID);
-                if (!hasFile)
+                catch (Exception ex)
                 {
-                    x.UpdateException("Skipped: blend file is not synced");
-                    return;
-                }
-
-                bool isBusy = await x.IsBusy();
-                if (isBusy)
-                {
-                    x.UpdateException("Skipped: node is already busy");
-                    return;
-                }
-
-                lock (validNodes)
-                {
-                    validNodes.Add(x);
+                    //A node that fails its checks (eg. disconnects) is left out, the others still render
+                    x.UpdateException($"Skipped: {ex.Message}");
                 }
             }));
 
@@ -168,6 +156,38 @@ namespace LogicReinc.BlendFarm.Shared
             return result;
         }
         protected abstract Task<bool> Execute();
+
+        /// <summary>
+        /// Adds node to validNodes if it has the version and file and isn't busy
+        /// </summary>
+        private async Task CheckNodeReady(RenderNode x, List<RenderNode> validNodes)
+        {
+            bool hasVersion = await x.CheckVersion(Version);
+            if (!hasVersion)
+            {
+                x.UpdateException($"Skipped: Blender version {Version} is not available");
+                return;
+            }
+
+            bool hasFile = await x.CheckSyncFile(SessionID, FileID);
+            if (!hasFile)
+            {
+                x.UpdateException("Skipped: blend file is not synced");
+                return;
+            }
+
+            bool isBusy = await x.IsBusy();
+            if (isBusy)
+            {
+                x.UpdateException("Skipped: node is already busy");
+                return;
+            }
+
+            lock (validNodes)
+            {
+                validNodes.Add(x);
+            }
+        }
 
         private static List<RenderNode> GetUniqueRenderEndpoints(List<RenderNode> nodes)
         {
@@ -464,8 +484,8 @@ namespace LogicReinc.BlendFarm.Shared
 
                         //Stop any other node still rendering this subtask
                         if (running.TryGetValue(task, out var others))
-                            foreach (RenderNode other in others.Keys.Where(x => x != node && x.CurrentTask == task.ID))
-                                _ = other.CancelRender(SessionID);
+                            foreach (RenderNode other in others.Keys.Where(x => x != node))
+                                _ = other.CancelRender(SessionID, task.ID); //No-op if that node already moved on
                     }
                     catch (TaskCanceledException) when (Cancelled)
                     {
@@ -553,15 +573,32 @@ namespace LogicReinc.BlendFarm.Shared
             List<RenderRequest> reqs = tasks.Select(x => x.GetRenderRequest()).ToList();
 
             List<RenderBatchResult> results = new List<RenderBatchResult>();
+            //Packets are handled on separate threads, so results may be processed after the batch response.
+            //Track which subtasks were handled, to wait for stragglers before unsubscribing.
+            HashSet<string> handled = new HashSet<string>();
+            HashSet<string> expected = null;
+            TaskCompletionSource<bool> allHandled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Action<RenderNode, RenderBatchResult> onAnyResult = (bnode, result) =>
             {
                 RenderSubTask task = tasks.FirstOrDefault(x => x.ID == result.TaskID);
                 if (task != null)
                 {
-                    lock (results)
-                        results.Add(result);
-                    NotifySubTaskFinished(bnode, task);
-                    onResult(task, result);
+                    try
+                    {
+                        lock (results)
+                            results.Add(result);
+                        NotifySubTaskFinished(bnode, task);
+                        onResult(task, result);
+                    }
+                    finally
+                    {
+                        lock (handled)
+                        {
+                            handled.Add(task.ID);
+                            if (expected != null && expected.IsSubsetOf(handled))
+                                allHandled.TrySetResult(true);
+                        }
+                    }
                 }
             };
 
@@ -584,6 +621,18 @@ namespace LogicReinc.BlendFarm.Shared
                 if (resp.Success == false)
                     return new SubTaskBatchResult(new Exception("Render fail: " + resp.Message));
 
+                //The node sends every result before its response, wait (briefly) until all of them have been handled
+                lock (handled)
+                {
+                    IEnumerable<string> ids = tasks.Select(x => x.ID);
+                    if (resp.SubTaskIDs != null && resp.SubTaskIDs.Count > 0)
+                        ids = ids.Intersect(resp.SubTaskIDs);
+                    expected = new HashSet<string>(ids);
+                    if (expected.IsSubsetOf(handled))
+                        allHandled.TrySetResult(true);
+                }
+                await Task.WhenAny(allHandled.Task, Task.Delay(RESULT_GRACE_PERIOD_MS));
+
                 if (req.Settings.Count > 0) 
                 {
                     decimal pixelsRendered = req.Settings.Sum(x => (x.Height * (x.Y2 - x.Y)) * (x.Width * (x.X2 - x.X)));
@@ -599,7 +648,8 @@ namespace LogicReinc.BlendFarm.Shared
                 node.OnBatchResult -= onAnyResult;
                 time.Stop();
             }
-            return new SubTaskBatchResult(results.ToArray());
+            lock (results)
+                return new SubTaskBatchResult(results.ToArray());
         }
         /// <summary>
         /// Blocking executes a subtask on node (calls async underneath)
@@ -701,6 +751,21 @@ namespace LogicReinc.BlendFarm.Shared
         protected void ChangeProgress(double progress)
         {
             Progress = (double)progress;
+            TriggerPropUpdate(nameof(Progress));
+            OnProgress?.Invoke(this, progress);
+        }
+        private readonly object _progressLock = new object();
+        /// <summary>
+        /// Thread safe increment of Progress, for subtasks finishing in parallel
+        /// </summary>
+        protected void AddProgress(double delta)
+        {
+            double progress;
+            lock (_progressLock)
+            {
+                progress = Progress + delta;
+                Progress = progress;
+            }
             TriggerPropUpdate(nameof(Progress));
             OnProgress?.Invoke(this, progress);
         }

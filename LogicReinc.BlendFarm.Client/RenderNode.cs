@@ -226,6 +226,44 @@ namespace LogicReinc.BlendFarm.Client
         /// </summary>
         public string CurrentTask { get; set; }
         private CancellationTokenSource _taskCancelToken = null;
+        /// <summary>
+        /// Generous timeout for the quick handshake requests made while connecting, so an unresponsive node
+        /// doesn't hang Connect forever. Never used for renders, those legitimately take hours.
+        /// </summary>
+        private static readonly TimeSpan HandshakeTimeout = TimeSpan.FromSeconds(60);
+
+        //Guards CurrentTask and _taskCancelToken so they always change together
+        private readonly object _taskLock = new object();
+
+        /// <summary>
+        /// Marks taskID as the current task and returns its cancel token source
+        /// </summary>
+        private CancellationTokenSource BeginTask(string taskID, bool failIfBusy)
+        {
+            CancellationTokenSource cts = new CancellationTokenSource();
+            lock (_taskLock)
+            {
+                if (failIfBusy && CurrentTask != null)
+                    throw new InvalidOperationException("Already rendering");
+                CurrentTask = taskID;
+                _taskCancelToken = cts;
+            }
+            return cts;
+        }
+        /// <summary>
+        /// Clears the current task, unless another render already replaced it
+        /// </summary>
+        private void EndTask(CancellationTokenSource cts)
+        {
+            lock (_taskLock)
+            {
+                if (_taskCancelToken == cts)
+                {
+                    CurrentTask = null;
+                    _taskCancelToken = null;
+                }
+            }
+        }
 
         /// <summary>
         /// Blender Versions that have been checked and are available
@@ -358,7 +396,7 @@ namespace LogicReinc.BlendFarm.Client
                             AuthResponse resp = await Client.Send<AuthResponse>(new AuthRequest()
                             {
                                 Pass = Pass
-                            }, CancellationToken.None);
+                            }, CancellationToken.None, HandshakeTimeout);
                             if(!resp.IsAuthenticated)
                                 throw new InvalidDataException("Authentication failed");
                         }
@@ -387,7 +425,20 @@ namespace LogicReinc.BlendFarm.Client
                 catch(Exception ex)
                 {
                     UpdateException(ex.Message);
+                    //Close the half open connection, otherwise its socket and listen thread leak
+                    RenderClient failed = Client;
                     Client = null;
+                    if (failed != null)
+                    {
+                        try
+                        {
+                            failed.Disconnect();
+                        }
+                        catch (Exception disEx)
+                        {
+                            Console.WriteLine("Failed to close connection after connect failure: " + disEx.Message);
+                        }
+                    }
                     throw;
                 }
                 finally
@@ -546,7 +597,7 @@ namespace LogicReinc.BlendFarm.Client
                 ClientVersionMinor = minor,
                 ClientVersionPatch = patch,
                 ProtocolVersion = version
-            }, CancellationToken.None);
+            }, CancellationToken.None, HandshakeTimeout);
         }
 
         public void RequestConsoleActivityRedirect()
@@ -826,16 +877,11 @@ namespace LogicReinc.BlendFarm.Client
         {
             if (Client == null)
                 throw new InvalidOperationException("Client not connected");
-            if (CurrentTask != null)
-                throw new InvalidOperationException("Already rendering");
 
             RenderBatchResponse resp = null;
-            _taskCancelToken = new CancellationTokenSource();
+            CancellationTokenSource cts = BeginTask(req.TaskID, true);
             try
             {
-
-                CurrentTask = req.TaskID;
-
                 UpdateActivity("Render Loading..");
 
                 int recoverAtts = 0;
@@ -843,7 +889,7 @@ namespace LogicReinc.BlendFarm.Client
                 {
                     try
                     {
-                        resp = await Client.Send<RenderBatchResponse>(req, _taskCancelToken.Token);
+                        resp = await Client.Send<RenderBatchResponse>(req, cts.Token);
                         break;
                     }
                     catch (BlendFarmDisconnectedException ex)
@@ -865,8 +911,7 @@ namespace LogicReinc.BlendFarm.Client
             finally
             {
                 UpdateActivity("");
-                CurrentTask = null;
-                _taskCancelToken = null;
+                EndTask(cts);
             }
             return resp;
         }
@@ -878,10 +923,9 @@ namespace LogicReinc.BlendFarm.Client
             if (Client == null)
                 throw new InvalidOperationException("Client not connected");
             RenderResponse resp = null;
-            _taskCancelToken = new CancellationTokenSource();
+            CancellationTokenSource cts = BeginTask(req.TaskID, false);
             try
             {
-                CurrentTask = req.TaskID;
 
                 UpdateActivity("Render Loading..");
 
@@ -890,7 +934,7 @@ namespace LogicReinc.BlendFarm.Client
                 {
                     try
                     {
-                        resp = await Client.Send<RenderResponse>(req, _taskCancelToken.Token);
+                        resp = await Client.Send<RenderResponse>(req, cts.Token);
                         break;
                     }
                     catch (BlendFarmDisconnectedException ex)
@@ -913,8 +957,7 @@ namespace LogicReinc.BlendFarm.Client
             finally
             {
                 UpdateActivity("");
-                CurrentTask = null;
-                _taskCancelToken = null;
+                EndTask(cts);
             }
 
             return resp;
@@ -925,7 +968,7 @@ namespace LogicReinc.BlendFarm.Client
             if (Client == null)
                 throw new InvalidOperationException("Client not connected");
             BlenderPeekResponse resp = null;
-            _taskCancelToken = new CancellationTokenSource();
+            //Peek is not a render, it must not replace or clear the state of an ongoing render
             try
             {
                 UpdateActivity("Peeking...");
@@ -935,7 +978,7 @@ namespace LogicReinc.BlendFarm.Client
                 {
                     try
                     {
-                        resp = await Client.Send<BlenderPeekResponse>(req, _taskCancelToken.Token);
+                        resp = await Client.Send<BlenderPeekResponse>(req, CancellationToken.None);
                         break;
                     }
                     catch (BlendFarmDisconnectedException ex)
@@ -958,8 +1001,6 @@ namespace LogicReinc.BlendFarm.Client
             finally
             {
                 UpdateActivity("");
-                CurrentTask = null;
-                _taskCancelToken = null;
             }
 
             return resp;
@@ -972,18 +1013,66 @@ namespace LogicReinc.BlendFarm.Client
         /// <returns></returns>
         public async Task CancelRender(string sessionID)
         {
-            if (_taskCancelToken != null)
+            CancellationTokenSource cts;
+            lock (_taskLock)
+                cts = _taskCancelToken;
+            if (cts == null)
+                return;
+
+            CancelToken(cts);
+            await SendCancelRequest(sessionID);
+        }
+
+        /// <summary>
+        /// Cancels the render of a specific task, only if this node is still working on it.
+        /// Used to stop a duplicated subtask without cancelling whatever the node moved on to.
+        /// </summary>
+        public async Task CancelRender(string sessionID, string taskID)
+        {
+            CancellationTokenSource cts;
+            lock (_taskLock)
             {
-                _taskCancelToken.Cancel();
-                await Task.Run(() =>
+                if (taskID == null || CurrentTask != taskID)
+                    return;
+                cts = _taskCancelToken;
+            }
+            if (cts == null)
+                return;
+
+            //The node was on this task just now. The remote cancel is session wide, so send it before
+            //cancelling the local token, which ends the render call and lets the node take its next task.
+            await SendCancelRequest(sessionID);
+            CancelToken(cts);
+        }
+
+        private static void CancelToken(CancellationTokenSource cts)
+        {
+            try
+            {
+                cts.Cancel();
+            }
+            catch (ObjectDisposedException) { }
+        }
+        private async Task SendCancelRequest(string sessionID)
+        {
+            RenderClient client = Client;
+            if (client == null)
+                return;
+            await Task.Run(() =>
+            {
+                try
                 {
-                    Client.Send(new CancelRenderRequest()
+                    client.Send(new CancelRenderRequest()
                     {
                         Session = sessionID
                     });
-                    UpdateActivity(Activity, -1);
-                });
-            }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to send cancel to {Name}: {ex.Message}");
+                }
+                UpdateActivity(Activity, -1);
+            });
         }
 
 
@@ -997,7 +1086,7 @@ namespace LogicReinc.BlendFarm.Client
             if (!Connected)
                 throw new InvalidOperationException("Not connected");
 
-            ComputerInfoResponse resp = await Client.Send<ComputerInfoResponse>(new ComputerInfoRequest(), CancellationToken.None);
+            ComputerInfoResponse resp = await Client.Send<ComputerInfoResponse>(new ComputerInfoRequest(), CancellationToken.None, HandshakeTimeout);
 
             if (resp != null)
             {
